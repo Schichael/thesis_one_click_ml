@@ -337,6 +337,139 @@ class Preprocessor:
 
         return dataframe
 
+    def get_query_case_ids(self):
+        return PQLColumn(name="caseid",
+                         query="DISTINCT( \"" + self.activity_table_name + "\".\"" + self.activity_case_key + "\")")
+
+    def one_hot_encode_special(self, min_vals, query_str, feature_name):
+        """
+        query is string with what comes within the DISTINCT() brackets in the frist query and then in the CASE WHEN in the second query
+        """
+
+        query_unique = PQL()
+        query_unique.add(PQLColumn(name="values", query="DISTINCT(" + query_str + ")"))
+        query_unique.add(PQLColumn(name="count", query="COUNT_TABLE(\"" + self.case_table_name + "\")"))
+
+        df_unique_vals = self.dm.get_data_frame(query_unique)
+        # remove too few counts
+        df_unique_vals = df_unique_vals[df_unique_vals['count'] >= min_vals]
+        unique_values = list(df_unique_vals["values"])
+        # Remove None values
+        unique_values = [x for x in unique_values if x is not None]
+        # Add escaping characters
+        unique_vals_val, unique_vals_name = self._adjust_string_values(unique_values)
+        query = PQL()
+        query.add(self.get_query_case_ids())
+        for val_val, val_name in zip(unique_vals_val, unique_vals_name):
+            query.add(PQLColumn(name=feature_name + "@" + val_name,
+                                query="SUM(CASE WHEN " + query_str + " = " + "'" + val_val + "' THEN 1 ELSE 0 END)"))
+        dataframe = self.dm.get_data_frame(query)
+        return dataframe
+
+    def start_activity_PQL(self, min_vals):
+        feature_name = "Start activity"
+        query_str = "PU_FIRST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
+        df = self.one_hot_encode_special(min_vals, query_str, feature_name)
+
+        return df
+
+    def end_activity_PQL(self, min_vals):
+        feature_name = "End activity"
+        query_str = "PU_LAST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
+        df = self.one_hot_encode_special(min_vals, query_str, feature_name)
+        return df
+
+    def _binarize(self, x, th=1):
+        """
+        set all values larger than th to 1, else to 0
+        x: Series
+
+        """
+        x[x > 1] = 1
+        return x
+
+    def binary_activity_occurence_PQL(self, min_vals):
+        df_activities = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key, [self.activity_col])
+        # Remove values with too few occurences per case key, can this be done in PQL directly???
+        df_activities = df_activities.loc[:,
+                        (df_activities[df_activities.drop("caseid", axis=1) > 0].count(axis=0) >= min_vals) | (
+                                    df_activities.columns == "caseid")]
+        df_activities[df_activities.drop('caseid', axis=1).columns] = df_activities[
+            df_activities.drop('caseid', axis=1).columns].apply(lambda x: self._binarize(x, 0), axis=1)
+        df_activities = self._conv_dtypes_PQL(df_activities, ["object"], "category")
+        return df_activities
+
+    def binary_rework_PQL(self, min_vals):
+        df_activities = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key, [self.activity_col])
+        # Remove values with too few occurences per case key, can this be done in PQL directly???
+        df_activities = df_activities.loc[:,
+                        (df_activities[df_activities.drop("caseid", axis=1) > 1].count(axis=0) >= min_vals) | (
+                                    df_activities.columns == "caseid")]
+        df_activities[df_activities.drop('caseid', axis=1).columns] = df_activities[
+            df_activities.drop('caseid', axis=1).columns].apply(lambda x: self._binarize(x, 1), axis=1)
+        df_activities = self._conv_dtypes_PQL(df_activities, ["object"], "category")
+        return df_activities
+
+    def num_events(self):
+        q_num_events = "PU_COUNT(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
+        query = PQL()
+        query.add(self.get_query_case_ids())
+        query.add(PQLColumn(name='num_events', query=q_num_events))
+        df = self.dm.get_data_frame(query)
+        return df
+
+    def work_in_progress_PQL(self, aggregations=None):
+        if aggregations is None:
+            aggregations = ['MIN', 'MAX', 'AVG']
+
+        query = PQL()
+        query.add(self.get_query_case_ids())
+
+        for agg in aggregations:
+            q = "PU_" + agg + " ( \"" + self.case_table_name + "\", RUNNING_SUM( CASE WHEN INDEX_ACTIVITY_ORDER ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN 1 WHEN INDEX_ACTIVITY_ORDER_REVERSE ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN -1 ELSE 0 END, ORDER BY ( \"" + self.activity_table_name + "\".\"" + self.eventtime_col + "\" ) ) )"
+            query.add(PQLColumn(name='wip_' + agg, query=q))
+        df = self.dm.get_data_frame(query)
+        return df
+
+    def run_total_time_PQL(self, min_vals, time_aggregation="DAYS"):
+        start_activity_df = self.start_activity_PQL(min_vals)
+        end_activity_df = self.end_activity_PQL(min_vals)
+        binary_activity_occurence_df = self.binary_activity_occurence_PQL(min_vals)
+        binary_rework_df = self.binary_rework_PQL(min_vals)
+        work_in_progress_df = self.work_in_progress_PQL(aggregations=['AVG'])
+
+        static_cat_df = self._aggregate_static_categorical_PQL(min_vals)
+        print(f"length of static_cat_df: {len(static_cat_df.index)}")
+        static_num_df = self._aggregate_static_numerical_PQL()
+        print(f"length of static_num_df: {len(static_num_df.index)}")
+        dyn_cat_df = self._aggregate_dynamic_categorical_PQL(min_vals)
+        print(f"length of dyn_cat_df: {len(dyn_cat_df.index)}")
+        dyn_num_df = self._aggregate_dynamic_numerical_PQL()
+        print(f"length of dyn_num_df: {len(dyn_num_df.index)}")
+        total_time_df = self.total_time_PQL(time_aggregation)
+        print(f"length of total_time_df: {len(total_time_df.index)}")
+        joined_df = self._join_dfs(
+            [start_activity_df, end_activity_df, binary_activity_occurence_df, binary_rework_df, work_in_progress_df,
+             static_cat_df, static_num_df, dyn_cat_df, dyn_num_df, total_time_df], keys=['caseid'] * 10)
+        return joined_df
+
+
+    def total_time_PQL(self, time_aggregation):
+        query = PQL()
+        query.add(PQLColumn(name="caseid", query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\""))
+        q_total_time = (
+                "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO ALL_OCCURRENCE['Process End'], REMAP_TIMESTAMPS(\""
+                + self.activity_table_name
+                + '"."'
+                + self.eventtime_col
+                + '", '
+                + time_aggregation
+                + ")))"
+        )
+        query.add(PQLColumn(q_total_time, 'case duration'))
+        dataframe = self.dm.get_data_frame(query)
+        return dataframe
+
     def _extract_prefixes_past_time_PQL(self, df, max_prefixes):
         df["case_length"] = df.groupby("caseid", observed=True)["caseid"].transform(len)
         df_prefixes = pd.DataFrame(
@@ -407,6 +540,7 @@ class Preprocessor:
         joined_df["@@past_time"] = joined_df["@@past_time"].fillna(0)
 
         return joined_df
+
 
     def _join_dfs(self, dfs: List[pd.DataFrame], keys: List[str]) -> pd.DataFrame:
         """Perform a Left outer join on two DataFrame. Only the key of the first
