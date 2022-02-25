@@ -33,11 +33,13 @@ class Attribute:
     attribute_data_type: AttributeDataType
     df_attribute_name: str
     display_name: str
+    query: str
     correlation: Optional[float] = 0.
     p_val: Optional[float] = 1.
     unit: Optional[str] = ""
     label_influence: Optional[float] = None  # for categorical attributes only
     cases_with_attribute: Optional[int] = None  # for categorical attributes only
+
 
 
 class EmptyTable:
@@ -236,13 +238,16 @@ class Preprocessor:
                 major_attribute_type = major_attribute
                 minor_attribute_type = minor_attribute
 
+
+                query_val = "SUM(CASE WHEN \"" + table + "\".\"" + attribute + "\" = '" + val_val + "' THEN 1 ELSE 0 " \
+                                                                                                   "END)"
                 attr_obj = Attribute(major_attribute_type, minor_attribute_type, AttributeDataType.CATEGORICAL,
-                                     df_attr_name, display_name)
+                                     df_attr_name, display_name, query_val)
                 self.attributes.append(attr_obj)
                 self.attributes_dict[df_attr_name] = attr_obj
 
                 query.add(PQLColumn(name=df_attr_name,
-                                    query="SUM(CASE WHEN \"" + table + "\".\"" + attribute + "\" = '" + val_val + "' THEN 1 ELSE 0 END)"))
+                                    query=query_val))
         dataframe = self.dm.get_data_frame(query)
         return dataframe
 
@@ -265,12 +270,15 @@ class Preprocessor:
         for attribute in self.static_numerical_cols:
             df_attr_name = self.case_table_name + "_" + attribute
             display_name = self.case_table_name + "." + attribute
+
+            query_attr = "\"" + self.case_table_name + "\"." + "\"" + attribute + "\""
+
+            query.add(PQLColumn(name=df_attr_name,
+                                query=query_attr))
             attr_obj = Attribute(MajorAttribute.ACTIVITY, "Case Table column", AttributeDataType.NUMERICAL,
-                                 df_attr_name, display_name)
+                                 df_attr_name, display_name, query_attr)
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
-            query.add(PQLColumn(name=df_attr_name,
-                                query="\"" + self.case_table_name + "\"." + "\"" + attribute + "\""))
         dataframe = self.dm.get_data_frame(query)
         return dataframe
 
@@ -299,12 +307,13 @@ class Preprocessor:
                 df_attr_name = self.activity_table_name + "_" + agg + "_" + attribute
                 display_name = self.activity_table_name + "." + attribute + " (" + get_aggregation_display_name(
                     agg) + ")"
+                query_att = agg + "(\"" + self.activity_table_name + "\"." + "\"" + attribute + "\")"
+                query.add(PQLColumn(name=df_attr_name,
+                                    query=query_att ))
                 attr_obj = Attribute(MajorAttribute.ACTIVITY, "Activity Table column", AttributeDataType.NUMERICAL,
-                                     df_attr_name, display_name)
+                                     df_attr_name, display_name, query_att)
                 self.attributes.append(attr_obj)
                 self.attributes_dict[df_attr_name] = attr_obj
-                query.add(PQLColumn(name=df_attr_name,
-                                    query= agg + "(\"" + self.activity_table_name + "\"." + "\"" + attribute + "\")"))
         dataframe = self.dm.get_data_frame(query)
 
         return dataframe
@@ -478,12 +487,13 @@ class Preprocessor:
         for val_val, val_name in zip(unique_vals_val, unique_vals_name):
             df_attr_name = attribute_name + " = " + val_name
             display_name = attribute_name + " = " + val_val
-            attr_obj = Attribute(MajorAttribute.ACTIVITY, minor_attribute, AttributeDataType.NUMERICAL,
-                                 df_attr_name, display_name)
+            query_attr = "SUM(CASE WHEN " + query_str + " = " + "'" + val_val + "' THEN 1 ELSE 0 END)"
+            query.add(PQLColumn(name=df_attr_name,
+                                query=query_attr))
+            attr_obj = Attribute(MajorAttribute.ACTIVITY, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
+                                 display_name, query_attr)
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
-            query.add(PQLColumn(name=df_attr_name,
-                                query="SUM(CASE WHEN " + query_str + " = " + "'" + val_val + "' THEN 1 ELSE 0 END)"))
         dataframe = self.dm.get_data_frame(query)
         return dataframe
 
@@ -503,6 +513,26 @@ class Preprocessor:
         query_str = "PU_LAST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
         df = self.one_hot_encode_special(min_vals, query_str, attribute_name, major_attribute, minor_attribute)
         return df
+
+    def start_activity_time_PQL(self):
+
+        query_str = "PU_FIRST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + \
+                    self.eventtime_col + "\")"
+        query = PQL()
+        query.add(self.get_query_case_ids())
+        query.add(PQLColumn(name = "Case start time", query=query_str))
+        df = self.dm.get_data_frame(query)
+        return df
+
+    def end_activity_time_PQL(self):
+        query_str = "PU_LAST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + \
+                    self.eventtime_col + "\")"
+        query = PQL()
+        query.add(self.get_query_case_ids())
+        query.add(PQLColumn(name = "Case end time", query=query_str))
+        df = self.dm.get_data_frame(query)
+        return df
+
 
     def _binarize(self, x, th=1):
         """
@@ -545,14 +575,15 @@ class Preprocessor:
         display_name = "Event count"
         major_attribute = MajorAttribute.ACTIVITY
         minor_attribute = "Event count"
-        attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
-                             display_name)
-        self.attributes.append(attr_obj)
-        self.attributes_dict[df_attr_name] = attr_obj
+
         q_num_events = "PU_COUNT(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
         query = PQL()
         query.add(self.get_query_case_ids())
         query.add(PQLColumn(name='num_events', query=q_num_events))
+        attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
+                             display_name, q_num_events)
+        self.attributes.append(attr_obj)
+        self.attributes_dict[df_attr_name] = attr_obj
         df = self.dm.get_data_frame(query)
         return df
 
@@ -569,17 +600,20 @@ class Preprocessor:
             display_name = "Work in progress" + " (" + agg_display_name + ")"
             major_attribute = MajorAttribute.CASE
             minor_attribute = "Work in progress " + " (" + agg_display_name + ")"
-            attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
-                                 display_name)
-            self.attributes.append(attr_obj)
-            self.attributes_dict[df_attr_name] = attr_obj
+
 
             q = "PU_" + agg + " ( \"" + self.case_table_name + "\", RUNNING_SUM( CASE WHEN INDEX_ACTIVITY_ORDER ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN 1 WHEN INDEX_ACTIVITY_ORDER_REVERSE ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN -1 ELSE 0 END, ORDER BY ( \"" + self.activity_table_name + "\".\"" + self.eventtime_col + "\" ) ) )"
             query.add(PQLColumn(name=df_attr_name, query=q))
+            attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
+                                 display_name, q)
+            self.attributes.append(attr_obj)
+            self.attributes_dict[df_attr_name] = attr_obj
         df = self.dm.get_data_frame(query)
         return df
 
     def run_total_time_PQL(self, min_vals, time_aggregation="DAYS"):
+        start_activity_time_df = self.start_activity_time_PQL()
+        end_activity_time_df = self.end_activity_time_PQL()
         start_activity_df = self.start_activity_PQL(min_vals)
         end_activity_df = self.end_activity_PQL(min_vals)
         binary_activity_occurence_df = self.binary_activity_occurence_PQL(min_vals)
@@ -597,8 +631,10 @@ class Preprocessor:
         total_time_df = self.total_time_PQL(time_aggregation, is_label=True)
         print(f"length of total_time_df: {len(total_time_df.index)}")
         joined_df = self._join_dfs(
-            [start_activity_df, end_activity_df, binary_activity_occurence_df, binary_rework_df, work_in_progress_df,
-             static_cat_df, static_num_df, dyn_cat_df, dyn_num_df, total_time_df], keys=['caseid'] * 10)
+            [start_activity_time_df, end_activity_time_df, start_activity_df, end_activity_df,
+             binary_activity_occurence_df,
+             binary_rework_df, work_in_progress_df,
+             static_cat_df, static_num_df, dyn_cat_df, dyn_num_df, total_time_df], keys=['caseid'] * 12)
         self.compute_metrics(joined_df)
         return joined_df
 
@@ -608,14 +644,7 @@ class Preprocessor:
         display_name = "case duration"
         major_attribute = MajorAttribute.CASE
         minor_attribute = "case duration"
-        attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
-                             display_name, time_aggregation.lower())
-        if is_label:
-            self.label = attr_obj
-            self.label_dict[df_attr_name] = attr_obj
-        else:
-            self.attributes.append(attr_obj)
-            self.attributes_dict[df_attr_name] = attr_obj
+
 
         query = PQL()
         query.add(PQLColumn(name="caseid", query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\""))
@@ -628,6 +657,15 @@ class Preprocessor:
                 + time_aggregation
                 + ")))"
         )
+        attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
+                             display_name, q_total_time,
+                             time_aggregation.lower())
+        if is_label:
+            self.label = attr_obj
+            self.label_dict[df_attr_name] = attr_obj
+        else:
+            self.attributes.append(attr_obj)
+            self.attributes_dict[df_attr_name] = attr_obj
         query.add(PQLColumn(q_total_time, 'case duration'))
         dataframe = self.dm.get_data_frame(query)
         return dataframe
