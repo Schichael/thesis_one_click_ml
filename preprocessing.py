@@ -453,7 +453,7 @@ class Preprocessor:
 
     def get_query_case_ids(self):
         return PQLColumn(name="caseid",
-                         query= "\"" + self.case_table_name + "\".\"" + self.case_case_key + "\")")
+                         query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\"")
 
     def one_hot_encode_special(self, min_vals, query_str, attribute_name, major_attribute: MajorAttribute,
                                minor_attribute: str):
@@ -519,7 +519,7 @@ class Preprocessor:
                     self.eventtime_col + "\")"
         query = PQL()
         query.add(self.get_query_case_ids())
-        query.add(PQLColumn(name = "Case start time", query=query_str))
+        query.add(PQLColumn(name="Case start time", query=query_str))
         df = self.dm.get_data_frame(query)
         return df
 
