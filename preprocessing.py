@@ -216,7 +216,7 @@ class Preprocessor:
         if prefix != "":
             prefix = " " + prefix
         query = PQL()
-        query.add(PQLColumn(name="caseid", query="\"" + table + "\".\"" + case_id + "\""))
+        query.add(self.get_query_case_ids())
         for attribute in attributes:
             query_unique = PQL()
             query_unique.add(PQLColumn(name="values", query="DISTINCT(\"" + table + "\".\"" + attribute + "\")"))
@@ -266,7 +266,7 @@ class Preprocessor:
 
     def _aggregate_static_numerical_PQL(self):
         query = PQL()
-        query.add(PQLColumn(name="caseid", query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\""))
+        query.add(self.get_query_case_ids())
         for attribute in self.static_numerical_cols:
             df_attr_name = self.case_table_name + "_" + attribute
             display_name = self.case_table_name + "." + attribute
@@ -300,8 +300,7 @@ class Preprocessor:
         if aggregations is None:
             aggregations = ['AVG']
         query = PQL()
-        query.add(PQLColumn(name="caseid",
-                            query="DISTINCT( \"" + self.activity_table_name + "\".\"" + self.activity_case_key + "\")"))
+        query.add(self.get_query_case_ids())
         for agg in aggregations:
             for attribute in self.dynamic_numerical_cols:
                 df_attr_name = self.activity_table_name + "_" + agg + "_" + attribute
@@ -454,7 +453,7 @@ class Preprocessor:
 
     def get_query_case_ids(self):
         return PQLColumn(name="caseid",
-                         query="DISTINCT( \"" + self.activity_table_name + "\".\"" + self.activity_case_key + "\")")
+                         query= "\"" + self.case_table_name + "\".\"" + self.case_case_key + "\")")
 
     def one_hot_encode_special(self, min_vals, query_str, attribute_name, major_attribute: MajorAttribute,
                                minor_attribute: str):
