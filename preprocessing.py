@@ -195,17 +195,17 @@ class Preprocessor:
         if metrics is None:
             metrics = ['influence', 'case_count', 'correlation']
         for attr in self.attributes:
-            if attr.attribute_data_type == AttributeDataType.NUMERICAL:
-                continue
-            if 'influence' in metrics:
-                label_val_0 = df[df[attr.df_attribute_name] == 0][self.label.df_attribute_name].mean()
-                label_val_1 = df[df[attr.df_attribute_name] == 1][self.label.df_attribute_name].mean()
-                attr.label_influence = label_val_1 - label_val_0
-            if 'case_count' in metrics:
-                attr.case_count = len(df[df[attr.df_attribute_name] == 1].index)
+            if attr.attribute_data_type != AttributeDataType.NUMERICAL:
+
+                if 'influence' in metrics:
+                    label_val_0 = df[df[attr.df_attribute_name] == 0][self.label.df_attribute_name].mean()
+                    label_val_1 = df[df[attr.df_attribute_name] == 1][self.label.df_attribute_name].mean()
+                    attr.label_influence = label_val_1 - label_val_0
+                if 'case_count' in metrics:
+                    attr.cases_with_attribute = len(df[df[attr.df_attribute_name] == 1].index)
             if 'correlation' in metrics:
                 label_series = df[self.label.df_attribute_name]
-                attribute_df = df.drop(self.label.df_attribute_name, axis=1)
+                attribute_df = pd.DataFrame(df[attr.df_attribute_name])
                 correlations = attribute_df.corrwith(label_series)
                 attr.correlation = correlations[attr.df_attribute_name]
 
