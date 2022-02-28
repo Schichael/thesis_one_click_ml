@@ -1,5 +1,6 @@
 from typing import List, Optional, Callable, Union, Dict, Tuple, Sequence, Any
 import pandas as pd
+import abc
 
 pd.options.mode.chained_assignment = None
 import numpy as np
@@ -15,13 +16,76 @@ class MajorAttribute(Enum):
     ACTIVITY = "Activity"
     CASE = "Case"
     ordering = [ACTIVITY, CASE]
+
     def __lt__(self, other):
         return self.value <= other.value
+
+
+class MinorAttribute(abc.ABC):
+    def __init__(self, attribute_name: str, major_attribute: MajorAttribute):
+        self.attribute_name = attribute_name
+        self.major_attribute = major_attribute
+
+
+class CaseDurationMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Case duration"
+        major_attribute = MajorAttribute.CASE
+        super().__init__(attribute_name, major_attribute)
+
+class WorkInProgressMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Work in Progress"
+        major_attribute = MajorAttribute.CASE
+        super().__init__(attribute_name, major_attribute)
+
+class EventCountMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Event count"
+        major_attribute = MajorAttribute.CASE
+        super().__init__(attribute_name, major_attribute)
+
+class ReworkOccurenceMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Rework"
+        major_attribute = MajorAttribute.ACTIVITY
+        super().__init__(attribute_name, major_attribute)
+
+class ActivityOccurenceMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Activity occurence"
+        major_attribute = MajorAttribute.ACTIVITY
+        super().__init__(attribute_name, major_attribute)
+
+class EndActivityMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "End activity"
+        major_attribute = MajorAttribute.ACTIVITY
+        super().__init__(attribute_name, major_attribute)
+
+class StartActivityMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Start activity"
+        major_attribute = MajorAttribute.ACTIVITY
+        super().__init__(attribute_name, major_attribute)
+
+class ActivityTableColumnMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Activity table column"
+        major_attribute = MajorAttribute.ACTIVITY
+        super().__init__(attribute_name, major_attribute)
+
+class CaseTableColumnMinorAttribute(MinorAttribute):
+    def __init__(self):
+        attribute_name = "Case table column"
+        major_attribute = MajorAttribute.CASE
+        super().__init__(attribute_name, major_attribute)
 
 
 class AttributeDataType(Enum):
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
+
     def __lt__(self, other):
         return self.value <= other.value
 
@@ -29,7 +93,7 @@ class AttributeDataType(Enum):
 @dataclass(order=True)
 class Attribute:
     major_attribute_type: MajorAttribute
-    minor_attribute_type: str
+    minor_attribute_type: MinorAttribute
     attribute_data_type: AttributeDataType
     df_attribute_name: str
     display_name: str
@@ -39,7 +103,6 @@ class Attribute:
     unit: Optional[str] = ""
     label_influence: Optional[float] = None  # for categorical attributes only
     cases_with_attribute: Optional[int] = None  # for categorical attributes only
-
 
 
 class EmptyTable:
@@ -64,18 +127,10 @@ def get_aggregation_display_name(agg):
     elif agg == "LAST":
         return "last"
 
+
 class Preprocessor:
-    def __init__(
-            self,
-            datamodel,
-            aggregations_dyn_cat=None,
-            aggregations_dyn_num=None,
-            gap=1,
-            min_prefixes=1,
-            max_prefixes=20,
-            min_occurrences=10,
-            chunksize=10000,
-    ):
+    def __init__(self, datamodel, aggregations_dyn_cat=None, aggregations_dyn_num=None, gap=1, min_prefixes=1,
+            max_prefixes=20, min_occurrences=10, chunksize=10000, ):
 
         self.dm = datamodel
         if aggregations_dyn_cat is None:
@@ -142,15 +197,8 @@ class Preprocessor:
         if case_table_id:
             self.case_table = dm.tables.find(case_table_id)
 
-            foreign_key_case_id = next(
-                (
-                    item
-                    for item in dm.data["foreignKeys"]
-                    if item["sourceTableId"] == case_table_id
-                       and item["targetTableId"] == activity_table_id
-                ),
-                None,
-            )
+            foreign_key_case_id = next((item for item in dm.data["foreignKeys"] if
+            item["sourceTableId"] == case_table_id and item["targetTableId"] == activity_table_id), None, )
 
             self.activity_case_key = foreign_key_case_id["columns"][0]["targetColumnName"]
 
@@ -163,9 +211,7 @@ class Preprocessor:
             self.case_case_key = ''
             self.case_table_name = ''
             self.activity_case_key = dm.data["processConfigurations"][0]['caseIdColumn']
-            self._set_dynamic_features_PQL()
-        # self.activity_df = activity_table.get_data_frame(chunksize=self.chunksize)
-        # self.case_df = case_table.get_data_frame(chunksize=chunksize)
+            self._set_dynamic_features_PQL()  # self.activity_df = activity_table.get_data_frame(chunksize=self.chunksize)  # self.case_df = case_table.get_data_frame(chunksize=chunksize)
 
     def _set_static_features_PQL(self):
         for attribute in self.case_table.columns:
@@ -209,8 +255,8 @@ class Preprocessor:
                 correlations = attribute_df.corrwith(label_series)
                 attr.correlation = correlations[attr.df_attribute_name]
 
-    def one_hot_encoding_PQL(self, table: str, case_id, attributes, major_attribute:  MajorAttribute,
-                             minor_attribute, min_vals=1, suffix: str = "", prefix: str=""):
+    def one_hot_encoding_PQL(self, table: str, case_id, attributes, major_attribute: MajorAttribute, minor_attribute,
+                             min_vals=1, suffix: str = "", prefix: str = ""):
         if suffix != "":
             suffix = " " + suffix
         if prefix != "":
@@ -238,28 +284,26 @@ class Preprocessor:
                 major_attribute_type = major_attribute
                 minor_attribute_type = minor_attribute
 
-
                 query_val = "SUM(CASE WHEN \"" + table + "\".\"" + attribute + "\" = '" + val_val + "' THEN 1 ELSE 0 " \
-                                                                                                   "END)"
+                                                                                                    "END)"
                 attr_obj = Attribute(major_attribute_type, minor_attribute_type, AttributeDataType.CATEGORICAL,
                                      df_attr_name, display_name, query_val)
                 self.attributes.append(attr_obj)
                 self.attributes_dict[df_attr_name] = attr_obj
 
-                query.add(PQLColumn(name=df_attr_name,
-                                    query=query_val))
+                query.add(PQLColumn(name=df_attr_name, query=query_val))
         dataframe = self.dm.get_data_frame(query)
         return dataframe
 
     def _aggregate_static_categorical_PQL(self, min_vals: int):
         major_attribute = MajorAttribute.CASE
-        minor_attribute = "Case Table column"
+        minor_attribute = CaseTableColumnMinorAttribute()
         df_static_categorical = self.one_hot_encoding_PQL(self.case_table_name, self.case_case_key,
                                                           self.static_categorical_cols, major_attribute,
                                                           minor_attribute, min_vals=min_vals)
         # df_static_categorical = self.one_hot_encoding_PQL(self.case_table_name, self.case_case_key, self.static_categorical_cols)
         # Remove values with too few occurences per case key, can this be done in PQL directly???
-        #df_static_categorical = df_static_categorical.loc[:, (df_static_categorical[df_static_categorical.drop(
+        # df_static_categorical = df_static_categorical.loc[:, (df_static_categorical[df_static_categorical.drop(
         # "caseid",  axis=1) > 0].count( axis=0) >= min_vals) | (df_static_categorical.columns == "caseid")]
         df_static_categorical = self._conv_dtypes_PQL(df_static_categorical, ["object"], "category")
         return df_static_categorical
@@ -273,30 +317,29 @@ class Preprocessor:
 
             query_attr = "\"" + self.case_table_name + "\"." + "\"" + attribute + "\""
 
-            query.add(PQLColumn(name=df_attr_name,
-                                query=query_attr))
-            attr_obj = Attribute(MajorAttribute.ACTIVITY, "Case Table column", AttributeDataType.NUMERICAL,
+            query.add(PQLColumn(name=df_attr_name, query=query_attr))
+            attr_obj = Attribute(MajorAttribute.ACTIVITY, CaseTableColumnMinorAttribute(), AttributeDataType.NUMERICAL,
                                  df_attr_name, display_name, query_attr)
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
         dataframe = self.dm.get_data_frame(query)
         return dataframe
 
-    def _aggregate_dynamic_categorical_PQL(self, min_vals: int=1):
+    def _aggregate_dynamic_categorical_PQL(self, min_vals: int = 1):
         major_attribute = MajorAttribute.ACTIVITY
-        minor_attribute = "Activity Table column"
+        minor_attribute = ActivityTableColumnMinorAttribute()
         df_dynamic_categorical = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key,
                                                            self.dynamic_categorical_cols, major_attribute,
                                                            minor_attribute, min_vals=min_vals)
         # Remove values with too few occurences per case key, can this be done in PQL directly???
-        #df_dynamic_categorical = df_dynamic_categorical.loc[:, (df_dynamic_categorical[
+        # df_dynamic_categorical = df_dynamic_categorical.loc[:, (df_dynamic_categorical[
         #                                                            df_dynamic_categorical.drop("caseid",
         #                                                                                        axis=1) > 0].count(
         #    axis=0) >= min_vals) | (df_dynamic_categorical.columns == "caseid")]
         df_dynamic_categorical = self._conv_dtypes_PQL(df_dynamic_categorical, ["object"], "category")
         return df_dynamic_categorical
 
-    def _aggregate_dynamic_numerical_PQL(self, aggregations = None):
+    def _aggregate_dynamic_numerical_PQL(self, aggregations=None):
         if aggregations is None:
             aggregations = ['AVG']
         query = PQL()
@@ -307,9 +350,9 @@ class Preprocessor:
                 display_name = self.activity_table_name + "." + attribute + " (" + get_aggregation_display_name(
                     agg) + ")"
                 query_att = agg + "(\"" + self.activity_table_name + "\"." + "\"" + attribute + "\")"
-                query.add(PQLColumn(name=df_attr_name,
-                                    query=query_att ))
-                attr_obj = Attribute(MajorAttribute.ACTIVITY, "Activity Table column", AttributeDataType.NUMERICAL,
+                query.add(PQLColumn(name=df_attr_name, query=query_att))
+                attr_obj = Attribute(MajorAttribute.ACTIVITY, ActivityTableColumnMinorAttribute(),
+                                     AttributeDataType.NUMERICAL,
                                      df_attr_name, display_name, query_att)
                 self.attributes.append(attr_obj)
                 self.attributes_dict[df_attr_name] = attr_obj
@@ -350,8 +393,7 @@ class Preprocessor:
                                   query="CASE WHEN \"" + self.activity_table_name + "\".\"" + attribute + "\" = '" + val_val + "' THEN 1 ELSE 0 END"))
                     query.add(
                         PQLColumn(name="@@@@" + self.activity_table_name + "@@@" + attribute + "@@SUM@" + val_name,
-                                  query="RUNNING_SUM(CASE WHEN \"" + self.activity_table_name + "\".\"" + attribute + "\" = '" +
-                                        val_val + "' THEN 1 ELSE 0 END, PARTITION BY( \"" + self.activity_table_name + "\".\"" + self.activity_case_key + "\"))"))
+                                  query="RUNNING_SUM(CASE WHEN \"" + self.activity_table_name + "\".\"" + attribute + "\" = '" + val_val + "' THEN 1 ELSE 0 END, PARTITION BY( \"" + self.activity_table_name + "\".\"" + self.activity_case_key + "\"))"))
         if is_empty:
             return None
         dataframe = self.dm.get_data_frame(query)
@@ -381,18 +423,14 @@ class Preprocessor:
         df = df.copy()
         df["case_length"] = df.groupby(case_key, observed=True)[case_key].transform(len)
 
-        df_prefixes = pd.DataFrame(
-            columns=df.columns.tolist() + [self.prefixes_case_key, "num_activities"]
-        )
+        df_prefixes = pd.DataFrame(columns=df.columns.tolist() + [self.prefixes_case_key, "num_activities"])
         for i in range(max_prefixes):
             g = df.groupby(case_key, observed=True)
             tmp = df[g.cumcount() == i]
             columns_numeric = tmp.columns.tolist()
             columns_numeric = [el for el in columns_numeric if el not in [case_key, "case_length"]]
             tmp[columns_numeric] = tmp[columns_numeric] / (i + 1)
-            tmp[self.prefixes_case_key] = tmp[case_key].apply(
-                lambda x: f"{x}_{i + 1}"
-            )
+            tmp[self.prefixes_case_key] = tmp[case_key].apply(lambda x: f"{x}_{i + 1}")
             tmp["num_activities"] = i + 1
             # Add 'num_prefixes' to self.static_numerical_cols
             df_prefixes = pd.concat([df_prefixes, tmp], axis=0)
@@ -403,15 +441,11 @@ class Preprocessor:
         df = df.copy()
         df["case_length"] = df.groupby(case_key, observed=True)[case_key].transform(len)
 
-        df_prefixes = pd.DataFrame(
-            columns=df.columns.tolist() + [self.prefixes_case_key, "num_activities"]
-        )
+        df_prefixes = pd.DataFrame(columns=df.columns.tolist() + [self.prefixes_case_key, "num_activities"])
         for i in range(max_prefixes):
             g = df.groupby(case_key, observed=True)
             tmp = df[g.cumcount() == i]
-            tmp[self.prefixes_case_key] = tmp[case_key].apply(
-                lambda x: f"{x}_{i + 1}"
-            )
+            tmp[self.prefixes_case_key] = tmp[case_key].apply(lambda x: f"{x}_{i + 1}")
             tmp["num_activities"] = i + 1
             # Add 'num_prefixes' to self.static_numerical_cols
             df_prefixes = pd.concat([df_prefixes, tmp], axis=0)
@@ -420,15 +454,11 @@ class Preprocessor:
 
     def _extract_prefixes_remaining_time_PQL(self, df, max_prefixes):
         df["case_length"] = df.groupby("caseid", observed=True)["caseid"].transform(len)
-        df_prefixes = pd.DataFrame(
-            columns=df.columns.tolist() + [self.prefixes_case_key]
-        )
+        df_prefixes = pd.DataFrame(columns=df.columns.tolist() + [self.prefixes_case_key])
         for i in range(max_prefixes):
             g = df.groupby("caseid", observed=True)
             tmp = df[g.cumcount() == i]
-            tmp[self.prefixes_case_key] = tmp["caseid"].apply(
-                lambda x: f"{x}_{i + 1}"
-            )
+            tmp[self.prefixes_case_key] = tmp["caseid"].apply(lambda x: f"{x}_{i + 1}")
             df_prefixes = pd.concat([df_prefixes, tmp], axis=0)
         df_prefixes = df_prefixes.drop("case_length", axis=1)
         return df_prefixes
@@ -452,11 +482,10 @@ class Preprocessor:
         return dataframe
 
     def get_query_case_ids(self):
-        return PQLColumn(name="caseid",
-                         query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\"")
+        return PQLColumn(name="caseid", query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\"")
 
     def one_hot_encode_special(self, min_vals, query_str, attribute_name, major_attribute: MajorAttribute,
-                               minor_attribute: str):
+                               minor_attribute: MinorAttribute):
         """ One hot encoding with a special query.
         query is string with what comes within the DISTINCT() brackets in the frist query and then in the CASE WHEN in the second query
 
@@ -487,8 +516,7 @@ class Preprocessor:
             df_attr_name = attribute_name + " = " + val_name
             display_name = attribute_name + " = " + val_val
             query_attr = "SUM(CASE WHEN " + query_str + " = " + "'" + val_val + "' THEN 1 ELSE 0 END)"
-            query.add(PQLColumn(name=df_attr_name,
-                                query=query_attr))
+            query.add(PQLColumn(name=df_attr_name, query=query_attr))
             attr_obj = Attribute(MajorAttribute.ACTIVITY, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
                                  display_name, query_attr)
             self.attributes.append(attr_obj)
@@ -499,7 +527,7 @@ class Preprocessor:
     def start_activity_PQL(self, min_vals):
         attribute_name = "Start activity"
         major_attribute = MajorAttribute.ACTIVITY
-        minor_attribute = attribute_name
+        minor_attribute = StartActivityMinorAttribute()
         query_str = "PU_FIRST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
         df = self.one_hot_encode_special(min_vals, query_str, attribute_name, major_attribute, minor_attribute)
 
@@ -508,15 +536,14 @@ class Preprocessor:
     def end_activity_PQL(self, min_vals):
         attribute_name = "End activity"
         major_attribute = MajorAttribute.ACTIVITY
-        minor_attribute = attribute_name
+        minor_attribute = EndActivityMinorAttribute()
         query_str = "PU_LAST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
         df = self.one_hot_encode_special(min_vals, query_str, attribute_name, major_attribute, minor_attribute)
         return df
 
     def start_activity_time_PQL(self):
 
-        query_str = "PU_FIRST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + \
-                    self.eventtime_col + "\")"
+        query_str = "PU_FIRST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.eventtime_col + "\")"
         query = PQL()
         query.add(self.get_query_case_ids())
         query.add(PQLColumn(name="Case start time", query=query_str))
@@ -524,14 +551,12 @@ class Preprocessor:
         return df
 
     def end_activity_time_PQL(self):
-        query_str = "PU_LAST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + \
-                    self.eventtime_col + "\")"
+        query_str = "PU_LAST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.eventtime_col + "\")"
         query = PQL()
         query.add(self.get_query_case_ids())
-        query.add(PQLColumn(name = "Case end time", query=query_str))
+        query.add(PQLColumn(name="Case end time", query=query_str))
         df = self.dm.get_data_frame(query)
         return df
-
 
     def _binarize(self, x, th=1):
         """
@@ -545,10 +570,9 @@ class Preprocessor:
     def binary_activity_occurence_PQL(self, min_vals):
         suffix = "(occurence)"
         major_attribute = MajorAttribute.ACTIVITY
-        minor_attribute = "Activity occurence"
-        df_activities = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key,
-                                                  [self.activity_col], major_attribute, minor_attribute, min_vals,
-                                                  suffix)
+        minor_attribute = ActivityOccurenceMinorAttribute()
+        df_activities = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key, [self.activity_col],
+                                                  major_attribute, minor_attribute, min_vals, suffix)
         # Remove values with too few occurences per case key, can this be done in PQL directly???
         df_activities[df_activities.drop('caseid', axis=1).columns] = df_activities[
             df_activities.drop('caseid', axis=1).columns].apply(lambda x: self._binarize(x, 0), axis=1)
@@ -558,11 +582,10 @@ class Preprocessor:
     def binary_rework_PQL(self, min_vals):
         suffix = "(rework)"
         major_attribute = MajorAttribute.ACTIVITY
-        minor_attribute = "Rework"
+        minor_attribute = ReworkOccurenceMinorAttribute()
 
-        df_activities = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key,
-                                                  [self.activity_col], major_attribute, minor_attribute, min_vals,
-                                                  suffix)
+        df_activities = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key, [self.activity_col],
+                                                  major_attribute, minor_attribute, min_vals, suffix)
         # Remove values with too few occurences per case key, can this be done in PQL directly???
         df_activities[df_activities.drop('caseid', axis=1).columns] = df_activities[
             df_activities.drop('caseid', axis=1).columns].apply(lambda x: self._binarize(x, 1), axis=1)
@@ -579,8 +602,9 @@ class Preprocessor:
         query = PQL()
         query.add(self.get_query_case_ids())
         query.add(PQLColumn(name='num_events', query=q_num_events))
-        attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
-                             display_name, q_num_events)
+        attr_obj = Attribute(major_attribute, EventCountMinorAttribute(), AttributeDataType.NUMERICAL, df_attr_name,
+                             display_name,
+                             q_num_events)
         self.attributes.append(attr_obj)
         self.attributes_dict[df_attr_name] = attr_obj
         df = self.dm.get_data_frame(query)
@@ -600,10 +624,10 @@ class Preprocessor:
             major_attribute = MajorAttribute.CASE
             minor_attribute = "Work in progress " + " (" + agg_display_name + ")"
 
-
             q = "PU_" + agg + " ( \"" + self.case_table_name + "\", RUNNING_SUM( CASE WHEN INDEX_ACTIVITY_ORDER ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN 1 WHEN INDEX_ACTIVITY_ORDER_REVERSE ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN -1 ELSE 0 END, ORDER BY ( \"" + self.activity_table_name + "\".\"" + self.eventtime_col + "\" ) ) )"
             query.add(PQLColumn(name=df_attr_name, query=q))
-            attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
+            attr_obj = Attribute(major_attribute, WorkInProgressMinorAttribute(), AttributeDataType.NUMERICAL,
+                                 df_attr_name,
                                  display_name, q)
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
@@ -629,11 +653,9 @@ class Preprocessor:
         print(f"length of dyn_num_df: {len(dyn_num_df.index)}")
         total_time_df = self.total_time_PQL(time_aggregation, is_label=True)
         print(f"length of total_time_df: {len(total_time_df.index)}")
-        joined_df = self._join_dfs(
-            [start_activity_time_df, end_activity_time_df, start_activity_df, end_activity_df,
-             binary_activity_occurence_df,
-             binary_rework_df, work_in_progress_df,
-             static_cat_df, static_num_df, dyn_cat_df, dyn_num_df, total_time_df], keys=['caseid'] * 12)
+        joined_df = self._join_dfs([start_activity_time_df, end_activity_time_df, start_activity_df, end_activity_df,
+                                    binary_activity_occurence_df, binary_rework_df, work_in_progress_df, static_cat_df,
+                                    static_num_df, dyn_cat_df, dyn_num_df, total_time_df], keys=['caseid'] * 12)
         self.compute_metrics(joined_df)
         return joined_df
 
@@ -644,21 +666,13 @@ class Preprocessor:
         major_attribute = MajorAttribute.CASE
         minor_attribute = "case duration"
 
-
         query = PQL()
         query.add(PQLColumn(name="caseid", query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\""))
         q_total_time = (
-                "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO ALL_OCCURRENCE['Process End'], REMAP_TIMESTAMPS(\""
-                + self.activity_table_name
-                + '"."'
-                + self.eventtime_col
-                + '", '
-                + time_aggregation
-                + ")))"
-        )
-        attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
-                             display_name, q_total_time,
-                             time_aggregation.lower())
+                "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO ALL_OCCURRENCE['Process End'], REMAP_TIMESTAMPS(\"" + self.activity_table_name + '"."' + self.eventtime_col + '", ' + time_aggregation + ")))")
+        attr_obj = Attribute(major_attribute, CaseDurationMinorAttribute(), AttributeDataType.NUMERICAL, df_attr_name,
+                             display_name,
+                             q_total_time, time_aggregation.lower())
         if is_label:
             self.label = attr_obj
             self.label_dict[df_attr_name] = attr_obj
@@ -671,15 +685,11 @@ class Preprocessor:
 
     def _extract_prefixes_past_time_PQL(self, df, max_prefixes):
         df["case_length"] = df.groupby("caseid", observed=True)["caseid"].transform(len)
-        df_prefixes = pd.DataFrame(
-            columns=df.columns.tolist() + [self.prefixes_case_key]
-        )
+        df_prefixes = pd.DataFrame(columns=df.columns.tolist() + [self.prefixes_case_key])
         for i in range(max_prefixes):
             g = df.groupby("caseid", observed=True)
             tmp = df[g.cumcount() == i]
-            tmp[self.prefixes_case_key] = tmp["caseid"].apply(
-                lambda x: f"{x}_{i + 2}"
-            )
+            tmp[self.prefixes_case_key] = tmp["caseid"].apply(lambda x: f"{x}_{i + 2}")
             df_prefixes = pd.concat([df_prefixes, tmp], axis=0)
         df_prefixes = df_prefixes.drop("case_length", axis=1)
         return df_prefixes
@@ -772,9 +782,7 @@ class Preprocessor:
     def save_config(self):
         pass
 
-    def _conv_dtypes_PQL(
-            self, df: pd.DataFrame, src_dtypes: List[str], target_dtype: str
-    ) -> pd.DataFrame:
+    def _conv_dtypes_PQL(self, df: pd.DataFrame, src_dtypes: List[str], target_dtype: str) -> pd.DataFrame:
         """Convert columns of types src_dtypes to datatype target_dtype
 
         :param df: input DataFrame
@@ -783,20 +791,11 @@ class Preprocessor:
         :return: DatFrame with changed dtypes
         """
         df = df.copy()
-        df[df.select_dtypes(src_dtypes).columns] = df.select_dtypes(src_dtypes).apply(
-            lambda x: x.astype(target_dtype)
-        )
+        df[df.select_dtypes(src_dtypes).columns] = df.select_dtypes(src_dtypes).apply(lambda x: x.astype(target_dtype))
         return df
 
-    def _gen_prefixes(
-            self,
-            df: pd.DataFrame,
-            case_key: str,
-            prefixes_case_key: str,
-            min_prefixes: int = 1,
-            max_prefixes: int = 20,
-            gap: int = 1,
-    ) -> pd.DataFrame:
+    def _gen_prefixes(self, df: pd.DataFrame, case_key: str, prefixes_case_key: str, min_prefixes: int = 1,
+            max_prefixes: int = 20, gap: int = 1, ) -> pd.DataFrame:
         """Generate Prefixes. Columns that are added are: 'num_prefixes',
         <prefixes_case_key>
 
@@ -813,27 +812,17 @@ class Preprocessor:
 
         # Create new DataFrame with columns from input df and column 'num_activities'
         # which has the number of prefixes.
-        df_prefixes = pd.DataFrame(
-            columns=df.columns.tolist() + [prefixes_case_key, "num_activities"]
-        )
+        df_prefixes = pd.DataFrame(columns=df.columns.tolist() + [prefixes_case_key, "num_activities"])
         for num_prefixes in range(min_prefixes, max_prefixes + 1, gap):
-            tmp = (
-                df[df["case_length"] >= num_prefixes]
-                    .groupby(case_key, observed=True)
-                    .head(num_prefixes)
-            )
-            tmp[prefixes_case_key] = tmp[case_key].apply(
-                lambda x: f"{x}_{num_prefixes}"
-            )
+            tmp = (df[df["case_length"] >= num_prefixes].groupby(case_key, observed=True).head(num_prefixes))
+            tmp[prefixes_case_key] = tmp[case_key].apply(lambda x: f"{x}_{num_prefixes}")
             tmp["num_activities"] = num_prefixes
             # Add 'num_prefixes' to self.static_numerical_cols
             df_prefixes = pd.concat([df_prefixes, tmp], axis=0)
         self.static_numerical_cols.append("num_activities")
         return df_prefixes
 
-    def _remove_few_occurrences(
-            self, df: pd.DataFrame, columns: List[str], min_occurrences: int = 20
-    ):
+    def _remove_few_occurrences(self, df: pd.DataFrame, columns: List[str], min_occurrences: int = 20):
         """Set values that occur to few times to np.nan
 
         :param df: input DataFrame
@@ -899,9 +888,7 @@ class Preprocessor:
                 unique_vals = case_df[col].dropna().unique()
                 self.static_categorical_values[col] = unique_vals.tolist()
 
-    def _remove_datetime(
-            self, df: pd.DataFrame, exclude: Optional[str] = None
-    ) -> pd.DataFrame:
+    def _remove_datetime(self, df: pd.DataFrame, exclude: Optional[str] = None) -> pd.DataFrame:
         """Remove datetime64 columns excluding the column specified 'exclude'
 
         :param df: input DataFrame
@@ -918,9 +905,7 @@ class Preprocessor:
 
         return df
 
-    def _conv_dtypes(
-            self, df: pd.DataFrame, src_dtypes: List[str], target_dtype: str
-    ) -> pd.DataFrame:
+    def _conv_dtypes(self, df: pd.DataFrame, src_dtypes: List[str], target_dtype: str) -> pd.DataFrame:
         """Convert columns of types src_dtypes to datatype target_dtype
 
         :param df: input DataFrame
@@ -929,14 +914,10 @@ class Preprocessor:
         :return: DatFrame with changed dtypes
         """
         df = df.copy()
-        df[df.select_dtypes(src_dtypes).columns] = df.select_dtypes(src_dtypes).apply(
-            lambda x: x.astype(target_dtype)
-        )
+        df[df.select_dtypes(src_dtypes).columns] = df.select_dtypes(src_dtypes).apply(lambda x: x.astype(target_dtype))
         return df
 
-    def _aggregate_static_categorical(
-            self, df: pd.DataFrame, case_key: str, columns: List[str]
-    ):
+    def _aggregate_static_categorical(self, df: pd.DataFrame, case_key: str, columns: List[str]):
         """Basically one-hot encoding of static categorical features (from case table)
 
         :param df: input DataFrame
@@ -950,15 +931,11 @@ class Preprocessor:
             return df_agg
 
         df_relevant = df[[case_key] + columns]
-        df_dummies_rel = pd.get_dummies(
-            df_relevant, prefix=columns, prefix_sep=" = ", columns=columns, sparse=True
-        )
+        df_dummies_rel = pd.get_dummies(df_relevant, prefix=columns, prefix_sep=" = ", columns=columns, sparse=True)
         df_dummies_rel = df_dummies_rel.groupby(case_key, observed=True).agg("last").reset_index()
         return df_dummies_rel
 
-    def _aggregate_static_numerical(
-            self, df: pd.DataFrame, case_key: str, columns: List[str]
-    ) -> pd.DataFrame:
+    def _aggregate_static_numerical(self, df: pd.DataFrame, case_key: str, columns: List[str]) -> pd.DataFrame:
         """Return the static numerical features (from case table) from the input
         DataFrame
         :param df: input DataFrame
@@ -975,13 +952,8 @@ class Preprocessor:
         df_relevant = df_relevant.groupby(case_key, observed=True).agg("last").reset_index()
         return df_relevant
 
-    def _aggregate_dynamic_categorical(
-            self,
-            df: pd.DataFrame,
-            case_key: str,
-            columns: List[str],
-            aggregations: List[str] = ["last", "sum"],
-    ) -> pd.DataFrame:
+    def _aggregate_dynamic_categorical(self, df: pd.DataFrame, case_key: str, columns: List[str],
+            aggregations: List[str] = ["last", "sum"], ) -> pd.DataFrame:
         """Aggregate dynamic categorical columns. For this, one-hot-encoding is applied
         :param df: input DataFrame
         :param case_key: the case key column, usually the prefix-case-key columns
@@ -998,32 +970,16 @@ class Preprocessor:
 
         df_relevant = df[[case_key] + columns]
 
-        df_dummies_rel = pd.get_dummies(
-            df_relevant, prefix=columns, prefix_sep=" = ", columns=columns, sparse=True
-        )
+        df_dummies_rel = pd.get_dummies(df_relevant, prefix=columns, prefix_sep=" = ", columns=columns, sparse=True)
         col_names = df_dummies_rel.columns
         df_agg = df_dummies_rel.groupby(case_key, observed=True).agg(aggregations).reset_index()
-        df_agg.columns = [
-            "_".join(col).strip() if col != (case_key, "") else col[0]
-            for col in df_agg.columns.values
-        ]
+        df_agg.columns = ["_".join(col).strip() if col != (case_key, "") else col[0] for col in df_agg.columns.values]
 
         return df_agg
 
-    def _aggregate_dynamic_numerical(
-            self,
-            df: pd.DataFrame,
-            case_key: str,
-            columns: List[str],
-            aggregations: Dict[str, Union[Callable, str]] = {
-                "last": "last",
-                "sum": np.sum,
-                "mean": np.mean,
-                "std": np.std,
-                "min": np.min,
-                "max": np.max,
-            },
-    ) -> pd.DataFrame:
+    def _aggregate_dynamic_numerical(self, df: pd.DataFrame, case_key: str, columns: List[str],
+            aggregations: Dict[str, Union[Callable, str]] = {"last": "last", "sum": np.sum, "mean": np.mean,
+                "std": np.std, "min": np.min, "max": np.max, }, ) -> pd.DataFrame:
         """Use aggregations on numerical columns
 
         :param df: input DataFrame
@@ -1041,21 +997,13 @@ class Preprocessor:
 
         df_relevant = df[[case_key] + columns]
         df_agg = df_relevant.groupby(case_key, observed=True).agg(aggregations).reset_index()
-        df_agg.columns = [
-            "_".join(col).strip() if col != (case_key, "") else col[0]
-            for col in df_agg.columns.values
-        ]
+        df_agg.columns = ["_".join(col).strip() if col != (case_key, "") else col[0] for col in df_agg.columns.values]
 
         df_agg.fillna(0, inplace=True)
         return df_agg
 
-    def _compute_past_time(
-            self,
-            df: pd.DataFrame,
-            case_key: str,
-            eventtime_col: str,
-            past_time_col: Optional[str] = None,
-    ):
+    def _compute_past_time(self, df: pd.DataFrame, case_key: str, eventtime_col: str,
+            past_time_col: Optional[str] = None, ):
         """Compute the past time from the start of the case till the end of the case.
         The time is returned in minutes
 
@@ -1068,26 +1016,16 @@ class Preprocessor:
         :return: DataFrame with past time column
         """
 
-        df_past_time = (
-                (
-                        df.groupby(case_key, observed=True)[eventtime_col].last()
-                        - df.groupby(case_key, observed=True)[eventtime_col].first()
-                )
-                / pd.Timedelta("1 minute")
-        ).reset_index()
+        df_past_time = ((df.groupby(case_key, observed=True)[eventtime_col].last() -
+                         df.groupby(case_key, observed=True)[eventtime_col].first()) / pd.Timedelta(
+            "1 minute")).reset_index()
 
-        past_time_col_name = (
-            past_time_col
-            if past_time_col is not None
-            else eventtime_col + "_PAST[minutes]"
-        )
+        past_time_col_name = (past_time_col if past_time_col is not None else eventtime_col + "_PAST[minutes]")
         df_past_time.rename(columns={eventtime_col: past_time_col_name}, inplace=True)
 
         return df_past_time
 
-    def _get_cols_by_type(
-            self, df: pd.DataFrame, dtypes: List[str], exclude: Optional[List[str]] = None
-    ) -> List[str]:
+    def _get_cols_by_type(self, df: pd.DataFrame, dtypes: List[str], exclude: Optional[List[str]] = None) -> List[str]:
         """Get the column names of a DataFrame by dtype
 
         :param df: input DataFrame
@@ -1111,33 +1049,19 @@ class Preprocessor:
         """
 
         # Columns to not rename
-        cols_not_rename = [
-            self.case_case_key,
-            self.activity_case_key,
-            self.eventtime_col,
-            self.sort_col,
-            self.activity_col,
-        ]
+        cols_not_rename = [self.case_case_key, self.activity_case_key, self.eventtime_col, self.sort_col,
+            self.activity_col, ]
         if activity_df is not None:
-            activity_df.columns = [
-                self.activity_table_name + "_" + col if col not in cols_not_rename else col
-                for col in activity_df.columns.values
-            ]
+            activity_df.columns = [self.activity_table_name + "_" + col if col not in cols_not_rename else col for col
+                in activity_df.columns.values]
         if case_df is not None:
-            case_df.columns = [
-                self.case_table_name + "_" + col if col not in cols_not_rename else col
-                for col in case_df.columns.values
-            ]
+            case_df.columns = [self.case_table_name + "_" + col if col not in cols_not_rename else col for col in
+                case_df.columns.values]
 
-        # self.case_case_key = self.case_table_name + "_" + self.case_case_key
-        # self.activity_case_key = self.activity_table_name + "_" + self.activity_case_key
-        # self.activity_col = self.activity_table_name + "_" + self.activity_col
-        # self.eventtime_col = self.activity_table_name + "_" + self.eventtime_col
-        # self.sort_col = self.activity_table_name + "_" + self.sort_col
+        # self.case_case_key = self.case_table_name + "_" + self.case_case_key  # self.activity_case_key = self.activity_table_name + "_" + self.activity_case_key  # self.activity_col = self.activity_table_name + "_" + self.activity_col  # self.eventtime_col = self.activity_table_name + "_" + self.eventtime_col  # self.sort_col = self.activity_table_name + "_" + self.sort_col
 
-    def _gen_label_future_activity(
-            self, activity_df: pd.DataFrame, prefixes_df: pd.DataFrame, activity_name: str
-    ) -> pd.DataFrame:
+    def _gen_label_future_activity(self, activity_df: pd.DataFrame, prefixes_df: pd.DataFrame,
+            activity_name: str) -> pd.DataFrame:
         """Generates the labels for the use case if an activity happens in the future.
 
         :param activity_df: the preprocessed activities DataFrame
@@ -1155,61 +1079,39 @@ class Preprocessor:
 
         # get number of appearences of activity for each case in activity_df
         col_name_appearances = activity_name + "_appearances"
-        label_activities_df.loc[
-            activity_df[self.activity_col] == activity_name, col_name_appearances
-        ] = 1
-        label_activities_df.loc[
-            activity_df[self.activity_col] != activity_name, col_name_appearances
-        ] = 0
-        label_activities_df = label_activities_df.groupby(
-            self.activity_case_key, observed=True, as_index=False
-        )[col_name_appearances].sum()
+        label_activities_df.loc[activity_df[self.activity_col] == activity_name, col_name_appearances] = 1
+        label_activities_df.loc[activity_df[self.activity_col] != activity_name, col_name_appearances] = 0
+        label_activities_df = label_activities_df.groupby(self.activity_case_key, observed=True, as_index=False)[
+            col_name_appearances].sum()
         # add prefix_case_key
         label_activities_df = self._join_dfs(
-            [
-                label_activities_df,
-                prefixes_df[[self.activity_case_key, self.prefixes_case_key]],
-            ],
-            [self.activity_case_key, self.activity_case_key],
-        )
+            [label_activities_df, prefixes_df[[self.activity_case_key, self.prefixes_case_key]], ],
+            [self.activity_case_key, self.activity_case_key], )
         label_activities_df = label_activities_df.drop_duplicates()
 
         # Accumulate number of appearences of activity for each prefic_case in
         # activity_df
-        label_prefixes_df = prefixes_df[
-            [self.activity_case_key, self.prefixes_case_key]
-        ]
-        label_prefixes_df.loc[
-            prefixes_df[self.activity_col] == activity_name, col_name_appearances
-        ] = 1
-        label_prefixes_df.loc[
-            prefixes_df[self.activity_col] != activity_name, col_name_appearances
-        ] = 0
-        label_prefixes_df = label_prefixes_df.groupby(
-            self.prefixes_case_key, observed=True, as_index=False
-        ).agg({col_name_appearances: "sum", self.activity_case_key: "first"})
+        label_prefixes_df = prefixes_df[[self.activity_case_key, self.prefixes_case_key]]
+        label_prefixes_df.loc[prefixes_df[self.activity_col] == activity_name, col_name_appearances] = 1
+        label_prefixes_df.loc[prefixes_df[self.activity_col] != activity_name, col_name_appearances] = 0
+        label_prefixes_df = label_prefixes_df.groupby(self.prefixes_case_key, observed=True, as_index=False).agg(
+            {col_name_appearances: "sum", self.activity_case_key: "first"})
 
         # Sort DataFrames by prefixes_case_key
-        label_activities_df = label_activities_df.sort_values(
-            by=[self.prefixes_case_key]
-        )
+        label_activities_df = label_activities_df.sort_values(by=[self.prefixes_case_key])
         label_prefixes_df = label_prefixes_df.sort_values(by=[self.prefixes_case_key])
 
         # Get labels where col_name_appearances is smaller in prefixes df than in
         # activity df
-        labels = (
-                label_prefixes_df[col_name_appearances].reset_index(drop=True)
-                < label_activities_df[col_name_appearances].reset_index(drop=True)
-        ).astype(int)
+        labels = (label_prefixes_df[col_name_appearances].reset_index(drop=True) < label_activities_df[
+            col_name_appearances].reset_index(drop=True)).astype(int)
 
         labels_df = pd.DataFrame(label_prefixes_df[self.prefixes_case_key])
         labels_df[self.label_col] = labels
 
         return labels_df
 
-    def _gen_label_remaining_execution_time(
-            self, activity_df: pd.DataFrame, prefixes_df: pd.DataFrame
-    ):
+    def _gen_label_remaining_execution_time(self, activity_df: pd.DataFrame, prefixes_df: pd.DataFrame):
         """Generate lables for remaining execution time.
 
         :param activity_df: the preprocessed activities DataFrame
@@ -1218,41 +1120,24 @@ class Preprocessor:
         corresponding labels
         """
         self.label_col = "label_remaining_time"
-        total_eventtime_df = self._compute_past_time(
-            activity_df,
-            self.activity_case_key,
-            eventtime_col=self.eventtime_col,
-            past_time_col="total_time",
-        )
+        total_eventtime_df = self._compute_past_time(activity_df, self.activity_case_key,
+            eventtime_col=self.eventtime_col, past_time_col="total_time", )
         # add prefix_case_key
         total_eventtime_df = self._join_dfs(
-            [
-                total_eventtime_df,
-                prefixes_df[[self.activity_case_key, self.prefixes_case_key]],
-            ],
-            [self.activity_case_key, self.activity_case_key],
-        )
+            [total_eventtime_df, prefixes_df[[self.activity_case_key, self.prefixes_case_key]], ],
+            [self.activity_case_key, self.activity_case_key], )
         total_eventtime_df = total_eventtime_df.drop_duplicates()
 
-        past_eventtime_df = self._compute_past_time(
-            prefixes_df,
-            self.prefixes_case_key,
-            eventtime_col=self.eventtime_col,
-            past_time_col="past_time",
-        )
+        past_eventtime_df = self._compute_past_time(prefixes_df, self.prefixes_case_key,
+            eventtime_col=self.eventtime_col, past_time_col="past_time", )
 
         # Sort DataFrames by prefixes_case_key
-        total_eventtime_df = total_eventtime_df.sort_values(
-            by=[self.prefixes_case_key]
-        )
-        past_eventtime_df = past_eventtime_df.sort_values(
-            by=[self.prefixes_case_key]
-        )
+        total_eventtime_df = total_eventtime_df.sort_values(by=[self.prefixes_case_key])
+        past_eventtime_df = past_eventtime_df.sort_values(by=[self.prefixes_case_key])
 
         # compute the remaining case time
-        remaining_time = total_eventtime_df["total_time"].reset_index(
-            drop=True
-        ) - past_eventtime_df["past_time"].reset_index(drop=True)
+        remaining_time = total_eventtime_df["total_time"].reset_index(drop=True) - past_eventtime_df[
+            "past_time"].reset_index(drop=True)
 
         labels_df = pd.DataFrame(past_eventtime_df[self.prefixes_case_key])
         labels_df[self.label_col] = remaining_time
@@ -1270,9 +1155,8 @@ class Preprocessor:
 
         return self._compute_past_time(df, case_key, self.eventtime_col, self.label_col)
 
-    def _gen_label_transition_times(
-            self, prefixes_df: pd.DataFrame, activity_out: Sequence[str], activity_in: Sequence[str]
-    ) -> pd.DataFrame:
+    def _gen_label_transition_times(self, prefixes_df: pd.DataFrame, activity_out: Sequence[str],
+            activity_in: Sequence[str]) -> pd.DataFrame:
         """Generate lables for transition times (The time from the 2nd last activity
         to the last activity).
 
@@ -1304,9 +1188,8 @@ class Preprocessor:
         labels_df = labels_df.rename(columns={self.eventtime_col: self.label_col})
         return labels_df
 
-    def _gen_label_next_activity(
-            self, prefixes_df: pd.DataFrame, incoming_activities: Optional[Sequence[str]]
-    ) -> pd.DataFrame:
+    def _gen_label_next_activity(self, prefixes_df: pd.DataFrame,
+            incoming_activities: Optional[Sequence[str]]) -> pd.DataFrame:
         """Generate labels for the next activities
 
         :param prefixes_df: input DataFrame
@@ -1316,16 +1199,13 @@ class Preprocessor:
         """
         self.label_col = "label_next_Activity"
         labels = pd.DataFrame()
-        labels[[self.prefixes_case_key, self.label_col]] = prefixes_df.groupby(
-            self.prefixes_case_key, observed=True, as_index=False
-        ).apply(lambda x: x[self.activity_col].iloc[-1])
+        labels[[self.prefixes_case_key, self.label_col]] = prefixes_df.groupby(self.prefixes_case_key, observed=True,
+            as_index=False).apply(lambda x: x[self.activity_col].iloc[-1])
 
         # Rename incoming activities that are not in incoming_activities
 
         if incoming_activities is not None:
-            labels.loc[
-                ~labels[self.label_col].isin(incoming_activities), self.label_col
-            ] = "OTHER"
+            labels.loc[~labels[self.label_col].isin(incoming_activities), self.label_col] = "OTHER"
 
         return labels
 
@@ -1337,13 +1217,10 @@ class Preprocessor:
         :return: DataFrame with removed last rows
         """
         prefixes_df = prefixes_df[
-            prefixes_df.groupby(self.prefixes_case_key, observed=True).cumcount(ascending=False) > 0
-            ]
+            prefixes_df.groupby(self.prefixes_case_key, observed=True).cumcount(ascending=False) > 0]
         return prefixes_df
 
-    def _adjust_eventtime_transition_times(
-            self, prefixes_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _adjust_eventtime_transition_times(self, prefixes_df: pd.DataFrame) -> pd.DataFrame:
         """Set the eventtime of the last activity in a prefix-case to the same value
         as the previous activity. This is done to not have the time of the last
         transition as part of the past-time feature.
@@ -1359,12 +1236,8 @@ class Preprocessor:
         prefixes_df = prefixes_df.groupby(self.activity_case_key, observed=True).apply(overwrite)
         return prefixes_df
 
-    def _gen_prefixes_transitions(
-            self,
-            df: pd.DataFrame,
-            activity_out: Optional[List[str]] = None,
-            activity_in: Optional[List[str]] = None,
-    ) -> pd.DataFrame:
+    def _gen_prefixes_transitions(self, df: pd.DataFrame, activity_out: Optional[List[str]] = None,
+            activity_in: Optional[List[str]] = None, ) -> pd.DataFrame:
         """Generate prefixes for transition times. This is needed because a
         transition can happen multiple times. The output DataFrame's prefix-cases
         will always end with the activity_in activity.
@@ -1382,26 +1255,19 @@ class Preprocessor:
             activity_out = df[self.activity_col].unique()
         # Identify the rows of the transitions (row of incoming activity)
         mask_transitions = (
-                ((df[self.activity_col].isin(activity_out)).shift(1))
-                & (df[self.activity_col].isin(activity_in))
-                & (df[self.activity_case_key].shift(1) == df[self.activity_case_key])
-        )
+                ((df[self.activity_col].isin(activity_out)).shift(1)) & (df[self.activity_col].isin(activity_in)) & (
+                    df[self.activity_case_key].shift(1) == df[self.activity_case_key]))
 
         # To binary
         df_mask = pd.DataFrame(df[self.activity_case_key])
         df_mask["bin_transitions"] = mask_transitions
         # cumulate backwards
-        df_mask = (
-            df_mask.iloc[::-1]
-                .groupby(self.activity_case_key, observed=True, as_index=False)["bin_transitions"]
-                .cumsum()[::-1]
-        )
+        df_mask = (df_mask.iloc[::-1].groupby(self.activity_case_key, observed=True, as_index=False)[
+                       "bin_transitions"].cumsum()[::-1])
         # Get the maximum number of these transitions (minus 1)
         max_transitions = int(df_mask["bin_transitions"].max())
 
-        df_prefixes = pd.DataFrame(
-            columns=df.columns.tolist() + [self.prefixes_case_key, "num_activities"]
-        )
+        df_prefixes = pd.DataFrame(columns=df.columns.tolist() + [self.prefixes_case_key, "num_activities"])
 
         def num_activities(group):
             g = group[self.activity_case_key].size
@@ -1411,18 +1277,13 @@ class Preprocessor:
         self.static_numerical_cols.append("num_activities")
         for i in range(1, max_transitions + 1):
             tmp = df[df_mask["bin_transitions"] >= i]
-            tmp = tmp.groupby(self.activity_case_key, as_index=False, observed=True).apply(
-                num_activities
-            )
-            tmp[self.prefixes_case_key] = tmp[self.activity_case_key].apply(
-                lambda x: f"{x}_{i}"
-            )
+            tmp = tmp.groupby(self.activity_case_key, as_index=False, observed=True).apply(num_activities)
+            tmp[self.prefixes_case_key] = tmp[self.activity_case_key].apply(lambda x: f"{x}_{i}")
             df_prefixes = pd.concat([df_prefixes, tmp], axis=0)
         return df_prefixes
 
-    def _query_datamodel_transition(
-            self, activity_out: Optional[List[str]], activity_in: Optional[List[str]] = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _query_datamodel_transition(self, activity_out: Optional[List[str]], activity_in: Optional[List[str]] = None) -> \
+    Tuple[pd.DataFrame, pd.DataFrame]:
         """Get activity and case table as DataFrames. Only the cases are queried that
         have a transition from activity_1 to activity_2
 
@@ -1438,36 +1299,24 @@ class Preprocessor:
         # Queries for all columns
         query_activities = PQL()
         for col in columns_activities:
-            query_activities += PQLColumn(
-                '"' + self.activity_table.name + '"' + "." + '"' + col + '"', col
-            )
+            query_activities += PQLColumn('"' + self.activity_table.name + '"' + "." + '"' + col + '"', col)
 
         query_cases = PQL()
         for col in columns_cases:
-            query_cases += PQLColumn(
-                '"' + self.case_table.name + '"' + "." + '"' + col + '"', col
-            )
+            query_cases += PQLColumn('"' + self.case_table.name + '"' + "." + '"' + col + '"', col)
 
         # Add filter for transition
         if activity_in is None:
             term_activity_in = 'ANY'
         else:
-            term_activity_in = (
-                    "(" + ", ".join("'" + act + "'" for act in activity_in) + ")"
-            )
+            term_activity_in = ("(" + ", ".join("'" + act + "'" for act in activity_in) + ")")
 
         if activity_out is None:
             term_activity_out = 'ANY'
         else:
-            term_activity_out = (
-                    "(" + ", ".join("'" + act + "'" for act in activity_out) + ")"
-            )
-        query_cases += PQLFilter(
-            f"PROCESS EQUALS {term_activity_out} TO {term_activity_in}"
-        )
-        query_activities += PQLFilter(
-            f"PROCESS EQUALS {term_activity_out} TO {term_activity_in}"
-        )
+            term_activity_out = ("(" + ", ".join("'" + act + "'" for act in activity_out) + ")")
+        query_cases += PQLFilter(f"PROCESS EQUALS {term_activity_out} TO {term_activity_in}")
+        query_activities += PQLFilter(f"PROCESS EQUALS {term_activity_out} TO {term_activity_in}")
 
         activity_df = self.dm.get_data_frame(query_activities)
 
@@ -1485,24 +1334,14 @@ class Preprocessor:
         """
 
         def gen_start_end_row(group):
-            df_new = pd.DataFrame(
-                {
-                    self.activity_case_key: [group.iloc[0][self.activity_case_key]] * 2,
-                    self.activity_col: [self.activity_start, self.activity_end],
-                    self.eventtime_col: [
-                        group.iloc[0][self.eventtime_col] - pd.Timedelta(1),
-                        group.iloc[-1][self.eventtime_col] + pd.Timedelta(1),
-                    ],
-                }
-            )
-            complete_df = pd.concat(
-                [pd.DataFrame(df_new.iloc[0]).T, group, pd.DataFrame(df_new.iloc[1]).T]
-            )
+            df_new = pd.DataFrame({self.activity_case_key: [group.iloc[0][self.activity_case_key]] * 2,
+                self.activity_col: [self.activity_start, self.activity_end],
+                self.eventtime_col: [group.iloc[0][self.eventtime_col] - pd.Timedelta(1),
+                                     group.iloc[-1][self.eventtime_col] + pd.Timedelta(1), ], })
+            complete_df = pd.concat([pd.DataFrame(df_new.iloc[0]).T, group, pd.DataFrame(df_new.iloc[1]).T])
             return complete_df
 
-        df_added = activity_df.groupby(self.activity_case_key, observed=True, as_index=False).apply(
-            gen_start_end_row
-        )
+        df_added = activity_df.groupby(self.activity_case_key, observed=True, as_index=False).apply(gen_start_end_row)
         # df_added = df_added.droplevel(0).reset_index(drop=True)
         return df_added
 
@@ -1584,9 +1423,7 @@ class Preprocessor:
         df = self.dm.get_data_frame(query)
         self.latest_date = df['latest_date'][0]
 
-    def _processed_case_table_train(
-            self
-    ) -> pd.DataFrame:
+    def _processed_case_table_train(self) -> pd.DataFrame:
         """Process case DataFrame for training data. This sets the
         member variables self.static_numerical_cols and
         self.static_categorical_cols.
@@ -1614,30 +1451,22 @@ class Preprocessor:
         self._rename_col_names(None, case_df)
 
         # Define static and dynamic columns
-        self.static_numerical_cols = self._get_cols_by_type(
-            case_df, dtypes=["number"], exclude=[self.case_case_key]
-        )
-        self.static_categorical_cols = self._get_cols_by_type(
-            case_df, dtypes=["category"], exclude=[self.case_case_key]
-        )
+        self.static_numerical_cols = self._get_cols_by_type(case_df, dtypes=["number"], exclude=[self.case_case_key])
+        self.static_categorical_cols = self._get_cols_by_type(case_df, dtypes=["category"],
+            exclude=[self.case_case_key])
 
         # Remove few occurrences of categorical columns
-        dynamic_cat_cols_without_activity = filter(
-            lambda x: x != self.activity_col, self.dynamic_categorical_cols
-        )
+        dynamic_cat_cols_without_activity = filter(lambda x: x != self.activity_col, self.dynamic_categorical_cols)
 
-        case_df = self._remove_few_occurrences(
-            case_df, self.static_categorical_cols, self.min_occurrences
-        )
+        case_df = self._remove_few_occurrences(case_df, self.static_categorical_cols, self.min_occurrences)
 
         # Save the categorical values
         self._save_categorical_values(None, case_df)
 
         return case_df
 
-    def _processed_activity_case_tables_train(
-            self, transition: Optional[Tuple[List[str], List[str]]] = None, inference: bool = False
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _processed_activity_case_tables_train(self, transition: Optional[Tuple[List[str], List[str]]] = None,
+            inference: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Process activity and case DataFrames for training data. This sets the
         member variables self.static_numerical_cols,
         self.static_categorical_cols, self.dynamic_numerical_cols,
@@ -1660,9 +1489,7 @@ class Preprocessor:
         """
         # Get DataFrames
         if transition:
-            activity_df, case_df = self._query_datamodel_transition(
-                transition[0], transition[1]
-            )
+            activity_df, case_df = self._query_datamodel_transition(transition[0], transition[1])
         else:
             activity_df, case_df = self._query_datamodel()
 
@@ -1689,41 +1516,27 @@ class Preprocessor:
 
         # Define static and dynamic columns
 
-        self.static_numerical_cols = self._get_cols_by_type(
-            case_df, dtypes=["number"], exclude=[self.case_case_key]
-        )
-        self.dynamic_numerical_cols = self._get_cols_by_type(
-            activity_df, dtypes=["number"], exclude=[self.activity_case_key]
-        )
-        self.static_categorical_cols = self._get_cols_by_type(
-            case_df, dtypes=["category"], exclude=[self.case_case_key]
-        )
+        self.static_numerical_cols = self._get_cols_by_type(case_df, dtypes=["number"], exclude=[self.case_case_key])
+        self.dynamic_numerical_cols = self._get_cols_by_type(activity_df, dtypes=["number"],
+            exclude=[self.activity_case_key])
+        self.static_categorical_cols = self._get_cols_by_type(case_df, dtypes=["category"],
+            exclude=[self.case_case_key])
 
-        self.dynamic_categorical_cols = self._get_cols_by_type(
-            activity_df, dtypes=["category"], exclude=[self.activity_case_key]
-        )
+        self.dynamic_categorical_cols = self._get_cols_by_type(activity_df, dtypes=["category"],
+            exclude=[self.activity_case_key])
 
         # Remove few occurrences of categorical columns except the activity column (if inference = False, else also for activity column)
 
         if inference:
-            activity_df = self._remove_few_occurrences_inference(
-                activity_df, self.dynamic_categorical_values
-            )
+            activity_df = self._remove_few_occurrences_inference(activity_df, self.dynamic_categorical_values)
 
-            case_df = self._remove_few_occurrences_inference(
-                case_df, self.static_categorical_values
-            )
+            case_df = self._remove_few_occurrences_inference(case_df, self.static_categorical_values)
         else:
-            dynamic_cat_cols_without_activity = filter(
-                lambda x: x != self.activity_col, self.dynamic_categorical_cols
-            )
-            activity_df = self._remove_few_occurrences(
-                activity_df, dynamic_cat_cols_without_activity, self.min_occurrences
-            )
+            dynamic_cat_cols_without_activity = filter(lambda x: x != self.activity_col, self.dynamic_categorical_cols)
+            activity_df = self._remove_few_occurrences(activity_df, dynamic_cat_cols_without_activity,
+                self.min_occurrences)
 
-            case_df = self._remove_few_occurrences(
-                case_df, self.static_categorical_cols, self.min_occurrences
-            )
+            case_df = self._remove_few_occurrences(case_df, self.static_categorical_cols, self.min_occurrences)
 
         # Save the categorical values if inference == False
         if not inference:
@@ -1765,73 +1578,37 @@ class Preprocessor:
         activity_df, case_df = self._processed_activity_case_tables_train()
         # Merge activity and case DataFrames
         if self.case_table:
-            joined_df = self._join_dfs(
-                [activity_df, case_df], [self.activity_case_key, self.case_case_key]
-            )
+            joined_df = self._join_dfs([activity_df, case_df], [self.activity_case_key, self.case_case_key])
         else:
             joined_df = activity_df
         # Generate Prefixes
-        joined_prefixes_df = self._gen_prefixes(
-            joined_df,
-            self.activity_case_key,
-            self.prefixes_case_key,
-            self.min_prefixes,
-            self.max_prefixes,
-        )
+        joined_prefixes_df = self._gen_prefixes(joined_df, self.activity_case_key, self.prefixes_case_key,
+            self.min_prefixes, self.max_prefixes, )
         # Generate labels
-        labels_df = self._gen_label_future_activity(
-            activity_df, joined_prefixes_df, activity_name
-        )
+        labels_df = self._gen_label_future_activity(activity_df, joined_prefixes_df, activity_name)
         # Aggregate static and dynamic values
-        aggregate_static_categorical_df = self._aggregate_static_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_categorical_cols,
-        )
+        aggregate_static_categorical_df = self._aggregate_static_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_categorical_cols, )
 
-        aggregate_static_numerical_df = self._aggregate_static_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_numerical_cols,
-        )
-        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_categorical_cols,
-            aggregations=self.aggregations_dyn_cat,
-        )
-        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_numerical_cols,
-            aggregations=self.aggregations_dyn_num,
-        )
-        aggregate_time_past_df = self._compute_past_time(
-            joined_prefixes_df, self.prefixes_case_key, self.eventtime_col
-        )
+        aggregate_static_numerical_df = self._aggregate_static_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_numerical_cols, )
+        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_categorical_cols,
+            aggregations=self.aggregations_dyn_cat, )
+        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_numerical_cols,
+            aggregations=self.aggregations_dyn_num, )
+        aggregate_time_past_df = self._compute_past_time(joined_prefixes_df, self.prefixes_case_key, self.eventtime_col)
         # Join the aggregated DataFrames
         if self.case_table:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_static_categorical_df,
-                    aggregate_static_numerical_df,
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 6,
-            )
+                [aggregate_static_categorical_df, aggregate_static_numerical_df, aggregate_dynamic_categorical_df,
+                    aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 6, )
         else:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 4,
-            )
+                [aggregate_dynamic_categorical_df, aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 4, )
         return aggregated_df
 
     def run_remaining_time(self, inference=False) -> pd.DataFrame:
@@ -1849,75 +1626,39 @@ class Preprocessor:
 
         # Merge activity and case DataFrames
         if self.case_table:
-            joined_df = self._join_dfs(
-                [activity_df, case_df], [self.activity_case_key, self.case_case_key]
-            )
+            joined_df = self._join_dfs([activity_df, case_df], [self.activity_case_key, self.case_case_key])
         else:
             joined_df = activity_df
         # Generate Prefixes
-        joined_prefixes_df = self._gen_prefixes(
-            joined_df,
-            self.activity_case_key,
-            self.prefixes_case_key,
-            self.min_prefixes,
-            self.max_prefixes,
-        )
+        joined_prefixes_df = self._gen_prefixes(joined_df, self.activity_case_key, self.prefixes_case_key,
+            self.min_prefixes, self.max_prefixes, )
 
         # Generate labels
-        labels_df = self._gen_label_remaining_execution_time(
-            activity_df, joined_prefixes_df
-        )
+        labels_df = self._gen_label_remaining_execution_time(activity_df, joined_prefixes_df)
         # Aggregate static and dynamic values
-        aggregate_static_categorical_df = self._aggregate_static_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_categorical_cols,
-        )
-        aggregate_static_numerical_df = self._aggregate_static_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_numerical_cols,
-        )
+        aggregate_static_categorical_df = self._aggregate_static_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_categorical_cols, )
+        aggregate_static_numerical_df = self._aggregate_static_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_numerical_cols, )
 
-        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_categorical_cols,
-            aggregations=self.aggregations_dyn_cat,
-        )
+        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_categorical_cols,
+            aggregations=self.aggregations_dyn_cat, )
 
-        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_numerical_cols,
-            aggregations=self.aggregations_dyn_num,
-        )
-        aggregate_time_past_df = self._compute_past_time(
-            joined_prefixes_df, self.prefixes_case_key, self.eventtime_col
-        )
+        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_numerical_cols,
+            aggregations=self.aggregations_dyn_num, )
+        aggregate_time_past_df = self._compute_past_time(joined_prefixes_df, self.prefixes_case_key, self.eventtime_col)
         # Join the aggregated DataFrames
         if self.case_table:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_static_categorical_df,
-                    aggregate_static_numerical_df,
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 6,
-            )
+                [aggregate_static_categorical_df, aggregate_static_numerical_df, aggregate_dynamic_categorical_df,
+                    aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 6, )
         else:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 4,
-            )
+                [aggregate_dynamic_categorical_df, aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 4, )
 
         # Save json file if inference == False
         # Add missing columns if inference = True
@@ -1929,111 +1670,62 @@ class Preprocessor:
 
         return aggregated_df
 
-    def run_transition_time(
-            self, activity_out: Optional[Sequence[str]], activity_in: Optional[Sequence[str]]
-    ):
-        activity_df, case_df = self._processed_activity_case_tables_train(
-            (activity_out, activity_in)
-        )
+    def run_transition_time(self, activity_out: Optional[Sequence[str]], activity_in: Optional[Sequence[str]]):
+        activity_df, case_df = self._processed_activity_case_tables_train((activity_out, activity_in))
 
         # Merge activity and case DataFrames
         if self.case_table:
-            joined_df = self._join_dfs(
-                [activity_df, case_df], [self.activity_case_key, self.case_case_key]
-            )
+            joined_df = self._join_dfs([activity_df, case_df], [self.activity_case_key, self.case_case_key])
         else:
             joined_df = activity_df
 
         # Generate Prefixes
-        joined_prefixes_df = self._gen_prefixes_transitions(
-            joined_df,
-            activity_out,
-            activity_in,
-        )
+        joined_prefixes_df = self._gen_prefixes_transitions(joined_df, activity_out, activity_in, )
 
         # Generate labels
-        labels_df = self._gen_label_transition_times(
-            joined_prefixes_df, activity_out, activity_in
-        )
+        labels_df = self._gen_label_transition_times(joined_prefixes_df, activity_out, activity_in)
 
         # Adjust eventtime
         joined_prefixes_df = self._adjust_eventtime_transition_times(joined_prefixes_df)
 
         # Aggregate static and dynamic values
-        aggregate_static_categorical_df = self._aggregate_static_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_categorical_cols,
-        )
-        aggregate_static_numerical_df = self._aggregate_static_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_numerical_cols,
-        )
-        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_categorical_cols,
-            aggregations=self.aggregations_dyn_cat,
-        )
-        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_numerical_cols,
-            aggregations=self.aggregations_dyn_num,
-        )
-        aggregate_time_past_df = self._compute_past_time(
-            joined_prefixes_df, self.prefixes_case_key, self.eventtime_col
-        )
+        aggregate_static_categorical_df = self._aggregate_static_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_categorical_cols, )
+        aggregate_static_numerical_df = self._aggregate_static_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_numerical_cols, )
+        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_categorical_cols,
+            aggregations=self.aggregations_dyn_cat, )
+        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_numerical_cols,
+            aggregations=self.aggregations_dyn_num, )
+        aggregate_time_past_df = self._compute_past_time(joined_prefixes_df, self.prefixes_case_key, self.eventtime_col)
         # Join the aggregated DataFrames
         if self.case_table:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_static_categorical_df,
-                    aggregate_static_numerical_df,
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 6,
-            )
+                [aggregate_static_categorical_df, aggregate_static_numerical_df, aggregate_dynamic_categorical_df,
+                    aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 6, )
         else:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 4,
-            )
+                [aggregate_dynamic_categorical_df, aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 4, )
         return aggregated_df
 
-    def run_decision_point(
-            self, activity_out: str, activity_in: Optional[Sequence[str]]
-    ):
+    def run_decision_point(self, activity_out: str, activity_in: Optional[Sequence[str]]):
         activity_out = [activity_out]
 
-        activity_df, case_df = self._processed_activity_case_tables_train(
-            (activity_out, None)
-        )
+        activity_df, case_df = self._processed_activity_case_tables_train((activity_out, None))
 
         activity_df = self._add_start_end_activities(activity_df)
         # Merge activity and case DataFrames
         if self.case_table:
-            joined_df = self._join_dfs(
-                [activity_df, case_df], [self.activity_case_key, self.case_case_key]
-            )
+            joined_df = self._join_dfs([activity_df, case_df], [self.activity_case_key, self.case_case_key])
         else:
             joined_df = activity_df
 
         # Generate Prefixes
-        joined_prefixes_df = self._gen_prefixes_transitions(
-            joined_df,
-            activity_out,
-            None,
-        )
+        joined_prefixes_df = self._gen_prefixes_transitions(joined_df, activity_out, None, )
 
         # Generate labels
         labels_df = self._gen_label_next_activity(joined_prefixes_df, activity_in)
@@ -2043,54 +1735,27 @@ class Preprocessor:
         joined_prefixes_df = self._remove_last_row(joined_prefixes_df)
 
         # Aggregate static and dynamic values
-        aggregate_static_categorical_df = self._aggregate_static_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_categorical_cols,
-        )
-        aggregate_static_numerical_df = self._aggregate_static_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.static_numerical_cols,
-        )
-        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_categorical_cols,
-            aggregations=self.aggregations_dyn_cat,
-        )
-        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(
-            joined_prefixes_df,
-            case_key=self.prefixes_case_key,
-            columns=self.dynamic_numerical_cols,
-            aggregations=self.aggregations_dyn_num,
-        )
-        aggregate_time_past_df = self._compute_past_time(
-            joined_prefixes_df, self.prefixes_case_key, self.eventtime_col
-        )
+        aggregate_static_categorical_df = self._aggregate_static_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_categorical_cols, )
+        aggregate_static_numerical_df = self._aggregate_static_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.static_numerical_cols, )
+        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_categorical_cols,
+            aggregations=self.aggregations_dyn_cat, )
+        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(joined_prefixes_df,
+            case_key=self.prefixes_case_key, columns=self.dynamic_numerical_cols,
+            aggregations=self.aggregations_dyn_num, )
+        aggregate_time_past_df = self._compute_past_time(joined_prefixes_df, self.prefixes_case_key, self.eventtime_col)
         # Join the aggregated DataFrames
         if self.case_table:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_static_categorical_df,
-                    aggregate_static_numerical_df,
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 6,
-            )
+                [aggregate_static_categorical_df, aggregate_static_numerical_df, aggregate_dynamic_categorical_df,
+                    aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 6, )
         else:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    aggregate_time_past_df,
-                    labels_df,
-                ],
-                [self.prefixes_case_key] * 4,
-            )
+                [aggregate_dynamic_categorical_df, aggregate_dynamic_numerical_df, aggregate_time_past_df, labels_df, ],
+                [self.prefixes_case_key] * 4, )
         return aggregated_df
 
     def run_total_time_training(self) -> pd.DataFrame:
@@ -2102,62 +1767,33 @@ class Preprocessor:
         activity_df, case_df = self._processed_activity_case_tables_train()
         # Merge activity and case DataFrames
         if self.case_table:
-            joined_df = self._join_dfs(
-                [activity_df, case_df], [self.activity_case_key, self.case_case_key]
-            )
+            joined_df = self._join_dfs([activity_df, case_df], [self.activity_case_key, self.case_case_key])
         else:
             joined_df = activity_df
 
         # Generate labels
-        labels_df = self._gen_label_total_time(
-            joined_df, self.activity_case_key
-        )
+        labels_df = self._gen_label_total_time(joined_df, self.activity_case_key)
 
         # Aggregate static and dynamic values
-        aggregate_static_categorical_df = self._aggregate_static_categorical(
-            joined_df,
-            case_key=self.activity_case_key,
-            columns=self.static_categorical_cols,
-        )
-        aggregate_static_numerical_df = self._aggregate_static_numerical(
-            joined_df,
-            case_key=self.activity_case_key,
-            columns=self.static_numerical_cols,
-        )
-        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(
-            joined_df,
-            case_key=self.activity_case_key,
-            columns=self.dynamic_categorical_cols,
-            aggregations=self.aggregations_dyn_cat,
-        )
-        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(
-            joined_df,
-            case_key=self.activity_case_key,
-            columns=self.dynamic_numerical_cols,
-            aggregations=self.aggregations_dyn_num,
-        )
+        aggregate_static_categorical_df = self._aggregate_static_categorical(joined_df, case_key=self.activity_case_key,
+            columns=self.static_categorical_cols, )
+        aggregate_static_numerical_df = self._aggregate_static_numerical(joined_df, case_key=self.activity_case_key,
+            columns=self.static_numerical_cols, )
+        aggregate_dynamic_categorical_df = self._aggregate_dynamic_categorical(joined_df,
+            case_key=self.activity_case_key, columns=self.dynamic_categorical_cols,
+            aggregations=self.aggregations_dyn_cat, )
+        aggregate_dynamic_numerical_df = self._aggregate_dynamic_numerical(joined_df, case_key=self.activity_case_key,
+            columns=self.dynamic_numerical_cols, aggregations=self.aggregations_dyn_num, )
 
         # Join the aggregated DataFrames
         if self.case_table:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_static_categorical_df,
-                    aggregate_static_numerical_df,
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    labels_df,
-                ],
-                [self.activity_case_key] * 5,
-            )
+                [aggregate_static_categorical_df, aggregate_static_numerical_df, aggregate_dynamic_categorical_df,
+                    aggregate_dynamic_numerical_df, labels_df, ], [self.activity_case_key] * 5, )
         else:
             aggregated_df = self._join_dfs(
-                [
-                    aggregate_dynamic_categorical_df,
-                    aggregate_dynamic_numerical_df,
-                    labels_df,
-                ],
-                [self.activity_case_key] * 3,
-            )
+                [aggregate_dynamic_categorical_df, aggregate_dynamic_numerical_df, labels_df, ],
+                [self.activity_case_key] * 3, )
         return aggregated_df
 
     def run_deviations(self, analysis, shared_url) -> pd.DataFrame:
@@ -2172,31 +1808,17 @@ class Preprocessor:
         case_keys_conforming = self._query_case_keys_conforming(analysis, shared_url)
 
         # Generate labels
-        labels_df = self._gen_labels_conforming(
-            case_df, self.case_case_key, case_keys_conforming
-        )
+        labels_df = self._gen_labels_conforming(case_df, self.case_case_key, case_keys_conforming)
 
         # Aggregate static values
-        aggregate_static_categorical_df = self._aggregate_static_categorical(
-            case_df,
-            case_key=self.case_case_key,
-            columns=self.static_categorical_cols,
-        )
+        aggregate_static_categorical_df = self._aggregate_static_categorical(case_df, case_key=self.case_case_key,
+            columns=self.static_categorical_cols, )
 
-        aggregate_static_numerical_df = self._aggregate_static_numerical(
-            case_df,
-            case_key=self.case_case_key,
-            columns=self.static_numerical_cols,
-        )
+        aggregate_static_numerical_df = self._aggregate_static_numerical(case_df, case_key=self.case_case_key,
+            columns=self.static_numerical_cols, )
 
         # Join the aggregated DataFrames
-        aggregated_df = self._join_dfs(
-            [
-                aggregate_static_categorical_df,
-                aggregate_static_numerical_df,
-                labels_df,
-            ],
-            [self.case_case_key] * 3,
-        )
+        aggregated_df = self._join_dfs([aggregate_static_categorical_df, aggregate_static_numerical_df, labels_df, ],
+            [self.case_case_key] * 3, )
 
         return aggregated_df
