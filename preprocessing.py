@@ -219,7 +219,8 @@ class Preprocessor:
                                                                                          self.sort_col]:
                 self.static_categorical_cols.append(attribute['name'])
             elif attribute['type'] in self.numerical_types and attribute['name'] not in [self.case_case_key,
-                                                                                         self.sort_col]:
+                                                                                         self.sort_col,
+                                                                                         self.activity_col]:
                 self.static_numerical_cols.append(attribute['name'])
 
     def _set_dynamic_features_PQL(self):
@@ -278,7 +279,7 @@ class Preprocessor:
             # Add escaping characters
             unique_vals_val, unique_vals_name = self._adjust_string_values(unique_values)
             for val_val, val_name in zip(unique_vals_val, unique_vals_name):
-                df_attr_name = prefix + table + "_" + attribute + "_" + val_name + suffix
+                df_attr_name = prefix + table + "_" + attribute + " = " + val_name + suffix
                 display_name = prefix + table + "." + attribute + " = " + val_name + suffix
 
                 major_attribute_type = major_attribute
@@ -346,7 +347,7 @@ class Preprocessor:
         query.add(self.get_query_case_ids())
         for agg in aggregations:
             for attribute in self.dynamic_numerical_cols:
-                df_attr_name = self.activity_table_name + "_" + agg + "_" + attribute
+                df_attr_name = self.activity_table_name + "." + agg + "_" + attribute
                 display_name = self.activity_table_name + "." + attribute + " (" + get_aggregation_display_name(
                     agg) + ")"
                 query_att = agg + "(\"" + self.activity_table_name + "\"." + "\"" + attribute + "\")"
@@ -485,7 +486,7 @@ class Preprocessor:
         return PQLColumn(name="caseid", query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\"")
 
     def one_hot_encode_special(self, min_vals, query_str, attribute_name, major_attribute: MajorAttribute,
-                               minor_attribute: MinorAttribute):
+                               minor_attribute: MinorAttribute, attribute_data_type: AttributeDataType):
         """ One hot encoding with a special query.
         query is string with what comes within the DISTINCT() brackets in the frist query and then in the CASE WHEN in the second query
 
@@ -517,7 +518,7 @@ class Preprocessor:
             display_name = attribute_name + " = " + val_val
             query_attr = "SUM(CASE WHEN " + query_str + " = " + "'" + val_val + "' THEN 1 ELSE 0 END)"
             query.add(PQLColumn(name=df_attr_name, query=query_attr))
-            attr_obj = Attribute(MajorAttribute.ACTIVITY, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
+            attr_obj = Attribute(major_attribute, minor_attribute, attribute_data_type, df_attr_name,
                                  display_name, query_attr)
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
@@ -526,19 +527,21 @@ class Preprocessor:
 
     def start_activity_PQL(self, min_vals):
         attribute_name = "Start activity"
+        attribute_data_type = AttributeDataType.CATEGORICAL
         major_attribute = MajorAttribute.ACTIVITY
         minor_attribute = StartActivityMinorAttribute()
         query_str = "PU_FIRST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
-        df = self.one_hot_encode_special(min_vals, query_str, attribute_name, major_attribute, minor_attribute)
+        df = self.one_hot_encode_special(min_vals, query_str, attribute_name, major_attribute, minor_attribute, attribute_data_type)
 
         return df
 
     def end_activity_PQL(self, min_vals):
         attribute_name = "End activity"
+        attribute_data_type = AttributeDataType.CATEGORICAL
         major_attribute = MajorAttribute.ACTIVITY
         minor_attribute = EndActivityMinorAttribute()
         query_str = "PU_LAST(\"" + self.case_table_name + "\", \"" + self.activity_table_name + "\".\"" + self.activity_col + "\")"
-        df = self.one_hot_encode_special(min_vals, query_str, attribute_name, major_attribute, minor_attribute)
+        df = self.one_hot_encode_special(min_vals, query_str, attribute_name, major_attribute, minor_attribute, attribute_data_type)
         return df
 
     def start_activity_time_PQL(self):
@@ -664,15 +667,15 @@ class Preprocessor:
         df_attr_name = "case duration"
         display_name = "case duration"
         major_attribute = MajorAttribute.CASE
-        minor_attribute = "case duration"
+        minor_attribute = CaseDurationMinorAttribute()
 
         query = PQL()
         query.add(PQLColumn(name="caseid", query="\"" + self.case_table_name + "\".\"" + self.case_case_key + "\""))
         q_total_time = (
                 "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO ALL_OCCURRENCE['Process End'], REMAP_TIMESTAMPS(\"" + self.activity_table_name + '"."' + self.eventtime_col + '", ' + time_aggregation + ")))")
-        attr_obj = Attribute(major_attribute, CaseDurationMinorAttribute(), AttributeDataType.NUMERICAL, df_attr_name,
-                             display_name,
-                             q_total_time, time_aggregation.lower())
+        attr_obj = Attribute(major_attribute, minor_attribute, AttributeDataType.NUMERICAL, df_attr_name,
+                             display_name=display_name,
+                             query=q_total_time, unit = time_aggregation.lower())
         if is_label:
             self.label = attr_obj
             self.label_dict[df_attr_name] = attr_obj
