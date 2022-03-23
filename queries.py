@@ -4,6 +4,7 @@ from DataModel import DataModelInfo
 import numpy as np
 from pycelonis.celonis_api.utils import KeyType
 
+"""
 login = {
     "celonis_url": "academic-michael-schulten-rwth-aachen-de.eu-2.celonis.cloud",
     "api_token": "ODJkZDhjNmQtYTQ2Ny00NWRlLWJkMGYtZWJjY2FjOGVhYmQyOllBYlBkRXNHV2psZ1o1MDJacmlsRVU3KytxaDdLVHY5N1lBOHJQdTJnOXR0",
@@ -15,6 +16,7 @@ celonis = get_celonis(**login)
 dm = celonis.datamodels.find("P2P_Wils_Course")
 
 dm_info = DataModelInfo(dm)
+"""
 
 
 def get_case_duration_pql(dm_info, aggregation="AVG", time_aggregation="DAYS"):
@@ -266,14 +268,12 @@ def get_potential_extra_bins(
 
 def choose_extra_bins(potential_lowers, potential_uppers, num_bins):
     potential_all = potential_lowers + potential_uppers
-    print(potential_lowers)
-    print(potential_uppers)
+
     if len(potential_all) == 0:
         return [], []
     extra_bins_lower = []
     extra_bins_upper = []
     take_from_upper = True
-    print(num_bins)
     for i in range(num_bins):
         if (len(potential_lowers) == 0) and (len(potential_uppers) == 0):
             break
@@ -289,7 +289,6 @@ def choose_extra_bins(potential_lowers, potential_uppers, num_bins):
             extra_bins_upper.append(potential_uppers[0])
             potential_uppers = potential_uppers[1:]
             take_from_upper = False
-    print(extra_bins_upper)
     return extra_bins_lower, extra_bins_upper
 
 
@@ -308,7 +307,6 @@ def get_bins_trace_times(dm_info, num_bins, time_aggregation="DAYS"):
 
     lower_end = df_qs[str(lower_percentile)].values[0]
     upper_end = df_qs[str(upper_percentile)].values[0]
-    print(f"lower_end: {lower_end}, upper_end:{upper_end}")
 
     bin_width = int(np.ceil((upper_end - lower_end) / (num_bins - 2)))
     if (max_val - min_val + 1) / bin_width < num_bins and bin_width > 1:

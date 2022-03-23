@@ -101,6 +101,7 @@ class Attribute:
     correlation: Optional[float] = 0.
     p_val: Optional[float] = 1.
     unit: Optional[str] = ""
+    column_name: str = None  # for generic column attributes
     label_influence: Optional[float] = None  # for categorical attributes only
     cases_with_attribute: Optional[int] = None  # for categorical attributes only
 
@@ -220,13 +221,14 @@ class Preprocessor:
                 self.static_categorical_cols.append(attribute['name'])
             elif attribute['type'] in self.numerical_types and attribute['name'] not in [self.case_case_key,
                                                                                          self.sort_col,
-                                                                                         self.activity_col]:
+                                                                                         ]:
                 self.static_numerical_cols.append(attribute['name'])
 
     def _set_dynamic_features_PQL(self):
         for attribute in self.activity_table.columns:
             if attribute['type'] in self.categorical_types and attribute['name'] not in [self.activity_case_key,
-                                                                                         self.sort_col]:
+                                                                                         self.sort_col,
+                                                                                         self.activity_col]:
                 self.dynamic_categorical_cols.append(attribute['name'])
             elif attribute['type'] in self.numerical_types and attribute['name'] not in [self.activity_case_key,
                                                                                          self.sort_col]:
@@ -278,6 +280,12 @@ class Preprocessor:
 
             # Add escaping characters
             unique_vals_val, unique_vals_name = self._adjust_string_values(unique_values)
+
+            if minor_attribute in [ActivityTableColumnMinorAttribute, CaseTableColumnMinorAttribute]:
+                column_name = attribute
+            else:
+                column_name = None
+
             for val_val, val_name in zip(unique_vals_val, unique_vals_name):
                 df_attr_name = prefix + table + "_" + attribute + " = " + val_name + suffix
                 display_name = prefix + table + "." + attribute + " = " + val_name + suffix
@@ -288,7 +296,7 @@ class Preprocessor:
                 query_val = "SUM(CASE WHEN \"" + table + "\".\"" + attribute + "\" = '" + val_val + "' THEN 1 ELSE 0 " \
                                                                                                     "END)"
                 attr_obj = Attribute(major_attribute_type, minor_attribute_type, AttributeDataType.CATEGORICAL,
-                                     df_attr_name, display_name, query_val)
+                                     df_attr_name, display_name, query_val, column_name=column_name)
                 self.attributes.append(attr_obj)
                 self.attributes_dict[df_attr_name] = attr_obj
 
@@ -320,7 +328,7 @@ class Preprocessor:
 
             query.add(PQLColumn(name=df_attr_name, query=query_attr))
             attr_obj = Attribute(MajorAttribute.ACTIVITY, CaseTableColumnMinorAttribute(), AttributeDataType.NUMERICAL,
-                                 df_attr_name, display_name, query_attr)
+                                 df_attr_name, display_name, query_attr, column_name=attribute)
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
         dataframe = self.dm.get_data_frame(query)
@@ -354,7 +362,7 @@ class Preprocessor:
                 query.add(PQLColumn(name=df_attr_name, query=query_att))
                 attr_obj = Attribute(MajorAttribute.ACTIVITY, ActivityTableColumnMinorAttribute(),
                                      AttributeDataType.NUMERICAL,
-                                     df_attr_name, display_name, query_att)
+                                     df_attr_name, display_name, query_att, column_name=attribute)
                 self.attributes.append(attr_obj)
                 self.attributes_dict[df_attr_name] = attr_obj
         dataframe = self.dm.get_data_frame(query)
@@ -567,7 +575,8 @@ class Preprocessor:
         x: Series
 
         """
-        x[x > 1] = 1
+        x[x > th] = 1
+        x[x <= th] = 0
         return x
 
     def binary_activity_occurence_PQL(self, min_vals):
@@ -577,10 +586,30 @@ class Preprocessor:
         df_activities = self.one_hot_encoding_PQL(self.activity_table_name, self.activity_case_key, [self.activity_col],
                                                   major_attribute, minor_attribute, min_vals, suffix)
         # Remove values with too few occurences per case key, can this be done in PQL directly???
+
         df_activities[df_activities.drop('caseid', axis=1).columns] = df_activities[
             df_activities.drop('caseid', axis=1).columns].apply(lambda x: self._binarize(x, 0), axis=1)
         df_activities = self._conv_dtypes_PQL(df_activities, ["object"], "category")
         return df_activities
+
+    def _remove_rare_or_too_many(self, df, min_vals=0, max_vals=np.inf):
+        """ Remove column for which there are too many or too few 0 entries. Also entries are removed from
+        self.attributes and self.attributes_dict
+
+        :param df:
+        :param min_vals:
+        :param max_vals:
+        :return:
+        """
+        drop_list = [i for i in df.columns if
+                     (((df[i] != 0).sum() <= min_vals) or ((df[i] != 0).sum() >= max_vals)) and (i != "caseid")]
+        df = df.drop(drop_list, axis=1)
+
+        self.attributes = [i for i in self.attributes if i.df_attribute_name not in drop_list]
+        for k in drop_list:
+            self.attributes_dict.pop(k, None)
+
+        return df
 
     def binary_rework_PQL(self, min_vals):
         suffix = "(rework)"
@@ -592,6 +621,10 @@ class Preprocessor:
         # Remove values with too few occurences per case key, can this be done in PQL directly???
         df_activities[df_activities.drop('caseid', axis=1).columns] = df_activities[
             df_activities.drop('caseid', axis=1).columns].apply(lambda x: self._binarize(x, 1), axis=1)
+        # remove attributes with too few 1 values
+
+        df_activities = self._remove_rare_or_too_many(df_activities, min_vals)
+
         df_activities = self._conv_dtypes_PQL(df_activities, ["object"], "category")
         return df_activities
 
@@ -625,7 +658,6 @@ class Preprocessor:
             df_attr_name = "Work in progress" + " (" + agg_display_name + ")"
             display_name = "Work in progress" + " (" + agg_display_name + ")"
             major_attribute = MajorAttribute.CASE
-            minor_attribute = "Work in progress " + " (" + agg_display_name + ")"
 
             q = "PU_" + agg + " ( \"" + self.case_table_name + "\", RUNNING_SUM( CASE WHEN INDEX_ACTIVITY_ORDER ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN 1 WHEN INDEX_ACTIVITY_ORDER_REVERSE ( \"" + self.activity_table_name + "\".\"" + self.activity_col + "\" ) = 1 THEN -1 ELSE 0 END, ORDER BY ( \"" + self.activity_table_name + "\".\"" + self.eventtime_col + "\" ) ) )"
             query.add(PQLColumn(name=df_attr_name, query=q))
@@ -635,6 +667,7 @@ class Preprocessor:
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
         df = self.dm.get_data_frame(query)
+
         return df
 
     def run_total_time_PQL(self, min_vals, time_aggregation="DAYS"):
@@ -647,15 +680,10 @@ class Preprocessor:
         work_in_progress_df = self.work_in_progress_PQL(aggregations=['AVG'])
 
         static_cat_df = self._aggregate_static_categorical_PQL(min_vals)
-        print(f"length of static_cat_df: {len(static_cat_df.index)}")
         static_num_df = self._aggregate_static_numerical_PQL()
-        print(f"length of static_num_df: {len(static_num_df.index)}")
         dyn_cat_df = self._aggregate_dynamic_categorical_PQL(min_vals)
-        print(f"length of dyn_cat_df: {len(dyn_cat_df.index)}")
         dyn_num_df = self._aggregate_dynamic_numerical_PQL()
-        print(f"length of dyn_num_df: {len(dyn_num_df.index)}")
         total_time_df = self.total_time_PQL(time_aggregation, is_label=True)
-        print(f"length of total_time_df: {len(total_time_df.index)}")
         joined_df = self._join_dfs([start_activity_time_df, end_activity_time_df, start_activity_df, end_activity_df,
                                     binary_activity_occurence_df, binary_rework_df, work_in_progress_df, static_cat_df,
                                     static_num_df, dyn_cat_df, dyn_num_df, total_time_df], keys=['caseid'] * 12)
