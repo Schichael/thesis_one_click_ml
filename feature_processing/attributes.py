@@ -1,5 +1,7 @@
 import abc
+from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 
 class MajorAttribute(Enum):
@@ -23,11 +25,13 @@ class CaseDurationMinorAttribute(MinorAttribute):
         major_attribute = MajorAttribute.CASE
         super().__init__(attribute_name, major_attribute)
 
+
 class WorkInProgressMinorAttribute(MinorAttribute):
     def __init__(self):
         attribute_name = "Work in Progress"
         major_attribute = MajorAttribute.CASE
         super().__init__(attribute_name, major_attribute)
+
 
 class EventCountMinorAttribute(MinorAttribute):
     def __init__(self):
@@ -35,11 +39,13 @@ class EventCountMinorAttribute(MinorAttribute):
         major_attribute = MajorAttribute.CASE
         super().__init__(attribute_name, major_attribute)
 
+
 class ReworkOccurenceMinorAttribute(MinorAttribute):
     def __init__(self):
         attribute_name = "Rework"
         major_attribute = MajorAttribute.ACTIVITY
         super().__init__(attribute_name, major_attribute)
+
 
 class ActivityOccurenceMinorAttribute(MinorAttribute):
     def __init__(self):
@@ -47,11 +53,13 @@ class ActivityOccurenceMinorAttribute(MinorAttribute):
         major_attribute = MajorAttribute.ACTIVITY
         super().__init__(attribute_name, major_attribute)
 
+
 class EndActivityMinorAttribute(MinorAttribute):
     def __init__(self):
         attribute_name = "End activity"
         major_attribute = MajorAttribute.ACTIVITY
         super().__init__(attribute_name, major_attribute)
+
 
 class StartActivityMinorAttribute(MinorAttribute):
     def __init__(self):
@@ -59,11 +67,13 @@ class StartActivityMinorAttribute(MinorAttribute):
         major_attribute = MajorAttribute.ACTIVITY
         super().__init__(attribute_name, major_attribute)
 
+
 class ActivityTableColumnMinorAttribute(MinorAttribute):
     def __init__(self):
         attribute_name = "Activity table column"
         major_attribute = MajorAttribute.ACTIVITY
         super().__init__(attribute_name, major_attribute)
+
 
 class CaseTableColumnMinorAttribute(MinorAttribute):
     def __init__(self):
@@ -78,3 +88,19 @@ class AttributeDataType(Enum):
 
     def __lt__(self, other):
         return self.value <= other.value
+
+
+@dataclass(order=True)
+class Attribute:
+    major_attribute_type: MajorAttribute
+    minor_attribute_type: MinorAttribute
+    attribute_data_type: AttributeDataType
+    df_attribute_name: str
+    display_name: str
+    query: str
+    correlation: Optional[float] = 0.0
+    p_val: Optional[float] = 1.0
+    unit: Optional[str] = ""
+    column_name: str = None  # for generic column attributes
+    label_influence: Optional[float] = None  # for categorical attributes only
+    cases_with_attribute: Optional[int] = None  # for categorical attributes only
