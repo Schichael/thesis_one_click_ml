@@ -7,6 +7,8 @@ import pandas as pd
 from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
 
+import utils
+
 pd.options.mode.chained_assignment = None
 
 
@@ -67,6 +69,7 @@ class FeatureProcessor:
         self.label = None
         self.label_dict = {}
         self._init_datamodel(self.dm)
+        self.df = None
 
     def _init_datamodel(self, dm):
         """Initialize datamodel parameters needed for fetching data from the Celonis
@@ -867,7 +870,7 @@ class FeatureProcessor:
         dyn_cat_df = self._aggregate_dynamic_categorical_PQL(min_vals)
         dyn_num_df = self._aggregate_dynamic_numerical_PQL()
         total_time_df = self.total_time_PQL(time_aggregation, is_label=True)
-        joined_df = self._join_dfs(
+        joined_df = utils.join_dfs(
             [
                 start_activity_time_df,
                 end_activity_time_df,
@@ -885,7 +888,7 @@ class FeatureProcessor:
             keys=["caseid"] * 12,
         )
         self.compute_metrics(joined_df)
-        return joined_df
+        self.df = joined_df
 
     def _set_latest_date_PQL(self):
         query = PQL()
@@ -903,37 +906,6 @@ class FeatureProcessor:
         )
         df = self.dm.get_data_frame(query, chunksize=self.chunksize)
         self.latest_date = df["latest_date"][0]
-
-    def _join_dfs(self, dfs: List[pd.DataFrame], keys: List[str]) -> pd.DataFrame:
-        """Perform a Left outer join on two DataFrame. Only the key of the first
-        DataFrame is kept
-
-        :param dfs: list of at least two DataFrames
-        :param keys: columns to join on. But be of same length as dfs
-        :return: joined DataFrame
-        """
-        df_result = None
-        for i in range(0, len(dfs)):
-            if dfs[i] is not None:
-                df_result = dfs[i]
-                break
-
-        for i in range(1, len(dfs)):
-            if dfs[i] is None:
-                continue
-            # Rmove common columns from one of those
-            common_columns = np.intersect1d(df_result.columns, dfs[i].columns).tolist()
-            if keys[i] in common_columns:
-                common_columns.remove(keys[i])
-            dfs[i] = dfs[i].drop(common_columns, axis=1)
-            df_result = pd.merge(
-                df_result, dfs[i], how="left", left_on=keys[0], right_on=keys[i]
-            )
-
-            # Drop right key if it's different from the left key
-            if keys[0] != keys[i]:
-                df_result.drop(keys[i], axis=1)
-        return df_result
 
     def _conv_dtypes_PQL(
         self, df: pd.DataFrame, src_dtypes: List[str], target_dtype: str
