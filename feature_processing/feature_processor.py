@@ -1,13 +1,14 @@
 from typing import List
 from typing import Optional
 
-import attributes
 import numpy as np
 import pandas as pd
 from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
 
 import utils
+from feature_processing import attributes
+
 
 pd.options.mode.chained_assignment = None
 
@@ -276,14 +277,6 @@ class FeatureProcessor:
             # Add escaping characters
             list_pql_str, list_df_str = self._adjust_string_values(unique_values)
 
-            if minor_attribute in [
-                attributes.ActivityTableColumnMinorAttribute,
-                attributes.CaseTableColumnMinorAttribute,
-            ]:
-                column_name = column_name
-            else:
-                column_name = None
-
             for pql_str, df_str in zip(list_pql_str, list_df_str):
                 df_attr_name = (
                     prefix + table + "_" + column_name + " = " + df_str + suffix
@@ -322,7 +315,7 @@ class FeatureProcessor:
         return dataframe
 
     def _aggregate_static_categorical_PQL(
-        self, min_vals: int, max_vals: int
+        self, min_vals: int = 0, max_vals: int = np.inf
     ) -> pd.DataFrame:
         """Aggregate static categorical attributes (categorical columns in the case
         table). This is done using one-hot-encoding

@@ -142,15 +142,13 @@ def get_case_duration_development_pql(
     return df_avg_case_duration
 
 
-def get_quantiles_tracetime_pql(
-    fp: FeatureProcessor, quantiles: List[float], time_aggregation: str = "DAYS"
-):
+def get_quantiles_tracetime_pql(fp, quantiles, time_aggregation="DAYS"):
     q_quantiles = []
     for quantile in quantiles:
         q = (
             "QUANTILE(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO "
             "ALL_OCCURRENCE['Process End'], "
-            'REMAP_TIMESTAMPS(" '
+            'REMAP_TIMESTAMPS("'
             + fp.activity_table_name
             + '"."'
             + fp.eventtime_col
@@ -160,12 +158,11 @@ def get_quantiles_tracetime_pql(
             + str(quantile)
             + ")"
         )
-        q_quantiles.append(q)
+        q_quantiles.append((q, quantile))
 
     query = PQL()
     for q in q_quantiles:
         query.add(PQLColumn(q[0], q[1]))
-
     df_quantiles = fp.dm.get_data_frame(query)
     return df_quantiles
 

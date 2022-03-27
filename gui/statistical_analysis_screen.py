@@ -155,7 +155,7 @@ class AttributeField:
             hbox_metrics = self.gen_avg_metrics()
             df_attr = fp.df[["caseid", "Case start time", attribute.df_attribute_name]]
             df_attr["starttime"] = (
-                df_attr['"Case start time"']
+                df_attr["Case start time"]
                 .dt.to_period(
                     " \
                     "
@@ -168,7 +168,7 @@ class AttributeField:
             )
             num_cases_all_df = num_cases_all_df.rename({"caseid": "All cases"}, axis=1)
             num_cases_attr_true = (
-                df_attr[df_attr[attribute.display_name] == 1]
+                df_attr[df_attr[attribute.df_attribute_name] == 1]
                 .groupby("starttime", as_index=False)["caseid"]
                 .count()
                 .fillna(0)
@@ -212,7 +212,9 @@ class AttributeField:
             df_attr = fp.df[["caseid", "Case start time", attribute.df_attribute_name]]
             df_attr["starttime"] = df_attr["starttime"].dt.to_period("M").astype(str)
             avg_case_duration_over_attribute = (
-                df_attr.groupby(attribute.display_name, as_index=False)["Case duration"]
+                df_attr.groupby(attribute.df_attribute_name, as_index=False)[
+                    "Case duration"
+                ]
                 .mean()
                 .fillna(0)
             )
@@ -222,7 +224,7 @@ class AttributeField:
             )
             fig_effect.add_trace(
                 go.Scatter(
-                    x=avg_case_duration_over_attribute[attribute.display_name],
+                    x=avg_case_duration_over_attribute[attribute.df_attribute_name],
                     y=avg_case_duration_over_attribute["Case duration"],
                     fill="tonexty",
                 )
@@ -238,7 +240,9 @@ class AttributeField:
             fig_effect_box = VBox([fig_effect_widget], layout=fig_layout)
 
             avg_attribute_over_time_df = (
-                df_attr.groupby("starttime", as_index=False)[attribute.display_name]
+                df_attr.groupby("starttime", as_index=False)[
+                    attribute.df_attribute_name
+                ]
                 .mean()
                 .fillna(0)
             )
@@ -246,7 +250,7 @@ class AttributeField:
             fig_dev.add_trace(
                 go.Scatter(
                     x=avg_attribute_over_time_df["starttime"],
-                    y=avg_attribute_over_time_df[attribute.display_name],
+                    y=avg_attribute_over_time_df[attribute.df_attribute_name],
                     fill="tonexty",
                 )
             )

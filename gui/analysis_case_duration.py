@@ -32,7 +32,7 @@ class AnalysisCaseDuration:
         # Create dm_info and preprocessor
         with out:
             print("Fetching data and preprocessing...")
-        self.dm_info, self.fp, self.df_total_time = self.preprocess(dm)
+        self.fp = self.preprocess(dm)
         with out:
             print("Done")
 
