@@ -2,6 +2,7 @@ from typing import List
 from typing import Tuple
 
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from ipywidgets import Box
@@ -21,9 +22,17 @@ from feature_processing.feature_processor import FeatureProcessor
 
 class OverviewScreen:
     def __init__(self, fp: FeatureProcessor):
+        """
+
+        :param fp: FeatureProcessor with processed features
+        """
         self.fp = fp
 
-    def get_overview_screen(self):
+    def create_overview_screen(self):
+        """Create and get the overview screen
+
+        :return: box with the overview screen
+        """
         vBox_overview_layout = Layout(border="2px solid gray", grid_gap="30px")
         vBox_overview = VBox(layout=vBox_overview_layout)
         avg_case_duration = get_case_duration_pql(self.fp)
@@ -67,7 +76,9 @@ class OverviewScreen:
         )
         f_widget_case_duration_dev = go.FigureWidget(fig_case_duration_development)
         # case duration distribution
-        df_distribution = get_bins_trace_times(self.fp, 10, time_aggregation="DAYS")
+        df_distribution = compute_binned_distribution_case_durations(
+            self.fp, 10, time_unit="DAYS"
+        )
         fig_distribution = px.bar(
             df_distribution,
             x="range",
@@ -89,12 +100,22 @@ class OverviewScreen:
         return vBox_overview
 
 
-# TODO:Some of the following PQL queries could also be moved to the FeatureProcessor.
+# TODO:Some of the following PQL queries could also be moved to the FeatureProcessor
+#  or obtained from the df in the FeatureProcessor object.
+#  They should also be made more generic.
 
 
 def get_case_duration_pql(
     fp: FeatureProcessor, aggregation: str = "AVG", time_aggregation: str = "DAYS"
-):
+) -> float:
+    """Get the aggregates case duration of the cases
+
+    :param fp: FeatureProcessor with the processed features
+    :param aggregation: aggregation for the case duration, e.g. 'AVG' to get the
+    average case duration
+    :param time_aggregation: aggregation for the time, e.g. 'DAYS' or 'MONTHS'
+    :return: aggregated case duration
+    """
     q = (
         aggregation + "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO "
         "ALL_OCCURRENCE["
@@ -115,8 +136,18 @@ def get_case_duration_development_pql(
     fp: FeatureProcessor,
     duration_aggregation: str = "AVG",
     date_aggregation: str = "ROUND_MONTH",
-    time_aggregation: str = "DAYS",
-):
+    time_unit: str = "DAYS",
+) -> pd.DataFrame:
+    """Get aggregated case duration aggregated over a time period
+
+    :param fp: FeatureProcessor with the processed features
+    :param duration_aggregation: aggregation for the time aggregation, e.g. 'AVG' for
+    the average case duration
+    :param date_aggregation: aggregation of the date, e.g. 'ROUND_MONTH' to aggregate
+    over months
+    :param time_unit: the time unit, e.g. 'DAYS' to get the case duration in days
+    :return: DataFrame with the aggregated case duration aggregated over time
+    """
     q_date = (
         date_aggregation
         + '("'
@@ -133,7 +164,7 @@ def get_case_duration_development_pql(
         + '"."'
         + fp.eventtime_col
         + '", '
-        "" + time_aggregation + ")))"
+        "" + time_unit + ")))"
     )
     query = PQL()
     query.add(PQLColumn(q_date, "datetime"))
@@ -142,7 +173,17 @@ def get_case_duration_development_pql(
     return df_avg_case_duration
 
 
-def get_quantiles_tracetime_pql(fp, quantiles, time_aggregation="DAYS"):
+def get_quantiles_case_duration_pql(
+    fp: FeatureProcessor, quantiles: List[float], time_unit: str = "DAYS"
+) -> pd.DataFrame:
+    """
+
+    :param fp: FeatureProcessor with the processed features
+    :param quantiles: list of quantiles for which to get the values
+    :param time_unit: unit of the case duration, e.g. 'DAYS' to get the cae duration
+    values in days
+    :return: DataFrame with the case durations of the quantile values
+    """
     q_quantiles = []
     for quantile in quantiles:
         q = (
@@ -153,7 +194,7 @@ def get_quantiles_tracetime_pql(fp, quantiles, time_aggregation="DAYS"):
             + '"."'
             + fp.eventtime_col
             + '", '
-            + time_aggregation
+            + time_unit
             + ")), "
             + str(quantile)
             + ")"
@@ -162,26 +203,28 @@ def get_quantiles_tracetime_pql(fp, quantiles, time_aggregation="DAYS"):
 
     query = PQL()
     for q in q_quantiles:
-        query.add(PQLColumn(q[0], q[1]))
+        query.add(PQLColumn(q[0], str(q[1])))
     df_quantiles = fp.dm.get_data_frame(query)
     return df_quantiles
 
 
 def get_num_cases_with_durations(
     fp: FeatureProcessor,
-    durations: List[Tuple[int, int]],
-    time_aggregation: str = "DAYS",
-):
-    """Get the number of cases with the durations.
+    duration_intervals: List[Tuple[int, int]],
+    time_unit: str = "DAYS",
+) -> pd.DataFrame:
+    """Get the number of cases with the specified duration intervals.
 
-    :param fp:
-    :param durations: List of Tuples from ... to...
-    :param time_aggregation:
-    :return:
+    :param fp: FeatureProcessor with the processed features
+    :param duration_intervals: List of duration intervals from <first value> to <second
+    value>
+    :param time_unit: unit of the case duration, e.g. 'DAYS' to get the cae duration
+    values in days
+    :return: DataFrame with number of cases per duration interval
     """
 
     query = PQL()
-    for d in durations:
+    for d in duration_intervals:
         if d == (None, None):
             continue
         elif d[0] is None:
@@ -192,7 +235,7 @@ def get_num_cases_with_durations(
                 + '"."'
                 + fp.eventtime_col
                 + '", '
-                + time_aggregation
+                + time_unit
                 + ")) <= "
                 + str(d[1])
                 + ") THEN 1 ELSE 0 END)"
@@ -205,7 +248,7 @@ def get_num_cases_with_durations(
                 + '"."'
                 + fp.eventtime_col
                 + '", '
-                + time_aggregation
+                + time_unit
                 + ")) >= "
                 + str(d[0])
                 + ") THEN 1 ELSE 0 END)"
@@ -218,7 +261,7 @@ def get_num_cases_with_durations(
                 + '"."'
                 + fp.eventtime_col
                 + '", '
-                + time_aggregation
+                + time_unit
                 + ")) >= "
                 + str(d[0])
                 + ") AND (CALC_THROUGHPUT(CASE_START TO CASE_END, "
@@ -227,7 +270,7 @@ def get_num_cases_with_durations(
                 + '"."'
                 + fp.eventtime_col
                 + '", '
-                + time_aggregation
+                + time_unit
                 + ")) <= "
                 + str(d[1])
                 + ") THEN 1 ELSE 0 END)"
@@ -244,14 +287,16 @@ def get_potential_extra_bins(
     num_bins: int,
     min_val: int,
     max_val: int,
-):
-    """Get bins beyond the borders.
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
+    """Get potential bins beyond the bins that are already defined.
 
-    :param lower_end:
-    :param upper_end:
-    :param bin_width:
-    :param num_bins:
-    :return:
+    :param lower_end: lower value of the bins that are already defined
+    :param upper_end: upper value of the bins that are already defined
+    :param bin_width: width of a bin
+    :param num_bins: desired number of bins to add
+    :param min_val: minimum value of the considered data
+    :param max_val: maximum value of the considered data
+    :return: lists with lower and upper values of potential extra bins
     """
     potential_lowers = []
     potential_uppers = []
@@ -272,7 +317,15 @@ def choose_extra_bins(
     potential_lowers: List[Tuple[int, int]],
     potential_uppers: List[Tuple[int, int]],
     num_bins: int,
-):
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
+    """Choose extra bins beyond the original bins from the potential bins defined in
+    potential_lowers and potential_uppers.
+
+    :param potential_lowers: potential lower values for extra bins
+    :param potential_uppers: potential upper values for extra bins
+    :param num_bins: desired number of extra bins
+    :return: lists with lower and upper values of chosen extra bins
+    """
     potential_all = potential_lowers + potential_uppers
 
     if len(potential_all) == 0:
@@ -298,17 +351,27 @@ def choose_extra_bins(
     return extra_bins_lower, extra_bins_upper
 
 
-def get_bins_trace_times(
-    fp: FeatureProcessor, num_bins: int, time_aggregation: str = "DAYS"
+def compute_binned_distribution_case_durations(
+    fp: FeatureProcessor, num_bins: int, time_unit: str = "DAYS"
 ):
+    """Compute a binned distribution for case durations. The binning is done using
+    equal width binning for all inner bins. The outer bins at the beginning and the
+    end contain outliers.
+
+    :param fp: FeatureProcessor with the processed features
+    :param num_bins: number of desired bins
+    :param time_unit: unit of the case duration, e.g. 'DAYS' to get the cae duration
+    values in days
+    :return: DataFrame with the case duration distribution
+    """
     min_percentile = 0.0
     max_percentile = 1.0
     lower_percentile = 1 / (2 * num_bins)
     upper_percentile = 1 - lower_percentile
-    df_qs = get_quantiles_tracetime_pql(
+    df_qs = get_quantiles_case_duration_pql(
         fp,
         [lower_percentile, upper_percentile, min_percentile, max_percentile],
-        time_aggregation,
+        time_unit,
     )
     min_val = df_qs[str(min_percentile)].values[0]
     max_val = df_qs[str(max_percentile)].values[0]
@@ -345,9 +408,7 @@ def get_bins_trace_times(
     min_bin = (min_val, min_inner_bin - 1)
     max_bin = (max_inner_bin + 1, max_val)
     bins = [min_bin] + extra_bins_lower + bins + extra_bins_upper + [max_bin]
-    df_histogram = get_num_cases_with_durations(
-        fp, bins, time_aggregation=time_aggregation
-    )
+    df_histogram = get_num_cases_with_durations(fp, bins, time_unit=time_unit)
     df_histogram = df_histogram.transpose().reset_index()
     df_histogram.rename(
         columns={df_histogram.columns[0]: "range", df_histogram.columns[1]: "cases"},

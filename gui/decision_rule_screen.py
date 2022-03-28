@@ -45,7 +45,7 @@ class DecisionRulesScreen:
         self.min_display_val = None
         # maximum value of dependent variable to display in cumulative probability plot
         self.max_display_val = None
-        self.get_statistics_from_df()
+        self.compute_statistics_from_df()
         self.high_duration_box = None
         self.dr_miner = None
         self.decision_rules = None
@@ -56,7 +56,18 @@ class DecisionRulesScreen:
         self.button_elaborate_rules = None
         self.button_simplify_rules = None
 
-    def get_statistics_from_df(self):
+    def create_decision_rule_screen(self) -> VBox:
+        """Create and get the decision rule screen, i.e. the box that contains the
+        selection box and the rule box
+
+        :return: box with the decision rule screen
+        """
+        selection_box = self.create_duration_selection_box()
+        decision_rule_box = VBox(children=[selection_box, self.rule_box])
+        self.decision_rule_screen = decision_rule_box
+        return decision_rule_box
+
+    def compute_statistics_from_df(self):
         """Set member variables:
         - minimum and maximum values of the dependent variable.
         - minimum and maximum display values of the dependent variable
@@ -70,17 +81,6 @@ class DecisionRulesScreen:
         self.max_val = self.df[self.label].max()
         self.min_display_val = self.df[self.label].quantile(self.min_display_perc / 100)
         self.max_display_val = self.df[self.label].quantile(self.max_display_perc / 100)
-
-    def create_decision_rule_screen(self) -> VBox:
-        """create and get the decision rule screen, i.e. the box that contains the
-        selection box and the rule box
-
-        :return: box with the decision rule screen
-        """
-        selection_box = self.create_duration_selection_box()
-        decision_rule_box = VBox(children=[selection_box, self.rule_box])
-        self.decision_rule_screen = decision_rule_box
-        return decision_rule_box
 
     def create_duration_selection_box(self) -> HBox:
         """Create the box for the duration selection

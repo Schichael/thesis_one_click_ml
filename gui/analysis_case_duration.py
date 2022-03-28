@@ -59,7 +59,7 @@ class AnalysisCaseDuration:
             print("Creatng GUI...")
         # Create overview box
         overview_box_obj = OverviewScreen(self.fp)
-        self.overview_box = overview_box_obj.get_overview_screen()
+        self.overview_box = overview_box_obj.create_overview_screen()
 
         # Ceate statistical analysis tab
         stat_analysis_obj = StatisticalAnalysisBox(self.fp)
