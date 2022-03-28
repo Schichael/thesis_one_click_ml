@@ -1,3 +1,5 @@
+from typing import Optional
+
 from IPython.display import display
 from ipywidgets import Tab
 from ipywidgets import widgets
@@ -10,7 +12,15 @@ from gui.statistical_analysis_screen import StatisticalAnalysisBox
 
 
 class AnalysisCaseDuration:
-    def __init__(self, datamodel, celonis_login=None):
+    """Analysis of potential effects on case duration."""
+
+    def __init__(self, datamodel: str, celonis_login: Optional[dict] = None):
+        """
+
+        :param datamodel: datamodel name or id
+        :param celonis_login: dict with login information
+        """
+
         self.datamodel = datamodel
         self.celonis_login = celonis_login
         self.fp = None
@@ -21,21 +31,30 @@ class AnalysisCaseDuration:
         self.tabs = None
 
     def run(self):
+        """Run the pipeline to create the analysis.
+        1. Connect to Celonis and get dm
+        2. Create FeatureProcessor
+        3. Create the GUI
+
+        :return:
+        """
         out = widgets.Output(layout={"border": "1px solid black"})
         display(out)
-        # Connect and get dm
+        # 1. Connect to Celonis and get dm
         with out:
             print("Connecting to Celonis...")
         dm = utils.get_dm(self.datamodel, celonis_login=self.celonis_login)
         with out:
             print("Done")
-        # Create dm_info and preprocessor
+        # 2. Create FeatureProcessor and run processing for the analysis
         with out:
             print("Fetching data and preprocessing...")
-        self.fp = self.preprocess(dm)
+        self.fp = FeatureProcessor(dm)
+        self.fp.run_total_time_PQL(20, time_aggregation="DAYS")
         with out:
             print("Done")
 
+        # 3. Create the GUI
         with out:
             print("Creatng GUI...")
         # Create overview box
@@ -62,12 +81,11 @@ class AnalysisCaseDuration:
         del out
         display(self.tabs)
 
-    def preprocess(self, dm):
-        fp = FeatureProcessor(dm)
-        fp.run_total_time_PQL(20, time_aggregation="DAYS")
-        return fp
-
     def create_tabs(self):
+        """Create the tabs for the GUI.
+
+        :return:
+        """
         tab_names = ["Overview", "Statistical Analysis", "Decision Rules"]
         tab = Tab([self.overview_box, self.stat_analysis_box, self.dec_rule_box])
         for i, el in enumerate(tab_names):

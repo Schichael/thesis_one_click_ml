@@ -328,4 +328,3 @@ class AttributeField:
             [html_avg_with_attr, html_avg_without_attr], layout=hbox_metrics_layout
         )
         return hbox_metrics
-        # Label with average case duration with attribute
