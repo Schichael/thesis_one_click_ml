@@ -1,3 +1,4 @@
+from typing import Any
 from typing import List
 from typing import Optional
 
@@ -51,3 +52,15 @@ def get_dm(datamodel_name: str, celonis_login: Optional[dict] = None):
         celonis = get_celonis(**celonis_login)
     dm = celonis.datamodels.find(datamodel_name)
     return dm
+
+
+def make_list(var: Any) -> List:
+    """Wraps varibale var into a list if val is not a list itself.
+
+    :param var: a variable
+    :return: var if var is of type list, else [var]
+    """
+    if isinstance(var, List):
+        return var
+    else:
+        return [var]

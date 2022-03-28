@@ -50,7 +50,7 @@ class AnalysisCaseDuration:
         with out:
             print("Fetching data and preprocessing...")
         self.fp = FeatureProcessor(dm)
-        self.fp.run_total_time_PQL(20, time_aggregation="DAYS")
+        self.fp.run_total_time_PQL(time_unit="DAYS")
         with out:
             print("Done")
 
