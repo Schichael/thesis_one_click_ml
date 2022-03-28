@@ -12,11 +12,11 @@ from ipywidgets import Layout
 from ipywidgets import VBox
 from scipy import stats
 
-from decision_rules.decision_rule_miner import DecisionRuleMiner
-from errors import MaximumValueReachedError
-from errors import MinimumValueReachedError
-from feature_processing.attributes import AttributeDataType
-from feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.decision_rules.decision_rule_miner import DecisionRuleMiner
+from one_click_analysis.errors import MaximumValueReachedError
+from one_click_analysis.errors import MinimumValueReachedError
+from one_click_analysis.feature_processing.attributes import AttributeDataType
+from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
 
 class DecisionRulesScreen:
@@ -50,7 +50,7 @@ class DecisionRulesScreen:
         self.dr_miner = None
         self.decision_rules = None
         self.current_case_duration = None
-        self.rule_box = HBox([Label("Hello")])
+        self.rule_box = HBox()
         self.decision_rule_screen = None
         self.button_run = None
         self.button_elaborate_rules = None
@@ -136,7 +136,6 @@ class DecisionRulesScreen:
         # Run button
         def on_button_run_clicked(b):
             # secure the current content of the box
-
             case_duration_th = self.high_duration_box.value
             # Do not run the miner twice for the same threshold value
             if case_duration_th == self.current_case_duration:

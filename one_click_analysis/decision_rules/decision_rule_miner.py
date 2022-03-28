@@ -9,8 +9,8 @@ import wittgenstein as lw
 from pandas.api.types import is_numeric_dtype
 from sklearn.metrics import confusion_matrix
 
-from errors import MaximumValueReachedError
-from errors import MinimumValueReachedError
+from one_click_analysis.errors import MaximumValueReachedError
+from one_click_analysis.errors import MinimumValueReachedError
 
 
 class DecisionRuleMiner:

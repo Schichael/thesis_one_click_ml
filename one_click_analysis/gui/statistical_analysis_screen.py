@@ -9,10 +9,10 @@ from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
 
-import utils
-from feature_processing.attributes import Attribute
-from feature_processing.attributes import AttributeDataType
-from feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis import utils
+from one_click_analysis.feature_processing.attributes import Attribute
+from one_click_analysis.feature_processing.attributes import AttributeDataType
+from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
 
 class StatisticalAnalysisBox:

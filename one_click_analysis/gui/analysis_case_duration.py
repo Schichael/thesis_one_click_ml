@@ -4,11 +4,11 @@ from IPython.display import display
 from ipywidgets import Tab
 from ipywidgets import widgets
 
-import utils
-from feature_processing.feature_processor import FeatureProcessor
-from gui.decision_rule_screen import DecisionRulesScreen
-from gui.overview_screen import OverviewScreen
-from gui.statistical_analysis_screen import StatisticalAnalysisBox
+from one_click_analysis import utils
+from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
+from one_click_analysis.gui.overview_screen import OverviewScreen
+from one_click_analysis.gui.statistical_analysis_screen import StatisticalAnalysisBox
 
 
 class AnalysisCaseDuration:

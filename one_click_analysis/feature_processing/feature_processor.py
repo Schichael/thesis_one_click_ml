@@ -6,8 +6,8 @@ import pandas as pd
 from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
 
-import utils
-from feature_processing import attributes
+from one_click_analysis import utils
+from one_click_analysis.feature_processing import attributes
 
 
 pd.options.mode.chained_assignment = None
@@ -314,7 +314,7 @@ class FeatureProcessor:
         dataframe = self.dm.get_data_frame(query, chunksize=self.chunksize)
         return dataframe
 
-    def _aggregate_static_categorical_PQL(
+    def aggregate_static_categorical_PQL(
         self, min_vals: int = 0, max_vals: int = np.inf
     ) -> pd.DataFrame:
         """Aggregate static categorical attributes (categorical columns in the case
@@ -369,7 +369,7 @@ class FeatureProcessor:
         dataframe = self.dm.get_data_frame(query, chunksize=self.chunksize)
         return dataframe
 
-    def _aggregate_dynamic_categorical_PQL(
+    def aggregate_dynamic_categorical_PQL(
         self, min_vals: int = 1, max_vals: int = np.inf
     ) -> pd.DataFrame:
         """Aggregate dynamic categorical columns (categorical columns in the activity
@@ -395,7 +395,7 @@ class FeatureProcessor:
         )
         return df_dynamic_categorical
 
-    def _aggregate_dynamic_numerical_PQL(
+    def aggregate_dynamic_numerical_PQL(
         self, aggregations: Optional[List[str]] = None
     ) -> pd.DataFrame:
         """Aggregate dynamic numerical columns (numerical columns in the activity
@@ -858,10 +858,10 @@ class FeatureProcessor:
         binary_rework_df = self.binary_rework_PQL(min_vals)
         work_in_progress_df = self.work_in_progress_PQL(aggregations=["AVG"])
 
-        static_cat_df = self._aggregate_static_categorical_PQL(min_vals)
+        static_cat_df = self.aggregate_static_categorical_PQL(min_vals)
         static_num_df = self.get_static_numerical_PQL()
-        dyn_cat_df = self._aggregate_dynamic_categorical_PQL(min_vals)
-        dyn_num_df = self._aggregate_dynamic_numerical_PQL()
+        dyn_cat_df = self.aggregate_dynamic_categorical_PQL(min_vals)
+        dyn_num_df = self.aggregate_dynamic_numerical_PQL()
         total_time_df = self.total_time_PQL(time_aggregation, is_label=True)
         joined_df = utils.join_dfs(
             [
@@ -883,7 +883,7 @@ class FeatureProcessor:
         self.compute_metrics(joined_df)
         self.df = joined_df
 
-    def _set_latest_date_PQL(self):
+    def set_latest_date_PQL(self):
         query = PQL()
         query += PQLColumn(
             "MAX("

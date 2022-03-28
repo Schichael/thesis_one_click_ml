@@ -13,7 +13,7 @@ from ipywidgets import VBox
 from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
 
-from feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
 # TODO: Make the OverviewBox more general or add an abstract overview class from
 # which the overview screens for the different analyses can inherent common
