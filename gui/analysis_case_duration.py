@@ -5,8 +5,8 @@ from ipywidgets import Tab
 from ipywidgets import widgets
 
 import utils
-from DecisionRuleScreen import DecisionRulesBox
 from feature_processing.feature_processor import FeatureProcessor
+from gui.decision_rule_screen import DecisionRulesScreen
 from gui.overview_screen import OverviewScreen
 from gui.statistical_analysis_screen import StatisticalAnalysisBox
 
@@ -59,21 +59,18 @@ class AnalysisCaseDuration:
             print("Creatng GUI...")
         # Create overview box
         overview_box_obj = OverviewScreen(self.fp)
-        self.overview_box = overview_box_obj.get_overview_box()
+        self.overview_box = overview_box_obj.get_overview_screen()
 
         # Ceate statistical analysis tab
         stat_analysis_obj = StatisticalAnalysisBox(self.fp)
         self.stat_analysis_box = stat_analysis_obj.get_statistical_box()
 
         # Create decision rule miner box
-        dec_rule_box_obj = DecisionRulesBox(
-            self.fp.df,
-            self.fp.label.df_attribute_name,
-            self.fp.label.unit,
-            self.fp.attributes_dict,
+        dec_rule_box_obj = DecisionRulesScreen(
+            self.fp,
             pos_class=None,
         )
-        self.dec_rule_box = dec_rule_box_obj.create_view()
+        self.dec_rule_box = dec_rule_box_obj.get_decision_rule_screen()
 
         # Create tabs
         self.tabs = self.create_tabs()

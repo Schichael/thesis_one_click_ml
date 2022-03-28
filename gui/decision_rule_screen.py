@@ -15,24 +15,35 @@ from scipy import stats
 from decision_rules.decision_rule_miner import DecisionRuleMiner
 from errors import MaximumValueReachedError
 from errors import MinimumValueReachedError
+from feature_processing.feature_processor import FeatureProcessor
 from preprocessing import AttributeDataType
 
 
 class DecisionRulesScreen:
-    def __init__(self, df, label, label_unit, attributes_dict, pos_class=None):
-        self.df = df
-        self.label = label
-        self.label_unit = label_unit
-        self.attributes_dict = attributes_dict
+    def __init__(self, fp: FeatureProcessor, pos_class=None):
+        """
+
+        :param fp: FeatureProcessor with processed features
+        :param pos_class: the value of the positive class of the dependent variable.
+        Leave at None if class is numerical
+        """
+        self.fp = fp
+        self.df = fp.df
+        self.label = fp.label.df_attribute_name
+        self.label_unit = fp.label.unit
         # the value of the positive class. Leave at None if class is numerical
         self.pos_class = pos_class
         self.default_long_perc = 20  # default top percentage of long case duration
-        self.min_display_perc = 1  # minimum percentage of data to display in plot
-        self.max_display_perc = 99  # maximum percentage of data to display in plot
+        # minimum percentage of data to display in cumulative probability plot
+        self.min_display_perc = 1
+        # maximum percentage of data to display in cumulative probability plot
+        self.max_display_perc = 99
         self.default_val = None
-        self.min_val = None
-        self.max_val = None
+        self.min_val = None  # minimum value of dependent variable
+        self.max_val = None  # maximum value of dependent variable
+        # minimum value of dependent variable to display in cumulative probability plot
         self.min_display_val = None
+        # maximum value of dependent variable to display in cumulative probability plot
         self.max_display_val = None
         self.get_statistics_from_df()
         self.high_duration_box = None
@@ -40,12 +51,18 @@ class DecisionRulesScreen:
         self.decision_rules = None
         self.current_case_duration = None
         self.rule_box = HBox([Label("Hello")])
-        self.view = None
+        self.decision_rule_screen = None
         self.button_run = None
         self.button_elaborate_rules = None
         self.button_simplify_rules = None
 
     def get_statistics_from_df(self):
+        """Set member variables:
+        - minimum and maximum values of the dependent variable.
+        - minimum and maximum display values of the dependent variable
+
+        :return:
+        """
         self.default_val = self.df[self.label].quantile(
             (100 - self.default_long_perc) / 100
         )
@@ -54,13 +71,22 @@ class DecisionRulesScreen:
         self.min_display_val = self.df[self.label].quantile(self.min_display_perc / 100)
         self.max_display_val = self.df[self.label].quantile(self.max_display_perc / 100)
 
-    def create_view(self):
-        selection_box = self.create_duration_selection_box()
-        vbox_view = VBox(children=[selection_box, self.rule_box])
-        self.view = vbox_view
-        return vbox_view
+    def get_decision_rule_screen(self) -> VBox:
+        """create and get the decision rule screen, i.e. the box that contains the
+        selection box and the rule box
 
-    def create_duration_selection_box(self):
+        :return: the decision rule screen
+        """
+        selection_box = self.create_duration_selection_box()
+        decision_rule_box = VBox(children=[selection_box, self.rule_box])
+        self.decision_rule_screen = decision_rule_box
+        return decision_rule_box
+
+    def create_duration_selection_box(self) -> HBox:
+        """Create the box for the duration selection
+
+        :return: the box for the duration selection
+        """
         label_title = Label("Define high case duration:")
 
         label_description = Label("Case duration >=\xa0")
@@ -68,7 +94,7 @@ class DecisionRulesScreen:
         label_unit = Label("\xa0" + self.label_unit, layout=Layout(width="auto"))
         label_percentage = Label(
             "\xa0 (Top\xa0"
-            + str(self.get_percentile_score(self.df[self.label], self.default_val))
+            + str(self.get_percentile(self.df[self.label], self.default_val))
             + "%)",
             layout=Layout(width="auto"),
         )
@@ -85,7 +111,7 @@ class DecisionRulesScreen:
         def handle_label_percentage_description(change):
             new_description = (
                 "\xa0 (Top\xa0"
-                + str(self.get_percentile_score(self.df[self.label], change.new))
+                + str(self.get_percentile(self.df[self.label], change.new))
                 + "%)"
             )
             label_percentage.value = new_description
@@ -123,14 +149,16 @@ class DecisionRulesScreen:
                 self.dr_miner = DecisionRuleMiner(
                     self.df,
                     self.label,
-                    self.attributes_dict.keys(),
+                    self.fp.attributes_dict.keys(),
                     pos_class=None,
                     threshold=self.high_duration_box.value,
                 )
             self.run_decision_miner()
             self.current_case_duration = case_duration_th
             self.rule_box = self.create_rule_box()
-            self.view.children = [self.view.children[0]] + [self.rule_box]
+            self.decision_rule_screen.children = [
+                self.decision_rule_screen.children[0]
+            ] + [self.rule_box]
             button_run.disabled = False
 
         button_run = Button(description="Mine rules!")
@@ -151,10 +179,20 @@ class DecisionRulesScreen:
         hbox_all = HBox(children=[vbox_duration_selection, prob_figure_widget])
         return hbox_all
 
-    def get_percentile_score(self, series, val):
+    def get_percentile(self, series: pd.Series, val: float):
+        """Get the percentile of a value in a series
+
+        :param series: series with numerical values
+        :param val: value for which to compute the percentile
+        :return: the percentile of the value in the series
+        """
         return round(100 - stats.percentileofscore(series, val))
 
-    def create_probability_figure_widget(self):
+    def create_probability_figure_widget(self) -> go.FigureWidget:
+        """Create the figure for the cumulative probability of the dependent variable
+
+        :return: FigureWidget object with the figure
+        """
         df_float = pd.DataFrame(self.df[self.label].astype(float))
         fig = px.ecdf(df_float, x=self.label)
         fig.update_layout(
@@ -168,7 +206,11 @@ class DecisionRulesScreen:
         fig_widget = go.FigureWidget(fig)
         return fig_widget
 
-    def create_rule_box(self):
+    def create_rule_box(self) -> Box:
+        """Create box with the decision rules and the rule metrics
+
+        :return: box with the rules and the rule metrics
+        """
         rule_box_rules = self.create_rule_box_rules()
         rule_box_metrics = self.gen_rule_box_metrics()
         layout_rule_box = Layout(
@@ -183,7 +225,11 @@ class DecisionRulesScreen:
         rule_box_parent = Box(children=[rule_box_all], layout=layout_rule_box)
         return rule_box_parent
 
-    def create_rule_box_rules(self):
+    def create_rule_box_rules(self) -> VBox:
+        """Create box with the decision rules
+
+        :return:box with the decision rules
+        """
         html_rule_caption = HTML(
             '<span style="font-weight:bold; font-size: 16px">'
             + "Rule for case duration >=\xa0"
@@ -191,7 +237,7 @@ class DecisionRulesScreen:
             + ":</span>",
             layout=Layout(margin="0px 0px 10px 0px"),
         )
-        html_rules = self.get_pretty_html_rules()
+        html_rules = self.create_pretty_html_rules()
         rules_html_widget = Box([HTML(value=html_rules)])
 
         def on_click_simplify_rules(b):
@@ -202,7 +248,9 @@ class DecisionRulesScreen:
                 self.dr_miner.simplify_rule_config()
                 self.run_decision_miner()
                 self.rule_box = self.create_rule_box()
-                self.view.children = [self.view.children[0]] + [self.rule_box]
+                self.decision_rule_screen.children = [
+                    self.decision_rule_screen.children[0]
+                ] + [self.rule_box]
             except MinimumValueReachedError:
                 button_simplify_rules.disabled = True
             finally:
@@ -215,7 +263,9 @@ class DecisionRulesScreen:
                 self.dr_miner.elaborate_rule_config()
                 self.run_decision_miner()
                 self.rule_box = self.create_rule_box()
-                self.view.children = [self.view.children[0]] + [self.rule_box]
+                self.decision_rule_screen.children = [
+                    self.decision_rule_screen.children[0]
+                ] + [self.rule_box]
             except MaximumValueReachedError:
                 button_elaborate_rules.disabled = True
             finally:
@@ -242,20 +292,18 @@ class DecisionRulesScreen:
         return vbox_rule
 
     def run_decision_miner(self):
+        """Run the decision rule miner to get decision rules
+
+        :return:
+        """
         self.dr_miner.run_pipeline()
         self.decision_rules = self.dr_miner.structured_rules
 
-    def enable_buttons(self):
-        self.button_elaborate_rules.disabled = False
-        self.button_simplify_rules.disabled = False
-        self.button_run.disabled = False
+    def create_pretty_html_rules(self) -> str:
+        """Create html string with pretty decision rules
 
-    def disable_buttons(self):
-        self.button_elaborate_rules.disabled = True
-        self.button_simplify_rules.disabled = True
-        self.button_run.disabled = True
-
-    def get_pretty_html_rules(self):
+        :return: html string with pretty decision rules
+        """
         pretty_rules = []
         for rule in self.decision_rules:
             pretty_conds = []
@@ -264,7 +312,7 @@ class DecisionRulesScreen:
                 val = cond["value"]
                 unequality = cond["unequal_sign"]
                 if (
-                    self.attributes_dict[attr].attribute_data_type
+                    self.fp.attributes_dict[attr].attribute_data_type
                     == AttributeDataType.NUMERICAL
                 ):
                     if unequality != "between":
@@ -303,7 +351,11 @@ class DecisionRulesScreen:
             all_rules_html_text = all_rules_html_text + pretty_rule
         return all_rules_html_text
 
-    def gen_rule_box_metrics(self):
+    def gen_rule_box_metrics(self) -> VBox:
+        """Generate box that contains the metrics for the rules
+
+        :return: box that contains the metrics for the rules
+        """
         conf_matrix = self.gen_conf_matrix()
         avg_metrics = self.gen_avg_rule_metrics()
         metrics_box = VBox(
@@ -312,6 +364,13 @@ class DecisionRulesScreen:
         return metrics_box
 
     def gen_conf_matrix(self):
+        """Generate the box with the confusion matrix for the decision rules
+
+        TODO: Exchange ipysheet with a box from ipywidgets as ipysheet is not working in
+        Jupyter lab
+
+        :return: box with the confusion matrix for the decision rules
+        """
         header_color = "AliceBlue"
         cell_color = "Snow"
         font_size = "12px"
@@ -438,7 +497,12 @@ class DecisionRulesScreen:
         vbox_all = VBox(children=[html_rule_performance, conf_matrix])
         return vbox_all
 
-    def gen_avg_rule_metrics(self):
+    def gen_avg_rule_metrics(self) -> VBox:
+        """Generate box with the average values of the dependent variable for cases
+        for which the decision rules evaluate to true or false
+
+        :return: box with the average rule metrics
+        """
         html_avg_true = Box(
             [
                 HTML(

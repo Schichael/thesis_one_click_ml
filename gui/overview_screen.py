@@ -23,7 +23,7 @@ class OverviewScreen:
     def __init__(self, fp: FeatureProcessor):
         self.fp = fp
 
-    def get_overview_box(self):
+    def get_overview_screen(self):
         vBox_overview_layout = Layout(border="2px solid gray", grid_gap="30px")
         vBox_overview = VBox(layout=vBox_overview_layout)
         avg_case_duration = get_case_duration_pql(self.fp)
