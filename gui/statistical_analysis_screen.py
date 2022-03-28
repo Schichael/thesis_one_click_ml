@@ -1,4 +1,5 @@
 import functools
+from typing import Union
 
 import plotly.graph_objects as go
 from ipywidgets import Box
@@ -16,10 +17,18 @@ from feature_processing.feature_processor import FeatureProcessor
 
 class StatisticalAnalysisBox:
     def __init__(self, fp: FeatureProcessor):
+        """
+
+        :param fp: FeatureProcessor with processed features
+        """
         self.fp = fp
 
-    def get_statistical_box(self):
-        parent_vbox = VBox()
+    def create_statistical_screen(self) -> VBox:
+        """Create and get the screen for the statistical analysis
+
+        :return: box with the screen for the statistical analysis
+        """
+        statistical_screen_box = VBox()
         title_scrollbox_layout = Layout(margin="5px 0px 0px 0px")
         title_scrollbox_html = (
             '<span style="font-weight:bold;  font-size:16px"> '
@@ -43,27 +52,45 @@ class StatisticalAnalysisBox:
 
         for attr in attrs_sorted:
             if attr.correlation >= 0.3:
-                attr_field = AttributeField(attr, "Case duration", self.fp, parent_vbox)
-                attr_boxes.append(attr_field.box)
+                attr_field = AttributeField(
+                    attr, "Case duration", self.fp, statistical_screen_box
+                )
+                attr_boxes.append(attr_field.attribute_box)
         scroll_box.children = attr_boxes
-        parent_vbox.children = [title_scrollbox, scroll_box, VBox()]
+        statistical_screen_box.children = [title_scrollbox, scroll_box, VBox()]
 
-        return parent_vbox
+        return statistical_screen_box
 
 
 class AttributeField:
     def __init__(
-        self, attribute: Attribute, label: str, fp: FeatureProcessor, parent_box
+        self,
+        attribute: Attribute,
+        label: str,
+        fp: FeatureProcessor,
+        statistical_screen_box: Box,
     ):
+        """
+
+        :param attribute: Attribute object containing the attribute information
+        :param label: label of the dependent variable to use for visualization
+        :param fp: FeatureProcessor with processed features
+        :param statistical_screen_box: the box that contains the statistical screen
+        """
         self.label = label
         self.attribute = attribute
         self.fp = fp
+        self.statistical_screen_box = statistical_screen_box
         self.attribute_name_label = self.create_attribute_label()
         self.metrics_label = self.create_metrics_label()
-        self.button = self.create_button(fp, parent_box)
-        self.box = self.create_box()
+        self.button = self.create_button()
+        self.attribute_box = self.create_attribute_box()
 
-    def create_box(self):
+    def create_attribute_box(self):
+        """Create the attribute box
+
+        :return: attribute box
+        """
         layout_vbox = Layout(
             border="2px solid gray",
             min_height="100px",
@@ -71,13 +98,17 @@ class AttributeField:
             padding="0px 0px 0px 0px",
             margin="0px 3px 3px 3px",
         )
-        vbox = VBox(
+        attr_box = VBox(
             children=[self.attribute_name_label, self.metrics_label, self.button],
             layout=layout_vbox,
         )
-        return vbox
+        return attr_box
 
-    def create_attribute_label(self):
+    def create_attribute_label(self) -> HTML:
+        """Create label for the attribute name
+
+        :return: widgets.HTML object with the attribute name
+        """
         html_attribute = (
             '<span style="font-weight:bold"> Attribute: '
             + f'<span style="color: Blue">{self.attribute.display_name}</span></span>'
@@ -85,7 +116,11 @@ class AttributeField:
         attribute_label = HTML(html_attribute, layout=Layout(padding="0px 0px 0px 0px"))
         return attribute_label
 
-    def create_metrics_label(self):
+    def create_metrics_label(self) -> Union[HBox, HTML]:
+        """Create label for the attribute metrics
+
+        :return: box with the metrics
+        """
         layout_padding = Layout(padding="0px 0px 0px 12px")
         correlation_html = '<span style="font-weight:bold"> Correlation: </span>' + str(
             round(self.attribute.correlation, 2)
@@ -123,20 +158,33 @@ class AttributeField:
             )
             return metrics_box
 
-    def create_button(self, fp: FeatureProcessor, parent_box: Box):
+    def create_button(self) -> Button:
+        """Create button that when clicked lets the user view details of the attribute
+
+        :return: button
+        """
         button_layout = Layout(min_height="30px")
         button = Button(description="Details", layout=button_layout)
+
+        def on_button_clicked(b, statistical_screen_box: Box):
+            attribute_box = self.gen_attribute_details_box(self.attribute)
+            statistical_screen_box.children = statistical_screen_box.children[:-1] + (
+                attribute_box,
+            )
+
         partial_button_clicked = functools.partial(
-            self.on_button_clicked, fp=fp, parent_box=parent_box
+            on_button_clicked,
+            statistical_screen_box=self.statistical_screen_box,
         )
         button.on_click(partial_button_clicked)
         return button
 
-    def on_button_clicked(self, b, fp: FeatureProcessor, parent_box: Box):
-        attribute_box = self.gen_attribute_box(self.attribute, fp)
-        parent_box.children = parent_box.children[:-1] + (attribute_box,)
+    def gen_attribute_details_box(self, attribute: Attribute):
+        """Generate box with the attribute details.
 
-    def gen_attribute_box(self, attribute: Attribute, fp: FeatureProcessor):
+        :param attribute: the attribute for which to create the details box
+        :return:
+        """
 
         layout_box = Layout(border="3px solid grey", padding="5px 5px 5px 5px")
 
@@ -152,8 +200,10 @@ class AttributeField:
 
         if attribute.attribute_data_type == AttributeDataType.CATEGORICAL:
 
-            hbox_metrics = self.gen_avg_metrics()
-            df_attr = fp.df[["caseid", "Case start time", attribute.df_attribute_name]]
+            hbox_metrics = self.gen_avg_metrics_box()
+            df_attr = self.fp.df[
+                ["caseid", "Case start time", attribute.df_attribute_name]
+            ]
             df_attr["starttime"] = (
                 df_attr["Case start time"]
                 .dt.to_period(
@@ -209,7 +259,9 @@ class AttributeField:
             )
 
         else:
-            df_attr = fp.df[["caseid", "Case start time", attribute.df_attribute_name]]
+            df_attr = self.fp.df[
+                ["caseid", "Case start time", attribute.df_attribute_name]
+            ]
             df_attr["starttime"] = df_attr["starttime"].dt.to_period("M").astype(str)
             avg_case_duration_over_attribute = (
                 df_attr.groupby(attribute.df_attribute_name, as_index=False)[
@@ -272,7 +324,12 @@ class AttributeField:
         vbox_whole = VBox([title_label, vbox_details])
         return vbox_whole
 
-    def gen_avg_metrics(self):
+    def gen_avg_metrics_box(self):
+        """Generate box with the average influence of the attribute on dependent
+        variable
+
+        :return: box with average metrics
+        """
         avg_with_attr = round(
             self.fp.df[self.fp.df[self.attribute.df_attribute_name] == 1][
                 self.fp.label.df_attribute_name

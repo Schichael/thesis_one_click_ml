@@ -15,8 +15,8 @@ from scipy import stats
 from decision_rules.decision_rule_miner import DecisionRuleMiner
 from errors import MaximumValueReachedError
 from errors import MinimumValueReachedError
+from feature_processing.attributes import AttributeDataType
 from feature_processing.feature_processor import FeatureProcessor
-from preprocessing import AttributeDataType
 
 
 class DecisionRulesScreen:
@@ -71,11 +71,11 @@ class DecisionRulesScreen:
         self.min_display_val = self.df[self.label].quantile(self.min_display_perc / 100)
         self.max_display_val = self.df[self.label].quantile(self.max_display_perc / 100)
 
-    def get_decision_rule_screen(self) -> VBox:
+    def create_decision_rule_screen(self) -> VBox:
         """create and get the decision rule screen, i.e. the box that contains the
         selection box and the rule box
 
-        :return: the decision rule screen
+        :return: box with the decision rule screen
         """
         selection_box = self.create_duration_selection_box()
         decision_rule_box = VBox(children=[selection_box, self.rule_box])

@@ -63,14 +63,14 @@ class AnalysisCaseDuration:
 
         # Ceate statistical analysis tab
         stat_analysis_obj = StatisticalAnalysisBox(self.fp)
-        self.stat_analysis_box = stat_analysis_obj.get_statistical_box()
+        self.stat_analysis_box = stat_analysis_obj.create_statistical_screen()
 
         # Create decision rule miner box
         dec_rule_box_obj = DecisionRulesScreen(
             self.fp,
             pos_class=None,
         )
-        self.dec_rule_box = dec_rule_box_obj.get_decision_rule_screen()
+        self.dec_rule_box = dec_rule_box_obj.create_decision_rule_screen()
 
         # Create tabs
         self.tabs = self.create_tabs()
