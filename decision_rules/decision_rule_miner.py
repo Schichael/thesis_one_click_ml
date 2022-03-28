@@ -1,3 +1,8 @@
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 import wittgenstein as lw
@@ -9,6 +14,11 @@ from errors import MinimumValueReachedError
 
 
 class DecisionRuleMiner:
+    """Wrapper class for the wittgenstein.RIPPER algorithm with additional
+    functionality.
+    Ripper implementation source code: https://github.com/imoscovitz/wittgenstein
+    """
+
     configs = [
         {"max_rule_conds": 1, "max_rules": 1},
         {"max_rule_conds": 1, "max_rules": 2},
@@ -20,18 +30,31 @@ class DecisionRuleMiner:
 
     def __init__(
         self,
-        df,
-        class_label,
-        attrbute_labels,
-        pos_class: str = None,
-        threshold: float = None,
+        df: pd.DataFrame,
+        class_label: str,
+        attrbute_labels: List[str],
+        pos_class: Optional[str] = None,
+        threshold: Optional[float] = None,
         config_index: int = 2,
         n_discretize_bins: int = 3,
         k: int = 3,
         random_state: int = 42,
     ):
+        """
+
+        :param df: DataFrame with independent variables and dependent variables
+        :param class_label: column name of the dependent varialbe in df
+        :param attrbute_labels: column names of the independent variables
+        :param pos_class: value of the positive class of the dependent variable
+        :param threshold: if the dependent variable is numeric, the values
+        above or equal to the threshold are labeled as the positive class
+        :param config_index: the index of the configs to start with
+        :param n_discretize_bins: number of bins to divide the numerical independent
+        variables
+        :param k: number of iterations to run the ripper algorithm
+        :param random_state: random state seed to get reproducible results
+        """
         self.df = df
-        self.attrbute_labels = attrbute_labels
         self.preprocessed_label_col = "Decisionrulelabel"
         self.class_label = class_label
         self.attribute_labels = attrbute_labels
@@ -39,24 +62,28 @@ class DecisionRuleMiner:
         self.max_rule_conds = None
         # difficult to read
         self.n_discretize_bins = (
-            n_discretize_bins  # this should be fixed. Maybe can also use 3
+            n_discretize_bins
+            # this should be fixed. Maybe can also use 3
         )
         # the value of the positive class. Leave at None if class is numerical
         self.pos_class = pos_class
         self.k = k  # number of iterations
         self.random_state = random_state
         self.max_rules = (
-            None  # this variable can be changed to make rules simpler or more elaborate
+            None
+            # this variable can be changed to make rules simpler or
+            # more elaborate
         )
         # threshold to define positive class for numerical class. Positive class is
         # >= threshold
         self.threshold = threshold
         # threshold
-        self.label_df = self.get_label_df()
+        self.label_df = self.gen_label_df()
         self.rules = None
         self.attr_dict = (
             self._create_attribute_dict()
-        )  # dict that maps from the changed names to the original names
+        )  # dict that maps from the changed names
+        # to the original names
         self.clf = None
         self.structured_rules = None
         self.metrics = {}
@@ -64,15 +91,20 @@ class DecisionRuleMiner:
         self.apply_config()
 
     def apply_config(self):
+        """Apply the config at index self.config_index to the corresponding member
+        variables.
+
+        :return:
+        """
         self.max_rule_conds = self.configs[self.config_index]["max_rule_conds"]
         self.max_rules = self.configs[self.config_index]["max_rules"]
         self.config_index = self.config_index
 
-    def get_label_df(self):
-        """
+    def gen_label_df(self) -> pd.DataFrame:
+        """Generate the DataFrame with a column with the positive(1) and negative(0)
+        classes of the dependent variable from the label column in self.df.
 
-        :param df:
-        :return:
+        :return: DataFrame with column of the positive and negative classes
         """
         label_df = pd.DataFrame()
         # create new label column if original is numerical
@@ -88,10 +120,10 @@ class DecisionRuleMiner:
         return label_df
 
     def run_pipeline(self):
-        """Run the pipeline and return all the interesting metrics"""
+        """Run the pipeline that fits the ripper model and computes metrics."""
         self._fit()
         self.structured_rules = self.create_structured_rules()
-        pred = self._get_prediction_labels()
+        pred = self.make_predictions()
         (
             true_n,
             false_p,
@@ -118,6 +150,10 @@ class DecisionRuleMiner:
         self.metrics = metric_dict
 
     def _fit(self):
+        """Create a RIPPER model object and fit it.
+
+        :return:
+        """
         self.clf = lw.RIPPER(
             max_rule_conds=self.max_rule_conds,
             n_discretize_bins=self.n_discretize_bins,
@@ -126,17 +162,37 @@ class DecisionRuleMiner:
             max_rules=self.max_rules,
         )
         self.clf.fit(
-            pd.concat([self.df[self.attrbute_labels], self.label_df], axis=1),
+            pd.concat([self.df[self.attribute_labels], self.label_df], axis=1),
             class_feat=self.preprocessed_label_col,
             pos_class=self.pos_class,
         )
         self.rules = self.clf.ruleset_
 
-    def _get_prediction_labels(self):
-        pred = self.clf.predict(self.df[self.attrbute_labels])
+    def make_predictions(self) -> np.ndarray:
+        """Make predictions for all data in self.df with the fitted model.
+
+        :return:array with the predicted classes
+        """
+        pred = self.clf.predict(self.df[self.attribute_labels])
         return np.array(pred)
 
-    def _get_confusion_matrix(self, pred):
+    def _get_confusion_matrix(
+        self, pred
+    ) -> Tuple[float, float, float, float, float, float, float, float]:
+        """Get model metrics on the predictions.
+        The metrics are:
+        true-negative samples,
+        false-positive samples,
+        false-negative samples,
+        true-positive samples,
+        recall for positive class,
+        recall for negative class,
+        precision for positive class,
+        precision for negative class
+
+        :param pred: array with predictions
+        :return: Tuple with the metrics
+        """
         true_labels = self.label_df[self.preprocessed_label_col].values
         true_n, false_p, false_n, true_p = confusion_matrix(true_labels, pred).ravel()
         recall_p = true_p / (true_p + false_n)
@@ -154,12 +210,24 @@ class DecisionRuleMiner:
             precision_n,
         )
 
-    def _get_avg_label_value(self, pred):
+    def _get_avg_label_value(self, pred: np.ndarray):
+        """Get the average values of the independent variable for the cases that are
+        predicted to be in the positive and the negative class
+
+        :param pred: array with predictions
+        :return: average values of independent variable for the cases that are
+        predicted to be in the positive and the negative class
+        """
         avg_True = self.df[pred][self.class_label].mean()
         avg_False = self.df[~pred][self.class_label].mean()
         return avg_True, avg_False
 
-    def create_structured_rules(self):
+    def create_structured_rules(self) -> List[List[Dict[str, str]]]:
+        """Create a list with rules in an easier to process format from the raw
+        decision rules of the RIPPER model.
+
+        :return: list with the structured rues
+        """
         ruleset = self.clf.ruleset_
         structured_rules = []
         for rule in ruleset:
@@ -189,12 +257,13 @@ class DecisionRuleMiner:
             structured_rules.append(conds)
         return structured_rules
 
-    def _create_attribute_dict(self):
-        """For the decision miner algorythm, the names of the attributes are changed
-        a bit. So here a dict is created that maps from the changed names to the
-        original names
+    def _create_attribute_dict(self) -> Dict[str, str]:
+        """Inside the decision miner algorythm, the names of the original attributes
+        are changed a bit. So here a dict is created that maps from the changed names to
+        the original names
 
-        :return:
+        :return: dictionary mapping the changed attribute names from the RIPPER
+        algorithm to the original attribute names
         """
         attr_dict = {}
         for attr in self.attribute_labels:
@@ -203,8 +272,10 @@ class DecisionRuleMiner:
         return attr_dict
 
     def simplify_rule_config(self):
-        """Reducing the config by 1
+        """Reduce the config by 1
 
+        :raise MinimumValueReachedError: if decreasing the config_index would
+        decrease it to a number below 0.
         :return:
         """
         if self.config_index > 0:
@@ -214,8 +285,10 @@ class DecisionRuleMiner:
             raise MinimumValueReachedError()
 
     def elaborate_rule_config(self):
-        """Reducing the config by 1
+        """Reduce the config by 1
 
+        :raise MaximumValueReachedError: if increasing the config_index would exceed
+        the maximum index in self.configs
         :return:
         """
         if self.config_index < (len(self.configs) - 1):
