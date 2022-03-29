@@ -1,3 +1,5 @@
+from typing import List
+
 import ipysheet
 import ipywidgets as widgets
 import pandas as pd
@@ -15,12 +17,20 @@ from scipy import stats
 from one_click_analysis.decision_rules.decision_rule_miner import DecisionRuleMiner
 from one_click_analysis.errors import MaximumValueReachedError
 from one_click_analysis.errors import MinimumValueReachedError
+from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.attributes import AttributeDataType
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
 
 class DecisionRulesScreen:
-    def __init__(self, fp: FeatureProcessor, pos_class=None):
+    def __init__(
+        self,
+        fp: FeatureProcessor,
+        selected_attributes: List[attributes.MinorAttribute],
+        selected_activity_table_cols: List[str],
+        selected_case_table_cols: List[str],
+        pos_class=None,
+    ):
         """
 
         :param fp: FeatureProcessor with processed features
@@ -28,7 +38,11 @@ class DecisionRulesScreen:
         Leave at None if class is numerical
         """
         self.fp = fp
-        self.df = fp.df
+        self.selected_attributes = selected_attributes
+        self.selected_activity_table_cols = selected_activity_table_cols
+        self.selected_case_table_cols = selected_case_table_cols
+        self.df = self.fp.df
+        self.attr_names = self.create_attribute_names()
         self.label = fp.label.df_attribute_name
         self.label_unit = fp.label.unit
         # the value of the positive class. Leave at None if class is numerical
@@ -51,12 +65,54 @@ class DecisionRulesScreen:
         self.decision_rules = None
         self.current_case_duration = None
         self.rule_box = HBox()
-        self.decision_rule_screen = None
+        self.decision_rule_box = None
         self.button_run = None
         self.button_elaborate_rules = None
         self.button_simplify_rules = None
 
-    def create_decision_rule_screen(self) -> VBox:
+    def update_attr_selection(
+        self,
+        selected_attributes,
+        selected_activity_table_cols,
+        selected_case_table_cols,
+    ):
+        self.selected_attributes = selected_attributes
+        self.selected_activity_table_cols = selected_activity_table_cols
+        self.selected_case_table_cols = selected_case_table_cols
+        self.attr_names = self.create_attribute_names()
+        self.rule_box = HBox()
+        self.create_decision_rule_screen()
+
+    def create_attribute_names(self) -> List[str]:
+        """Create DataFrame with the selected attribute values and activity and
+        case columns and the dependent variable
+
+        :return: Dataframe with the attributes and the dependent variable
+        """
+        selected_attr_types = tuple([type(i) for i in self.selected_attributes])
+        attr_col_names = []
+        for attr in self.fp.attributes:
+            if not isinstance(
+                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
+            ) and not isinstance(
+                attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
+            ):
+                if isinstance(attr.minor_attribute_type, selected_attr_types):
+                    attr_col_names.append(attr.df_attribute_name)
+            elif isinstance(
+                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
+            ):
+                if attr.column_name in self.selected_activity_table_cols:
+                    attr_col_names.append(attr.df_attribute_name)
+            elif isinstance(
+                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
+            ):
+                if attr.column_name in self.selected_case_table_cols:
+                    attr_col_names.append(attr.df_attribute_name)
+        print(attr_col_names)
+        return attr_col_names
+
+    def create_decision_rule_screen(self):
         """Create and get the decision rule screen, i.e. the box that contains the
         selection box and the rule box
 
@@ -64,8 +120,7 @@ class DecisionRulesScreen:
         """
         selection_box = self.create_duration_selection_box()
         decision_rule_box = VBox(children=[selection_box, self.rule_box])
-        self.decision_rule_screen = decision_rule_box
-        return decision_rule_box
+        self.decision_rule_box = decision_rule_box
 
     def compute_statistics_from_df(self):
         """Set member variables:
@@ -148,16 +203,16 @@ class DecisionRulesScreen:
                 self.dr_miner = DecisionRuleMiner(
                     self.df,
                     self.label,
-                    self.fp.attributes_dict.keys(),
-                    pos_class=None,
+                    self.attr_names,
+                    pos_class=self.pos_class,
                     threshold=self.high_duration_box.value,
                 )
             self.run_decision_miner()
             self.current_case_duration = case_duration_th
             self.rule_box = self.create_rule_box()
-            self.decision_rule_screen.children = [
-                self.decision_rule_screen.children[0]
-            ] + [self.rule_box]
+            self.decision_rule_box.children = [self.decision_rule_box.children[0]] + [
+                self.rule_box
+            ]
             button_run.disabled = False
 
         button_run = Button(description="Mine rules!")
@@ -247,8 +302,8 @@ class DecisionRulesScreen:
                 self.dr_miner.simplify_rule_config()
                 self.run_decision_miner()
                 self.rule_box = self.create_rule_box()
-                self.decision_rule_screen.children = [
-                    self.decision_rule_screen.children[0]
+                self.decision_rule_box.children = [
+                    self.decision_rule_box.children[0]
                 ] + [self.rule_box]
             except MinimumValueReachedError:
                 button_simplify_rules.disabled = True
@@ -262,8 +317,8 @@ class DecisionRulesScreen:
                 self.dr_miner.elaborate_rule_config()
                 self.run_decision_miner()
                 self.rule_box = self.create_rule_box()
-                self.decision_rule_screen.children = [
-                    self.decision_rule_screen.children[0]
+                self.decision_rule_box.children = [
+                    self.decision_rule_box.children[0]
                 ] + [self.rule_box]
             except MaximumValueReachedError:
                 button_elaborate_rules.disabled = True
