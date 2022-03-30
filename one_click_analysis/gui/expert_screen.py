@@ -4,7 +4,7 @@ from typing import List
 
 import ipywidgets as widgets
 
-from one_click_analysis.attribute_Selection import AttributeSelection
+from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
@@ -18,7 +18,6 @@ class ExpertScreen:
         attr_selection: AttributeSelection,
     ):
         """
-
         :param fp: FeatureProcessor with processed features
         :param attr_selection: AttributeSelection object
 
@@ -45,17 +44,37 @@ class ExpertScreen:
         :return: box with the attribute selection
         """
         # dict that maps MinorAttribute attribute_name to the attribute object
+        minor_attrs_dict = {i.attribute_name: i for i in self.fp.minor_attrs}
 
         cbs = []
         cbs_activity_table = None
         cbs_case_table = None
+
+        def on_checkbox_clicked(b):
+            """Define behaviour when checkbox of a "normal" attribute (not activity
+            or case column attribute) is toggled
+
+            :param b:
+            :return:
+            """
+            if b.new is False:
+                self.local_selected_attributes.remove(
+                    minor_attrs_dict[b.owner.description]
+                )
+            else:
+                self.local_selected_attributes.append(
+                    minor_attrs_dict[b.owner.description]
+                )
+
         for attr in self.fp.minor_attrs:
+            # if the attribute is the label,
             if not isinstance(
                 attr, attributes.ActivityTableColumnMinorAttribute
             ) and not isinstance(attr, attributes.CaseTableColumnMinorAttribute):
                 cb = widgets.Checkbox(
                     value=True, description=attr.attribute_name, indent=False
                 )
+                cb.observe(on_checkbox_clicked, "value")
                 cbs.append(cb)
             elif isinstance(attr, attributes.ActivityTableColumnMinorAttribute):
                 (cbs_activity_table) = self.create_cbs_activity_case(
@@ -86,7 +105,6 @@ class ExpertScreen:
             :param b: needed for observing
             :return:
             """
-            print("in button clicked")
             self.attr_selection.selected_attributes = self.local_selected_attributes
             self.attr_selection.selected_activity_table_cols = (
                 self.local_selected_activity_cat_cols
@@ -102,7 +120,7 @@ class ExpertScreen:
         # Add a title
         html_title_str = (
             '<span style="font-weight:bold;  font-size:16px">Attribute '
-            'selection</span>"'
+            "selection</span>"
         )
         html_title = widgets.HTML(html_title_str)
         vbox_all_attributes = widgets.VBox(

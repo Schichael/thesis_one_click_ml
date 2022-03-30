@@ -6,7 +6,7 @@ from ipywidgets import Tab
 from ipywidgets import widgets
 
 from one_click_analysis import utils
-from one_click_analysis.attribute_Selection import AttributeSelection
+from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
@@ -31,7 +31,6 @@ class AttributeSelectionCaseDuration(AttributeSelection):
         self.decision_rules_screen = decision_rules_screen
 
     def update(self):
-        print("in update")
         self.statistical_analysis_screen.update_attr_selection(
             self.selected_attributes,
             self.selected_activity_table_cols,
@@ -65,7 +64,6 @@ class AnalysisCaseDuration:
         self.stat_analysis_screen = None
         self.dec_rule_screen = None
         self.expert_screen = None
-        self.expert_box = None
         self.tabs = None
 
         self.selected_attributes = []

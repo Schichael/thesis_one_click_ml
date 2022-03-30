@@ -5,6 +5,11 @@ from one_click_analysis.feature_processing import attributes
 
 
 class AttributeSelection(abc.ABC):
+    """This class is used to define the behaviour when  attribute selection is
+    updated. The update() method needs to be overwritten
+
+    """
+
     def __init__(
         self,
         selected_attributes: List[attributes.MinorAttribute],
@@ -17,4 +22,8 @@ class AttributeSelection(abc.ABC):
 
     @abc.abstractmethod
     def update(self):
+        """Define what shall happen when attribute selection is updated.
+
+        :return:
+        """
         pass

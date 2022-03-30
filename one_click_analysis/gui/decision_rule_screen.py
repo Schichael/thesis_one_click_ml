@@ -64,8 +64,9 @@ class DecisionRulesScreen:
         self.dr_miner = None
         self.decision_rules = None
         self.current_case_duration = None
+        self.selection_box = HBox()
         self.rule_box = HBox()
-        self.decision_rule_box = None
+        self.decision_rule_box = VBox()
         self.button_run = None
         self.button_elaborate_rules = None
         self.button_simplify_rules = None
@@ -76,11 +77,22 @@ class DecisionRulesScreen:
         selected_activity_table_cols,
         selected_case_table_cols,
     ):
+        """Define behaviour when the attribute selection is updated. Here, the screen is
+        simply constructed again with the new attributes.
+
+        :param selected_attributes:
+        :param selected_activity_table_cols:
+        :param selected_case_table_cols:
+        :return:
+        """
         self.selected_attributes = selected_attributes
         self.selected_activity_table_cols = selected_activity_table_cols
         self.selected_case_table_cols = selected_case_table_cols
-        self.attr_names = self.create_attribute_names()
         self.rule_box = HBox()
+        self.dr_miner = None
+        self.current_case_duration = None
+        self.attr_names = self.create_attribute_names()
+
         self.create_decision_rule_screen()
 
     def create_attribute_names(self) -> List[str]:
@@ -105,11 +117,10 @@ class DecisionRulesScreen:
                 if attr.column_name in self.selected_activity_table_cols:
                     attr_col_names.append(attr.df_attribute_name)
             elif isinstance(
-                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
+                attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
             ):
                 if attr.column_name in self.selected_case_table_cols:
                     attr_col_names.append(attr.df_attribute_name)
-        print(attr_col_names)
         return attr_col_names
 
     def create_decision_rule_screen(self):
@@ -118,9 +129,8 @@ class DecisionRulesScreen:
 
         :return: box with the decision rule screen
         """
-        selection_box = self.create_duration_selection_box()
-        decision_rule_box = VBox(children=[selection_box, self.rule_box])
-        self.decision_rule_box = decision_rule_box
+        self.create_duration_selection_box()
+        self.decision_rule_box.children = [self.selection_box, self.rule_box]
 
     def compute_statistics_from_df(self):
         """Set member variables:
@@ -137,10 +147,9 @@ class DecisionRulesScreen:
         self.min_display_val = self.df[self.label].quantile(self.min_display_perc / 100)
         self.max_display_val = self.df[self.label].quantile(self.max_display_perc / 100)
 
-    def create_duration_selection_box(self) -> HBox:
+    def create_duration_selection_box(self):
         """Create the box for the duration selection
-
-        :return: the box for the duration selection
+        :return:
         """
         label_title = Label("Define high case duration:")
 
@@ -230,8 +239,7 @@ class DecisionRulesScreen:
             layout=vbox_duration_selection_layout,
         )
         prob_figure_widget = self.create_probability_figure_widget()
-        hbox_all = HBox(children=[vbox_duration_selection, prob_figure_widget])
-        return hbox_all
+        self.selection_box.children = [vbox_duration_selection, prob_figure_widget]
 
     def get_percentile(self, series: pd.Series, val: float):
         """Get the percentile of a value in a series
