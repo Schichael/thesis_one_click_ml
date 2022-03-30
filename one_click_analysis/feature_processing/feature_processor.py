@@ -834,7 +834,8 @@ class FeatureProcessor:
         """
         dfs = []
         for attr in attrs:
-            self.minor_attrs.append(attr)
+            if not attr.is_label:
+                self.minor_attrs.append(attr)
             dfs.append(self.get_attr_df(attr))
         joined_df = utils.join_dfs(dfs, keys=["caseid"] * len(dfs))
         self.compute_metrics(joined_df)

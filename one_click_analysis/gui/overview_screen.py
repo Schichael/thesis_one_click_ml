@@ -27,11 +27,12 @@ class OverviewScreen:
         :param fp: FeatureProcessor with processed features
         """
         self.fp = fp
+        self.overview_box = None
 
     def create_overview_screen(self):
         """Create and get the overview screen
 
-        :return: box with the overview screen
+        :return:
         """
         vBox_overview_layout = Layout(border="2px solid gray", grid_gap="30px")
         vBox_overview = VBox(layout=vBox_overview_layout)
@@ -97,7 +98,7 @@ class OverviewScreen:
             f_widget_case_duration_dev,
             f_widget_distribution,
         ]
-        return vBox_overview
+        self.overview_box = vBox_overview
 
 
 # TODO:Some of the following PQL queries could also be moved to the FeatureProcessor

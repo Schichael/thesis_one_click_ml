@@ -1,4 +1,5 @@
 import functools
+from typing import List
 from typing import Union
 
 import plotly.graph_objects as go
@@ -10,39 +11,79 @@ from ipywidgets import Layout
 from ipywidgets import VBox
 
 from one_click_analysis import utils
-from one_click_analysis.feature_processing.attributes import Attribute
-from one_click_analysis.feature_processing.attributes import AttributeDataType
+from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
 
-class StatisticalAnalysisBox:
-    def __init__(self, fp: FeatureProcessor):
+class StatisticalAnalysisScreen:
+    def __init__(
+        self,
+        fp: FeatureProcessor,
+        th: float,
+        selected_attributes: List[attributes.MinorAttribute],
+        selected_activity_table_cols: List[str],
+        selected_case_table_cols: List[str],
+    ):
         """
 
         :param fp: FeatureProcessor with processed features
+        :param th: threshold for correlation coefficient
+        :param selected_attributes:
         """
         self.fp = fp
+        self.th = th
+        self.selected_attributes = selected_attributes
+        self.selected_activity_table_cols = selected_activity_table_cols
+        self.selected_case_table_cols = selected_case_table_cols
+        self.statistical_analysis_box = VBox()
 
-    def create_statistical_screen(self) -> VBox:
-        """Create and get the screen for the statistical analysis
+    def update_attr_selection(
+        self,
+        selected_attributes,
+        selected_activity_table_cols,
+        selected_case_table_cols,
+    ):
+        """Define behaviour when the attribute selection is updated. Here, the screen is
+        simply constructed again with the new attributes.
 
-        :return: box with the screen for the statistical analysis
+        :param selected_attributes: list with the selected MinorAttributes
+        :param selected_activity_table_cols:
+        :param selected_case_table_cols:
+        :return:
         """
-        statistical_screen_box = VBox()
-        title_scrollbox_layout = Layout(margin="5px 0px 0px 0px")
-        title_scrollbox_html = (
+        self.selected_attributes = selected_attributes
+        self.selected_activity_table_cols = selected_activity_table_cols
+        self.selected_case_table_cols = selected_case_table_cols
+        self.create_statistical_screen()
+
+    def create_title_attributes_box(self) -> HTML:
+        """Create the title of the attributes box.
+
+        :return: HTML widget with the title
+        """
+        title_attributes_box_layout = Layout(margin="5px 0px 0px 0px")
+        title_attributes_box_html = (
             '<span style="font-weight:bold;  font-size:16px"> '
             "Attributes with potential effect on case "
             "duration:</span>"
         )
-        title_scrollbox = HTML(title_scrollbox_html, layout=title_scrollbox_layout)
-        scroll_box_layout = Layout(
+        title_attributes_box = HTML(
+            title_attributes_box_html, layout=title_attributes_box_layout
+        )
+        return title_attributes_box
+
+    def create_attributes_box(self) -> VBox:
+        """Create the attributes box.
+
+        :return: VBox with the attributes box
+        """
+        attributes_box_layout = Layout(
             overflow_y="scroll",
             max_height="400px",
             border="3px solid grey",
             padding="3px 3px 3px 3px",
         )
-        scroll_box = VBox(layout=scroll_box_layout)
+        attributes_box = VBox(layout=attributes_box_layout)
         attr_boxes = []
 
         # sort attributes by correlation coefficient
@@ -50,22 +91,101 @@ class StatisticalAnalysisBox:
             self.fp.attributes, key=lambda x: abs(x.correlation), reverse=True
         )
 
+        selected_attr_types = tuple([type(i) for i in self.selected_attributes])
         for attr in attrs_sorted:
-            if attr.correlation >= 0.3:
+            if not isinstance(attr.minor_attribute_type, selected_attr_types):
+                continue
+            elif isinstance(
+                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
+            ):
+                if attr.column_name not in self.selected_activity_table_cols:
+                    continue
+            elif isinstance(
+                attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
+            ):
+                if attr.column_name not in self.selected_case_table_cols:
+                    continue
+            if (attr.correlation >= self.th) or (
+                attr.attribute_data_type == attributes.AttributeDataType.NUMERICAL
+                and abs(attr.correlation) >= self.th
+            ):
+                attr_field = AttributeField(
+                    attr, "Case duration", self.fp, self.statistical_analysis_box
+                )
+                attr_boxes.append(attr_field.attribute_box)
+        attributes_box.children = attr_boxes
+        return attributes_box
+
+    def create_statistical_screen(
+        self,
+    ):
+        """populate the screen for the statistical analysis.
+
+        :return: box with the screen for the statistical analysis
+        """
+        title_attributes_box = self.create_title_attributes_box()
+        attributes_box = self.create_attributes_box()
+
+        self.statistical_analysis_box.children = [
+            title_attributes_box,
+            attributes_box,
+            VBox(),
+        ]
+
+    def create_statistical_screen_old(
+        self,
+    ) -> VBox:
+        """Create and get the screen for the statistical analysis
+
+        :return: box with the screen for the statistical analysis
+        """
+        statistical_screen_box = VBox()
+
+        title_attributes_box = self.create_title_attributes_box()
+        attributes_box_layout = Layout(
+            overflow_y="scroll",
+            max_height="400px",
+            border="3px solid grey",
+            padding="3px 3px 3px 3px",
+        )
+        attributes_box = VBox(layout=attributes_box_layout)
+        attr_boxes = []
+
+        # sort attributes by correlation coefficient
+        attrs_sorted = sorted(
+            self.fp.attributes, key=lambda x: abs(x.correlation), reverse=True
+        )
+
+        selected_attr_types = tuple([type(i) for i in self.selected_attributes])
+        for attr in attrs_sorted:
+            if not isinstance(attr.minor_attribute_type, selected_attr_types):
+                continue
+            elif isinstance(
+                attr.column_name, attributes.ActivityTableColumnMinorAttribute
+            ):
+                if attr.column_name not in self.selected_activity_table_cols:
+                    continue
+            elif isinstance(attr.column_name, attributes.CaseTableColumnMinorAttribute):
+                if attr.column_name not in self.selected_case_table_cols:
+                    continue
+            if (attr.correlation >= self.th) or (
+                attr.attribute_data_type == attributes.AttributeDataType.NUMERICAL
+                and abs(attr.correlation) >= self.th
+            ):
                 attr_field = AttributeField(
                     attr, "Case duration", self.fp, statistical_screen_box
                 )
                 attr_boxes.append(attr_field.attribute_box)
-        scroll_box.children = attr_boxes
-        statistical_screen_box.children = [title_scrollbox, scroll_box, VBox()]
-
+        attributes_box.children = attr_boxes
+        statistical_screen_box.children = [title_attributes_box, attributes_box, VBox()]
+        self.statistical_analysis_box = statistical_screen_box
         return statistical_screen_box
 
 
 class AttributeField:
     def __init__(
         self,
-        attribute: Attribute,
+        attribute: attributes.Attribute,
         label: str,
         fp: FeatureProcessor,
         statistical_screen_box: Box,
@@ -126,7 +246,7 @@ class AttributeField:
             round(self.attribute.correlation, 2)
         )
         correlation_label = HTML(correlation_html, layout=layout_padding)
-        if self.attribute.attribute_data_type == AttributeDataType.NUMERICAL:
+        if self.attribute.attribute_data_type == attributes.AttributeDataType.NUMERICAL:
             return correlation_label
         else:
             sign = "+" if self.attribute.label_influence > 0 else ""
@@ -179,7 +299,7 @@ class AttributeField:
         button.on_click(partial_button_clicked)
         return button
 
-    def gen_attribute_details_box(self, attribute: Attribute):
+    def gen_attribute_details_box(self, attribute: attributes.Attribute):
         """Generate box with the attribute details.
 
         :param attribute: the attribute for which to create the details box
@@ -198,7 +318,7 @@ class AttributeField:
 
         label_attribute = self.attribute_name_label
 
-        if attribute.attribute_data_type == AttributeDataType.CATEGORICAL:
+        if attribute.attribute_data_type == attributes.AttributeDataType.CATEGORICAL:
 
             hbox_metrics = self.gen_avg_metrics_box()
             df_attr = self.fp.df[
