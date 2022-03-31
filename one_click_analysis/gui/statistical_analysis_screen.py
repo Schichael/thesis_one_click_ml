@@ -325,13 +325,7 @@ class AttributeField:
                 ["caseid", "Case start time", attribute.df_attribute_name]
             ]
             df_attr["starttime"] = (
-                df_attr["Case start time"]
-                .dt.to_period(
-                    " \
-                    "
-                    "M"
-                )
-                .astype(str)
+                df_attr["Case start time"].dt.to_period("M").astype(str)
             )
             num_cases_all_df = (
                 df_attr.groupby("starttime", as_index=False)["caseid"].count().fillna(0)
@@ -380,29 +374,36 @@ class AttributeField:
 
         else:
             df_attr = self.fp.df[
-                ["caseid", "Case start time", attribute.df_attribute_name]
+                [
+                    "caseid",
+                    "Case start time",
+                    attribute.df_attribute_name,
+                    self.fp.label.df_attribute_name,
+                ]
             ]
-            df_attr["starttime"] = df_attr["starttime"].dt.to_period("M").astype(str)
+            df_attr["starttime"] = (
+                df_attr["Case start time"].dt.to_period("M").astype(str)
+            )
             avg_case_duration_over_attribute = (
                 df_attr.groupby(attribute.df_attribute_name, as_index=False)[
-                    "Case duration"
+                    self.fp.label.df_attribute_name
                 ]
                 .mean()
                 .fillna(0)
             )
-            # Attribute effect on label
             fig_effect = go.Figure(
-                layout_title_text="Case duration over attribute value"
+                layout_title_text=self.fp.label.display_name + " over attribute value"
             )
+            # Attribute effect on label
             fig_effect.add_trace(
                 go.Scatter(
                     x=avg_case_duration_over_attribute[attribute.df_attribute_name],
-                    y=avg_case_duration_over_attribute["Case duration"],
+                    y=avg_case_duration_over_attribute[self.fp.label.df_attribute_name],
                     fill="tonexty",
                 )
             )
             fig_effect.update_layout(
-                title="Effect of attribute on case duration",
+                title="Effect of attribute on " + self.fp.label.display_name,
                 xaxis_title=None,
                 yaxis_title=None,
                 height=250,
