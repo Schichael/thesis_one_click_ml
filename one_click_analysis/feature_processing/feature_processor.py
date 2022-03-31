@@ -493,7 +493,14 @@ class FeatureProcessor:
         query_unique = PQL()
         query_unique.add(PQLColumn(name="values", query="DISTINCT(" + query_str + ")"))
         query_unique.add(
-            PQLColumn(name="count", query='COUNT_TABLE("' + self.case_table_name + '")')
+            PQLColumn(
+                name="count",
+                query='COUNT(DISTINCT "'
+                + self.activity_table_name
+                + '"."'
+                + self.activity_case_key
+                + '")',
+            )
         )
 
         df_unique_vals = self.dm.get_data_frame(query_unique, chunksize=self.chunksize)
@@ -834,6 +841,7 @@ class FeatureProcessor:
         """
         dfs = []
         for attr in attrs:
+            print(f"Attribute fetching: {attr.attribute_name}")
             if not attr.is_label:
                 self.minor_attrs.append(attr)
             dfs.append(self.get_attr_df(attr))
@@ -961,7 +969,13 @@ class FeatureProcessor:
         :param max_counts_perc: maximum count percentage
         :return: minimum and maximum attribute counts
         """
-        query_num_cases = 'COUNT_TABLE("' + self.case_table_name + '")'
+        query_num_cases = (
+            'COUNT(DISTINCT "'
+            + self.activity_table_name
+            + '"."'
+            + self.activity_case_key
+            + '")'
+        )
         pql_num_cases = PQL()
         pql_num_cases.add(PQLColumn(query_num_cases, "number cases"))
         df_num_cases = self.dm.get_data_frame(pql_num_cases, chunksize=self.chunksize)
