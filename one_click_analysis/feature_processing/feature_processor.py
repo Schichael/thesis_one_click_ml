@@ -253,7 +253,7 @@ class FeatureProcessor:
         :param binarize_threshold: if binarize_threshold is an integer, the result
         will be binarized. Results with a value >= binarize_threshold will become 1
         everything else will become 0.
-        :return: Dataframe with the one hot encoded attributes
+        :return: PQL object with the query
         """
         if suffix != "":
             suffix = " " + suffix
@@ -347,7 +347,7 @@ class FeatureProcessor:
 
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
-        :return: Dataframe with the one hot encoded attributes
+        :return: PQL object with the query
         """
         major_attribute = attributes.MajorAttribute.CASE
         minor_attribute = attributes.CaseTableColumnMinorAttribute()
@@ -372,7 +372,7 @@ class FeatureProcessor:
         """Get static numerical attributes (numerical columns in the case table). The
         numerical columns are simply fetched from the database.
 
-        :return: DataFrame with static numerical attributes
+        :return: PQL object with the query
         """
         query = PQL()
         # query.add(self.get_query_case_ids())
@@ -405,7 +405,7 @@ class FeatureProcessor:
 
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
-        :return: DataFrame with the dynamic categorical attributes
+        :return: PQL object with the query
         """
         major_attribute = attributes.MajorAttribute.ACTIVITY
         minor_attribute = attributes.ActivityTableColumnMinorAttribute()
@@ -433,7 +433,7 @@ class FeatureProcessor:
         :param aggregations: List of aggregations to use. The names of the
         aggregations need to be as used in PQL. If aggregations is None, 'AVG' is
         used which computes the average value within a case.
-        :return: DataFrame with the aggregated dynamic numerical attributes
+        :return: PQL object with the query
         """
         if aggregations is None:
             aggregations = ["AVG"]
@@ -510,7 +510,7 @@ class FeatureProcessor:
         :param binarize_threshold: if binarize_threshold is an integer, the result
         will be binarized. Results with a value >= binarize_threshold will become 1
         everything else will become 0.
-        :return: DataFrame with the attributes gotten from the query
+        :return: PQL object with the query
         """
 
         query_unique = PQL()
@@ -574,7 +574,7 @@ class FeatureProcessor:
 
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
-        :return: DataFrame with the start activities
+        :return: PQL object with the query
         """
         attribute_name = "Start activity"
         attribute_data_type = attributes.AttributeDataType.CATEGORICAL
@@ -604,7 +604,7 @@ class FeatureProcessor:
 
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
-        :return: DataFrame with the end activities
+        :return: PQL object with the query
         """
         attribute_name = "End activity"
         attribute_data_type = attributes.AttributeDataType.CATEGORICAL
@@ -631,7 +631,7 @@ class FeatureProcessor:
     def start_activity_time_PQL(self) -> PQL:
         """Get datetime of the first activity in a case
 
-        :return: DataFrame with the start activity times
+        :return: PQL object with the query
         """
 
         query_str = (
@@ -647,7 +647,7 @@ class FeatureProcessor:
     def end_activity_time_PQL(self) -> PQL:
         """Get datetime of the last activity in a case
 
-        :return: DataFrame with the end activity times
+        :return: PQL object with the query
         """
         query_str = (
             'PU_LAST("' + self.case_table_name + '", '
@@ -676,7 +676,7 @@ class FeatureProcessor:
 
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
-        :return: DataFrame wuth the binary activity occurences
+        :return: PQL object with the query
         """
         suffix = "(occurence)"
         major_attribute = attributes.MajorAttribute.ACTIVITY
@@ -706,7 +706,7 @@ class FeatureProcessor:
 
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
-        :return: DataFrame with the binary rework occurences
+        :return: PQL object with the query
         """
         suffix = "(rework)"
         major_attribute = attributes.MajorAttribute.ACTIVITY
@@ -737,7 +737,7 @@ class FeatureProcessor:
     def num_events_PQL(self) -> PQL:
         """Get number of events in a case
 
-        :return: DataFrame with the number of events in a case
+        :return: PQL object with the query
         """
         df_attr_name = "Event count"
         display_name = "Event count"
@@ -767,7 +767,7 @@ class FeatureProcessor:
         """Get the work in progress PQL query
 
         :param aggregations: List of PQL aggregations to use. If None, 'AVG' is used.
-        :return: DataFrame with the work in progress in a case
+        :return: PQL object with the query
         """
 
         if aggregations is None:
@@ -821,7 +821,7 @@ class FeatureProcessor:
         :param time_aggregation:
         :param is_label: whether the attribute is used as the label(dependent
         variable) or not
-        :return: DataFrame with total case times
+        :return: PQL object with the query
         """
         df_attr_name = "case duration"
         display_name = "case duration"
@@ -864,11 +864,13 @@ class FeatureProcessor:
         # dataframe = self.dm.get_data_frame(query, chunksize=self.chunksize)
         return query
 
-    def process_attributes(self, attrs: List[attributes.MinorAttribute]):
-        """Generate attributes from the list attrs.
+    def process_attributes(
+        self, attrs: List[attributes.MinorAttribute]
+    ) -> pd.DataFrame:
+        """Generate DataFrame from the list attrs.
 
         :param attrs: List with MinorAttribute objects.
-        :return:
+        :return: DataFrame with the attributes as features
         """
         # dfs = []
         query = PQL()
@@ -888,7 +890,7 @@ class FeatureProcessor:
         """Run feature processing for total case time analysis.
 
         :param time_unit: time unit to use. E.g. DAYS if attributes shall be in days.
-        :return: DataFrame with the processed attributes.
+        :return:
         """
         minor_attrs = [
             attributes.StartActivityMinorAttribute(),
@@ -1023,44 +1025,46 @@ class FeatureProcessor:
 
         return min_attr_counts, max_attr_counts
 
-    def get_attr_df(self, attr: attributes.MinorAttribute) -> pd.DataFrame:
+    def get_attr_df(self, attr: attributes.MinorAttribute) -> PQL:
         if isinstance(attr, attributes.CaseDurationMinorAttribute):
-            df = self.case_duration_PQL(attr.time_aggregation, is_label=attr.is_label)
+            query = self.case_duration_PQL(
+                attr.time_aggregation, is_label=attr.is_label
+            )
         elif isinstance(attr, attributes.WorkInProgressMinorAttribute):
-            df = self.work_in_progress_PQL(utils.make_list(attr.aggregations))
+            query = self.work_in_progress_PQL(utils.make_list(attr.aggregations))
         elif isinstance(attr, attributes.EventCountMinorAttribute):
-            df = self.num_events_PQL()
+            query = self.num_events_PQL()
         elif isinstance(attr, attributes.ReworkOccurenceMinorAttribute):
-            df = self.binary_rework_PQL(self.min_attr_count, self.max_attr_count)
+            query = self.binary_rework_PQL(self.min_attr_count, self.max_attr_count)
         elif isinstance(attr, attributes.ActivityOccurenceMinorAttribute):
-            df = self.binary_activity_occurence_PQL(
+            query = self.binary_activity_occurence_PQL(
                 self.min_attr_count, self.max_attr_count
             )
         elif isinstance(attr, attributes.EndActivityMinorAttribute):
-            df = self.end_activity_PQL(self.min_attr_count, self.max_attr_count)
+            query = self.end_activity_PQL(self.min_attr_count, self.max_attr_count)
         elif isinstance(attr, attributes.StartActivityMinorAttribute):
-            df = self.start_activity_PQL(self.min_attr_count, self.max_attr_count)
+            query = self.start_activity_PQL(self.min_attr_count, self.max_attr_count)
         elif isinstance(attr, attributes.ActivityTableColumnMinorAttribute):
-            df_dyn_cat = self.aggregate_dynamic_categorical_PQL(
+            query_dyn_cat = self.aggregate_dynamic_categorical_PQL(
                 self.min_attr_count, self.max_attr_count
             )
-            df_dyn_num = self.aggregate_dynamic_numerical_PQL(
+            query_dyn_num = self.aggregate_dynamic_numerical_PQL(
                 utils.make_list(attr.aggregations)
             )
-            df = PQL()
-            df.add(df_dyn_cat)
-            df.add(df_dyn_num)
+            query = PQL()
+            query.add(query_dyn_cat)
+            query.add(query_dyn_num)
             # df = utils.join_dfs([df_dyn_cat, df_dyn_num], keys=["caseid"] * 2)
         elif isinstance(attr, attributes.CaseTableColumnMinorAttribute):
-            df_stat_cat = self.aggregate_static_categorical_PQL(
+            query_stat_cat = self.aggregate_static_categorical_PQL(
                 self.min_attr_count, self.max_attr_count
             )
-            df_stat_num = self.get_static_numerical_PQL()
-            df = PQL()
-            df.add(df_stat_cat)
-            df.add(df_stat_num)
+            query_stat_num = self.get_static_numerical_PQL()
+            query = PQL()
+            query.add(query_stat_cat)
+            query.add(query_stat_num)
             # df = utils.join_dfs([df_stat_cat, df_stat_num], keys=["caseid"] * 2)
         else:
             raise NotAValidAttributeError(attr)
 
-        return df
+        return query
