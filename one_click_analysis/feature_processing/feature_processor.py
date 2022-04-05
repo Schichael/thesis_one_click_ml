@@ -74,6 +74,7 @@ class FeatureProcessor:
         self.attributes_dict = {}
         self.label = None
         self.label_dict = {}
+        self.filters = []
         self._init_datamodel(self.dm)
         (
             self.min_attr_count,
@@ -83,6 +84,12 @@ class FeatureProcessor:
         )
         self.df = None
         self.minor_attrs = []
+
+    def reset_fp(self):
+        """Reset the feature_processor to its initial values."""
+        self.__init__(
+            self.dm, self.chunksize, self.min_attr_count_perc, self.max_attr_count
+        )
 
     def _init_datamodel(self, dm):
         """Initialize datamodel parameters needed for fetching data from the Celonis
@@ -224,6 +231,11 @@ class FeatureProcessor:
             correlations = attribute_df.corrwith(label_series)
             attr.correlation = correlations[attr.df_attribute_name]
 
+    def get_df_with_filters(self, query: PQL):
+        for f in self.filters:
+            query.add(f)
+        return self.dm.get_data_frame(query, chunksize=self.chunksize)
+
     def one_hot_encoding_PQL(
         self,
         table: str,
@@ -275,10 +287,10 @@ class FeatureProcessor:
                     name="count", query='COUNT_TABLE("' + self.case_table_name + '")'
                 )
             )
+            # Can just query enough occurences using filter
 
-            df_unique_vals = self.dm.get_data_frame(
-                query_unique, chunksize=self.chunksize
-            )
+            df_unique_vals = self.get_df_with_filters(query_unique)
+
             # Remove too few and too many counts
             df_unique_vals = df_unique_vals[
                 (df_unique_vals["count"] >= min_vals)
@@ -525,9 +537,9 @@ class FeatureProcessor:
                 + '")',
             )
         )
-
-        df_unique_vals = self.dm.get_data_frame(query_unique, chunksize=self.chunksize)
+        df_unique_vals = self.get_df_with_filters(query_unique)
         # remove too few counts
+
         df_unique_vals = df_unique_vals[
             (df_unique_vals["count"] >= min_vals)
             & (df_unique_vals["count"] <= max_vals)
@@ -881,7 +893,7 @@ class FeatureProcessor:
                 self.minor_attrs.append(attr)
             query.add(self.get_attr_df(attr))
 
-        df = self.dm.get_data_frame(query, chunksize=self.chunksize)
+        df = self.get_df_with_filters(query)
         # joined_df = utils.join_dfs(dfs, keys=["caseid"] * len(dfs))
         self.compute_metrics(df)
         return df
@@ -912,9 +924,7 @@ class FeatureProcessor:
         query_additional.add(self.get_query_case_ids())
         query_additional.add(self.start_activity_time_PQL())
         query_additional.add(self.end_activity_time_PQL())
-        df_additional = self.dm.get_data_frame(
-            query_additional, chunksize=self.chunksize
-        )
+        df_additional = self.get_df_with_filters(query_additional)
 
         df_joined = utils.join_dfs([df, df_additional], keys=["caseid"] * 2)
 

@@ -7,6 +7,8 @@ from ipywidgets import widgets
 
 from one_click_analysis import utils
 from one_click_analysis.attribute_selection import AttributeSelection
+from one_click_analysis.configuration.configurations import DatePickerConfig
+from one_click_analysis.configuration.configurator import Configurator
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
@@ -58,38 +60,55 @@ class AnalysisCaseDuration:
         self.datamodel = datamodel
         self.celonis_login = celonis_login
         self.th = th
+        self.dm = None
         self.fp = None
         self.df_total_time = None
+        self.configurator = None
         self.overview_screen = None
         self.stat_analysis_screen = None
         self.dec_rule_screen = None
         self.expert_screen = None
         self.tabs = None
+        self.tab_names = [
+            "Configuration",
+            "Overview",
+            "Statistical Analysis",
+            "Decision Rules",
+            "Expert Tab",
+        ]
 
         self.selected_attributes = []
         self.selected_activity_table_cols = []
         self.selected_case_table_cols = []
 
     def run(self):
-        """Run the pipeline to create the analysis.
-        1. Connect to Celonis and get dm
-        2. Create FeatureProcessor
-        3. Create the GUI
-
-        :return:
-        """
         out = widgets.Output(layout={"border": "1px solid black"})
         display(out)
         # 1. Connect to Celonis and get dm
         with out:
             print("Connecting to Celonis...")
-        dm = utils.get_dm(self.datamodel, celonis_login=self.celonis_login)
+        self.dm = utils.get_dm(self.datamodel, celonis_login=self.celonis_login)
         with out:
             print("Done")
-        # 2. Create FeatureProcessor and run processing for the analysis
+        # 2. Create FeatureProcessor and Configurator
+
+        self.fp = FeatureProcessor(self.dm)
+        dp_config = DatePickerConfig(self.fp)
+        self.configurator = Configurator(self.fp, [dp_config], self.run_analysis, out)
+        self.tabs = self.create_tabs(
+            [
+                self.configurator.configurator_box,
+                widgets.VBox(),
+                widgets.VBox(),
+                widgets.VBox(),
+                widgets.VBox(),
+            ]
+        )
+        display(self.tabs)
+
+    def run_analysis(self, out: widgets.Output):
         with out:
             print("Fetching data and preprocessing...")
-        self.fp = FeatureProcessor(dm)
         self.fp.run_total_time_PQL(time_unit="DAYS")
         with out:
             print("Done")
@@ -144,31 +163,29 @@ class AnalysisCaseDuration:
         self.expert_screen.create_expert_box()
 
         # Create tabs
-        self.tabs = self.create_tabs()
-        out.close()
-        del out
-        display(self.tabs)
-
-    def create_tabs(self):
-        """Create the tabs for the GUI.
-
-        :return:
-        """
-        tab_names = [
-            "Overview",
-            "Statistical Analysis",
-            "Decision Rules",
-            "Expert Tab",
-        ]
-        tab = Tab(
+        self.update_tabs(
             [
+                self.configurator.configurator_box,
                 self.overview_screen.overview_box,
                 self.stat_analysis_screen.statistical_analysis_box,
                 self.dec_rule_screen.decision_rule_box,
                 self.expert_screen.expert_box,
             ]
         )
-        for i, el in enumerate(tab_names):
+        # out.close()
+        # del out
+        # display(self.tabs)
+
+    def create_tabs(self, tab_contents: List[widgets.widget.Widget]):
+        """Create the tabs for the GUI.
+
+        :return:
+        """
+        tab = Tab(tab_contents)
+        for i, el in enumerate(self.tab_names):
             tab.set_title(i, el)
 
         return tab
+
+    def update_tabs(self, tab_contents: List[widgets.widget.Widget]):
+        self.tabs.children = tab_contents

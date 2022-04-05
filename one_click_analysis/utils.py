@@ -1,3 +1,4 @@
+import datetime
 from typing import Any
 from typing import List
 from typing import Optional
@@ -64,3 +65,16 @@ def make_list(var: Any) -> List:
         return var
     else:
         return [var]
+
+
+def convert_date_to_str(d: datetime.date) -> str:
+    """Convert a datetime.date object to a date string
+
+    :param d: input date with a year, month and day
+    :return: string of date of form yyyy-mm-dd
+    """
+    year = str(d.year)
+    month = str(d.month) if d.month >= 10 else "0" + str(d.month)
+    day = str(d.day) if d.day >= 10 else "0" + str(d.day)
+    date_str = f"{year}-{month}-{day}"
+    return date_str
