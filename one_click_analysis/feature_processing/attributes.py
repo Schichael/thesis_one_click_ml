@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 
@@ -98,6 +99,16 @@ class CaseTableColumnMinorAttribute(MinorAttribute):
         attribute_name = "Case table column"
         major_attribute = MajorAttribute.CASE
         super().__init__(attribute_name, major_attribute)
+
+
+class TransitionMinorAttribute(MinorAttribute):
+    def __init__(
+        self, transitions: List[Tuple[str, List[str]]], is_label: bool = False
+    ):
+        self.transitions = transitions
+        attribute_name = "Next activity"
+        major_attribute = MajorAttribute.ACTIVITY
+        super().__init__(attribute_name, major_attribute, is_label)
 
 
 class AttributeDataType(Enum):

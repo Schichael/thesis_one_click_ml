@@ -7,6 +7,7 @@ import pandas as pd
 from pycelonis.celonis_api.event_collection import data_model
 from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
+from pycelonis.celonis_api.pql.pql import PQLFilter
 
 from one_click_analysis import utils
 from one_click_analysis.errors import NotAValidAttributeError
@@ -74,7 +75,7 @@ class FeatureProcessor:
         self.attributes_dict = {}
         self.label = None
         self.label_dict = {}
-        self.filters = []
+        self.filters = []  # general PQL filters from configuration
         self._init_datamodel(self.dm)
         (
             self.min_attr_count,
@@ -950,6 +951,93 @@ class FeatureProcessor:
 
         self.df = df_joined
 
+    def transition_occurence_PQL(
+        self, transitions: List[Tuple[str, List[str]]], is_label: bool = False
+    ):
+
+        query = PQL()
+        for transition in transitions:
+            start_activity = transition[0]
+            end_activities = transition[1]
+
+            for end_activity in end_activities:
+                df_attr_name = "Next Activity = " + end_activity
+                attr_obj = attributes.Attribute(
+                    major_attribute_type=attributes.MajorAttribute.ACTIVITY,
+                    minor_attribute_type=attributes.TransitionMinorAttribute(
+                        transitions, is_label=is_label
+                    ),
+                    attribute_data_type=attributes.AttributeDataType.CATEGORICAL,
+                    df_attribute_name=df_attr_name,
+                    display_name=df_attr_name,
+                    query="",
+                )
+
+                if is_label:
+                    self.label.append(attr_obj)
+                    self.label_dict[df_attr_name] = attr_obj
+                else:
+                    self.attributes.append(attr_obj)
+                    self.attributes_dict[df_attr_name] = attr_obj
+
+                q_str = (
+                    f"CASE WHEN PROCESS EQUALS '{start_activity}' TO "
+                    f"'{end_activity}' THEN 1 ELSE 0 END"
+                )
+
+                query.add(PQLColumn(q_str, df_attr_name))
+
+        return query
+
+    def filter_transition_PQL(self, start_activity: str, end_activities: List[str]):
+        term_end_activities = (
+            "(" + ", ".join("'" + act + "'" for act in end_activities) + ")"
+        )
+        filter_str = f"PROCESS EQUALS '{start_activity}' TO '{term_end_activities}'"
+        return PQLFilter(filter_str)
+
+    def run_decision_point_PQL(
+        self, start_activity: str, end_activities: List[str], time_unit="DAYS"
+    ):
+        """Fetching data and preprocessing for the decision point analysis. Currently
+        only static attributes are supported
+
+        :param start_activity:
+        :param end_activities:
+        :param time_unit:
+        :return:
+        """
+        # Make label a list
+        # TODO: Change self.label to self.labels and make it always a list
+        self.label = []
+
+        attribute_transitions = attributes.TransitionMinorAttribute(
+            transitions=[(start_activity, end_activities)], is_label=True
+        )
+
+        # Get the attributes
+        minor_attrs = [
+            attributes.StartActivityMinorAttribute(),
+            attributes.EndActivityMinorAttribute(),
+            attributes.CaseTableColumnMinorAttribute(),
+            attribute_transitions,
+        ]
+
+        df = self.process_attributes(minor_attrs)
+
+        # Additional columns
+        query_additional = PQL()
+        query_additional.add(self.get_query_case_ids())
+        query_additional.add(self.start_activity_time_PQL())
+        query_additional.add(self.case_duration_PQL(time_unit))
+        query_additional.add(self.end_activity_time_PQL())
+        df_additional = self.get_df_with_filters(query_additional)
+
+        df_joined = utils.join_dfs([df, df_additional], keys=["caseid"] * 2)
+
+        self.df = df_joined
+        # Get labels
+
         """
         start_activity_time_df = self.start_activity_time_PQL()
         end_activity_time_df = self.end_activity_time_PQL()
@@ -1096,6 +1184,10 @@ class FeatureProcessor:
             # df = utils.join_dfs([df_stat_cat, df_stat_num], keys=["caseid"] * 2)
         elif isinstance(attr, attributes.ActivityCountMinorAttribute):
             query = self.activity_count_PQL(self.min_attr_count)
+        elif isinstance(attr, attributes.TransitionMinorAttribute):
+            query = self.transition_occurence_PQL(
+                attr.transitions, is_label=attr.is_label
+            )
         else:
             raise NotAValidAttributeError(attr)
 
