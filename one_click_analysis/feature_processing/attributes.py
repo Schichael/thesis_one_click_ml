@@ -64,6 +64,13 @@ class ActivityOccurenceMinorAttribute(MinorAttribute):
         super().__init__(attribute_name, major_attribute, is_label)
 
 
+class ActivityCountMinorAttribute(MinorAttribute):
+    def __init__(self, is_label: bool = False):
+        attribute_name = "Activity Count"
+        major_attribute = MajorAttribute.ACTIVITY
+        super().__init__(attribute_name, major_attribute, is_label)
+
+
 class EndActivityMinorAttribute(MinorAttribute):
     def __init__(self, is_label: bool = False):
         attribute_name = "End activity"

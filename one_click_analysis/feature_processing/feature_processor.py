@@ -242,6 +242,7 @@ class FeatureProcessor:
         column_names: List[str],
         major_attribute: attributes.MajorAttribute,
         minor_attribute: attributes.MinorAttribute,
+        attribute_datatype: attributes.AttributeDataType,
         min_vals: int = 1,
         max_vals: int = np.inf,
         suffix: str = "",
@@ -258,6 +259,7 @@ class FeatureProcessor:
         :param column_names: list of column names to one hot encode
         :param major_attribute: MajorAttribute of the resulting attributes
         :param minor_attribute: MinorAttribute of the resulting attributes
+        :param attribute_datatype: The datatype of the attribute
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
         :param suffix: suffix to the column name
@@ -337,7 +339,7 @@ class FeatureProcessor:
                 attr_obj = attributes.Attribute(
                     major_attribute_type,
                     minor_attribute_type,
-                    attributes.AttributeDataType.CATEGORICAL,
+                    attribute_datatype,
                     df_attr_name,
                     display_name,
                     query_val,
@@ -370,6 +372,7 @@ class FeatureProcessor:
             self.static_categorical_cols,
             major_attribute,
             minor_attribute,
+            attributes.AttributeDataType.CATEGORICAL,
             min_vals=min_vals,
             max_vals=max_vals,
             binarize_threshold=1,
@@ -426,6 +429,7 @@ class FeatureProcessor:
             self.dynamic_categorical_cols,
             major_attribute,
             minor_attribute,
+            attributes.AttributeDataType.CATEGORICAL,
             min_vals=min_vals,
             max_vals=max_vals,
             binarize_threshold=1,
@@ -517,6 +521,7 @@ class FeatureProcessor:
         :param attribute_name: the attribute name in "attribute_name = value"
         :param major_attribute: the major attribute
         :param minor_attribute: the minor attribute
+        :param attribute_data_type: datatype of the attribute
         :param min_vals: minimum number of cases with attribute to consider
         :param max_vals: maximum number of cases with attribute to consider
         :param binarize_threshold: if binarize_threshold is an integer, the result
@@ -693,23 +698,36 @@ class FeatureProcessor:
         suffix = "(occurence)"
         major_attribute = attributes.MajorAttribute.ACTIVITY
         minor_attribute = attributes.ActivityOccurenceMinorAttribute()
+        attribute_datatype = attributes.AttributeDataType.CATEGORICAL
         query = self.one_hot_encoding_PQL(
             table=self.activity_table_name,
             column_names=[self.activity_col],
             major_attribute=major_attribute,
             minor_attribute=minor_attribute,
+            attribute_datatype=attribute_datatype,
             min_vals=min_vals,
             max_vals=max_vals,
             suffix=suffix,
             binarize_threshold=1,
         )
-        # Remove values with too few occurences per case key, can this be done in PQL
-        # directly???
 
-        # df_activities[df_activities.drop("caseid", axis=1).columns] = df_activities[
-        #    df_activities.drop("caseid", axis=1).columns
-        # ].apply(lambda x: self._binarize(x, 1), axis=1)
-        # df_activities = self._conv_dtypes_PQL(df_activities, ["object"], "category")
+        return query
+
+    def activity_count_PQL(self, min_vals: int = 0):
+        suffix = "(count)"
+        major_attribute = attributes.MajorAttribute.ACTIVITY
+        minor_attribute = attributes.ActivityCountMinorAttribute()
+        attribute_datatype = attributes.AttributeDataType.NUMERICAL
+        query = self.one_hot_encoding_PQL(
+            table=self.activity_table_name,
+            column_names=[self.activity_col],
+            major_attribute=major_attribute,
+            minor_attribute=minor_attribute,
+            attribute_datatype=attribute_datatype,
+            min_vals=min_vals,
+            suffix=suffix,
+        )
+
         return query
 
     def binary_rework_PQL(self, min_vals: int = 0, max_vals: int = np.inf) -> PQL:
@@ -723,12 +741,14 @@ class FeatureProcessor:
         suffix = "(rework)"
         major_attribute = attributes.MajorAttribute.ACTIVITY
         minor_attribute = attributes.ReworkOccurenceMinorAttribute()
+        attribute_datatype = attributes.AttributeDataType.CATEGORICAL
 
         query = self.one_hot_encoding_PQL(
             table=self.activity_table_name,
             column_names=[self.activity_col],
             major_attribute=major_attribute,
             minor_attribute=minor_attribute,
+            attribute_datatype=attribute_datatype,
             min_vals=min_vals,
             max_vals=max_vals,
             suffix=suffix,
@@ -761,7 +781,7 @@ class FeatureProcessor:
         )
         query = PQL()
         # query.add(self.get_query_case_ids())
-        query.add(PQLColumn(name="num_events", query=q_num_events))
+        query.add(PQLColumn(name=df_attr_name, query=q_num_events))
         attr_obj = attributes.Attribute(
             major_attribute,
             attributes.EventCountMinorAttribute(),
@@ -1074,6 +1094,8 @@ class FeatureProcessor:
             query.add(query_stat_cat)
             query.add(query_stat_num)
             # df = utils.join_dfs([df_stat_cat, df_stat_num], keys=["caseid"] * 2)
+        elif isinstance(attr, attributes.ActivityCountMinorAttribute):
+            query = self.activity_count_PQL(self.min_attr_count)
         else:
             raise NotAValidAttributeError(attr)
 

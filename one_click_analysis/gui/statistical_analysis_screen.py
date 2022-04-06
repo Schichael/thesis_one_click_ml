@@ -2,6 +2,7 @@ import functools
 from typing import List
 from typing import Union
 
+import numpy as np
 import plotly.graph_objects as go
 from ipywidgets import Box
 from ipywidgets import Button
@@ -86,9 +87,12 @@ class StatisticalAnalysisScreen:
         attributes_box = VBox(layout=attributes_box_layout)
         attr_boxes = []
 
+        # remove nans
+        attr_not_nan = [i for i in self.fp.attributes if not np.isnan(i.correlation)]
+
         # sort attributes by correlation coefficient
         attrs_sorted = sorted(
-            self.fp.attributes, key=lambda x: abs(x.correlation), reverse=True
+            attr_not_nan, key=lambda x: abs(x.correlation), reverse=True
         )
 
         selected_attr_types = tuple([type(i) for i in self.selected_attributes])
@@ -132,55 +136,6 @@ class StatisticalAnalysisScreen:
             VBox(),
         ]
 
-    def create_statistical_screen_old(
-        self,
-    ) -> VBox:
-        """Create and get the screen for the statistical analysis
-
-        :return: box with the screen for the statistical analysis
-        """
-        statistical_screen_box = VBox()
-
-        title_attributes_box = self.create_title_attributes_box()
-        attributes_box_layout = Layout(
-            overflow_y="scroll",
-            max_height="400px",
-            border="3px solid grey",
-            padding="3px 3px 3px 3px",
-        )
-        attributes_box = VBox(layout=attributes_box_layout)
-        attr_boxes = []
-
-        # sort attributes by correlation coefficient
-        attrs_sorted = sorted(
-            self.fp.attributes, key=lambda x: abs(x.correlation), reverse=True
-        )
-
-        selected_attr_types = tuple([type(i) for i in self.selected_attributes])
-        for attr in attrs_sorted:
-            if not isinstance(attr.minor_attribute_type, selected_attr_types):
-                continue
-            elif isinstance(
-                attr.column_name, attributes.ActivityTableColumnMinorAttribute
-            ):
-                if attr.column_name not in self.selected_activity_table_cols:
-                    continue
-            elif isinstance(attr.column_name, attributes.CaseTableColumnMinorAttribute):
-                if attr.column_name not in self.selected_case_table_cols:
-                    continue
-            if (attr.correlation >= self.th) or (
-                attr.attribute_data_type == attributes.AttributeDataType.NUMERICAL
-                and abs(attr.correlation) >= self.th
-            ):
-                attr_field = AttributeField(
-                    attr, "Case duration", self.fp, statistical_screen_box
-                )
-                attr_boxes.append(attr_field.attribute_box)
-        attributes_box.children = attr_boxes
-        statistical_screen_box.children = [title_attributes_box, attributes_box, VBox()]
-        self.statistical_analysis_box = statistical_screen_box
-        return statistical_screen_box
-
 
 class AttributeField:
     def __init__(
@@ -213,7 +168,7 @@ class AttributeField:
         """
         layout_vbox = Layout(
             border="2px solid gray",
-            min_height="100px",
+            min_height="105px",
             width="auto",
             padding="0px 0px 0px 0px",
             margin="0px 3px 3px 3px",
@@ -245,7 +200,7 @@ class AttributeField:
         correlation_html = '<span style="font-weight:bold"> Correlation: </span>' + str(
             round(self.attribute.correlation, 2)
         )
-        correlation_label = HTML(correlation_html, layout=layout_padding)
+        correlation_label = HTML(correlation_html)
         if self.attribute.attribute_data_type == attributes.AttributeDataType.NUMERICAL:
             return correlation_label
         else:
@@ -269,6 +224,7 @@ class AttributeField:
             cases_with_attribute_label = HTML(
                 cases_with_attribute_html, layout=layout_padding
             )
+            correlation_label.layout = layout_padding
             metrics_box = HBox(
                 [
                     case_duration_effect_label,
