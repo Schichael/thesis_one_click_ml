@@ -10,8 +10,6 @@ from ipywidgets import HBox
 from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
-from pycelonis.celonis_api.pql.pql import PQL
-from pycelonis.celonis_api.pql.pql import PQLColumn
 
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
@@ -36,7 +34,7 @@ class OverviewScreen:
         """
         vBox_overview_layout = Layout(border="2px solid gray", grid_gap="30px")
         vBox_overview = VBox(layout=vBox_overview_layout)
-        avg_case_duration = get_case_duration_pql(self.fp)
+        avg_case_duration = get_avg_case_duration(self.fp)
         # Case duration
 
         avg_case_duration_box = HBox(
@@ -62,11 +60,11 @@ class OverviewScreen:
         )
 
         # development of case duration
-        df_case_duration_dev = get_case_duration_development_pql(self.fp)
+        df_case_duration_dev = get_case_duration_development(self.fp)
         fig_case_duration_development = px.area(
             df_case_duration_dev,
-            x="datetime",
-            y="case duration",
+            x="Case start time",
+            y=self.fp.label.df_attribute_name,
             title="Case duration development",
             height=250,
         )
@@ -77,9 +75,7 @@ class OverviewScreen:
         )
         f_widget_case_duration_dev = go.FigureWidget(fig_case_duration_development)
         # case duration distribution
-        df_distribution = compute_binned_distribution_case_durations(
-            self.fp, 10, time_unit="DAYS"
-        )
+        df_distribution = compute_binned_distribution_case_durations(self.fp, 10)
         fig_distribution = px.bar(
             df_distribution,
             x="range",
@@ -106,9 +102,7 @@ class OverviewScreen:
 #  They should also be made more generic.
 
 
-def get_case_duration_pql(
-    fp: FeatureProcessor, aggregation: str = "AVG", time_aggregation: str = "DAYS"
-) -> float:
+def get_avg_case_duration(fp: FeatureProcessor) -> float:
     """Get the aggregates case duration of the cases
 
     :param fp: FeatureProcessor with the processed features
@@ -117,168 +111,83 @@ def get_case_duration_pql(
     :param time_aggregation: aggregation for the time, e.g. 'DAYS' or 'MONTHS'
     :return: aggregated case duration
     """
-    q = (
-        aggregation + "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO "
-        "ALL_OCCURRENCE["
-        "'Process End'], REMAP_TIMESTAMPS(\""
-        + fp.activity_table_name
-        + '"."'
-        + fp.eventtime_col
-        + '", '
-        "" + time_aggregation + ")))"
-    )
-    query = PQL()
-    query.add(PQLColumn(q, "average case duration"))
-    df_avg_case_duration = fp.dm.get_data_frame(query)
-    return df_avg_case_duration["average case duration"].values[0]
+
+    label_column_name = fp.label.df_attribute_name
+    avg_case_duration = fp.df[label_column_name].mean()
+    return avg_case_duration
 
 
-def get_case_duration_development_pql(
+def get_case_duration_development(
     fp: FeatureProcessor,
-    duration_aggregation: str = "AVG",
-    date_aggregation: str = "ROUND_MONTH",
-    time_unit: str = "DAYS",
 ) -> pd.DataFrame:
     """Get aggregated case duration aggregated over a time period
 
     :param fp: FeatureProcessor with the processed features
-    :param duration_aggregation: aggregation for the time aggregation, e.g. 'AVG' for
-    the average case duration
-    :param date_aggregation: aggregation of the date, e.g. 'ROUND_MONTH' to aggregate
-    over months
-    :param time_unit: the time unit, e.g. 'DAYS' to get the case duration in days
     :return: DataFrame with the aggregated case duration aggregated over time
     """
-    q_date = (
-        date_aggregation
-        + '("'
-        + fp.activity_table_name
-        + '"."'
-        + fp.eventtime_col
-        + '")'
-    )
-    q_duration = (
-        duration_aggregation + "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] "
-        "TO ALL_OCCURRENCE["
-        "'Process End'], REMAP_TIMESTAMPS(\""
-        + fp.activity_table_name
-        + '"."'
-        + fp.eventtime_col
-        + '", '
-        "" + time_unit + ")))"
-    )
-    query = PQL()
-    query.add(PQLColumn(q_date, "datetime"))
-    query.add(PQLColumn(q_duration, "case duration"))
-    df_avg_case_duration = fp.dm.get_data_frame(query)
-    return df_avg_case_duration
+
+    df = fp.df[["caseid", "Case start time", fp.label.df_attribute_name]].copy()
+    df["Case start time"] = df["Case start time"].dt.to_period("M").astype(str)
+    num_cases_all_df = df.groupby("Case start time", as_index=False)[
+        fp.label.df_attribute_name
+    ].mean()
+
+    return num_cases_all_df
 
 
 def get_quantiles_case_duration_pql(
-    fp: FeatureProcessor, quantiles: List[float], time_unit: str = "DAYS"
-) -> pd.DataFrame:
+    fp: FeatureProcessor, quantiles: List[float]
+) -> dict:
     """
 
     :param fp: FeatureProcessor with the processed features
     :param quantiles: list of quantiles for which to get the values
-    :param time_unit: unit of the case duration, e.g. 'DAYS' to get the cae duration
-    values in days
     :return: DataFrame with the case durations of the quantile values
     """
-    q_quantiles = []
-    for quantile in quantiles:
-        q = (
-            "QUANTILE(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO "
-            "ALL_OCCURRENCE['Process End'], "
-            'REMAP_TIMESTAMPS("'
-            + fp.activity_table_name
-            + '"."'
-            + fp.eventtime_col
-            + '", '
-            + time_unit
-            + ")), "
-            + str(quantile)
-            + ")"
-        )
-        q_quantiles.append((q, quantile))
 
-    query = PQL()
-    for q in q_quantiles:
-        query.add(PQLColumn(q[0], str(q[1])))
-    df_quantiles = fp.dm.get_data_frame(query)
-    return df_quantiles
+    quantile_dict = {}
+    for q in quantiles:
+        quantile_dict[q] = fp.df[fp.label.df_attribute_name].quantile(q)
+
+    return quantile_dict
 
 
 def get_num_cases_with_durations(
     fp: FeatureProcessor,
     duration_intervals: List[Tuple[int, int]],
-    time_unit: str = "DAYS",
 ) -> pd.DataFrame:
     """Get the number of cases with the specified duration intervals.
 
     :param fp: FeatureProcessor with the processed features
     :param duration_intervals: List of duration intervals from <first value> to <second
     value>
-    :param time_unit: unit of the case duration, e.g. 'DAYS' to get the cae duration
-    values in days
     :return: DataFrame with number of cases per duration interval
     """
 
-    query = PQL()
+    num_cases_dict = {}
     for d in duration_intervals:
         if d == (None, None):
             continue
         elif d[0] is None:
-            q = (
-                "SUM(CASE WHEN (CALC_THROUGHPUT(CASE_START TO CASE_END, "
-                'REMAP_TIMESTAMPS("'
-                + fp.activity_table_name
-                + '"."'
-                + fp.eventtime_col
-                + '", '
-                + time_unit
-                + ")) <= "
-                + str(d[1])
-                + ") THEN 1 ELSE 0 END)"
-            )
+            num_cases_dict[str(d)] = [
+                len(fp.df[fp.df[fp.label.df_attribute_name] <= d[1]].index)
+            ]
+
         elif d[1] is None:
-            q = (
-                "SUM(CASE WHEN (CALC_THROUGHPUT(CASE_START TO CASE_END, "
-                'REMAP_TIMESTAMPS("'
-                + fp.activity_table_name
-                + '"."'
-                + fp.eventtime_col
-                + '", '
-                + time_unit
-                + ")) >= "
-                + str(d[0])
-                + ") THEN 1 ELSE 0 END)"
-            )
+            num_cases_dict[str(d)] = [
+                len(fp.df[fp.df[fp.label.df_attribute_name] >= d[0]].index)
+            ]
         else:
-            q = (
-                "SUM(CASE WHEN (CALC_THROUGHPUT(CASE_START TO CASE_END, "
-                'REMAP_TIMESTAMPS("'
-                + fp.activity_table_name
-                + '"."'
-                + fp.eventtime_col
-                + '", '
-                + time_unit
-                + ")) >= "
-                + str(d[0])
-                + ") AND (CALC_THROUGHPUT(CASE_START TO CASE_END, "
-                'REMAP_TIMESTAMPS("'
-                + fp.activity_table_name
-                + '"."'
-                + fp.eventtime_col
-                + '", '
-                + time_unit
-                + ")) <= "
-                + str(d[1])
-                + ") THEN 1 ELSE 0 END)"
-            )
-        query.add(PQLColumn(q, str(d)))
-    df_durations = fp.dm.get_data_frame(query)
-    return df_durations
+            num_cases_dict[str(d)] = [
+                len(
+                    fp.df[
+                        (fp.df[fp.label.df_attribute_name] >= d[0])
+                        & (fp.df[fp.label.df_attribute_name] <= d[1])
+                    ].index
+                )
+            ]
+    df = pd.DataFrame(data=num_cases_dict)
+    return df
 
 
 def get_potential_extra_bins(
@@ -352,38 +261,33 @@ def choose_extra_bins(
     return extra_bins_lower, extra_bins_upper
 
 
-def compute_binned_distribution_case_durations(
-    fp: FeatureProcessor, num_bins: int, time_unit: str = "DAYS"
-):
+def compute_binned_distribution_case_durations(fp: FeatureProcessor, num_bins: int):
     """Compute a binned distribution for case durations. The binning is done using
     equal width binning for all inner bins. The outer bins at the beginning and the
     end contain outliers.
 
     :param fp: FeatureProcessor with the processed features
     :param num_bins: number of desired bins
-    :param time_unit: unit of the case duration, e.g. 'DAYS' to get the cae duration
-    values in days
     :return: DataFrame with the case duration distribution
     """
     min_percentile = 0.0
     max_percentile = 1.0
     lower_percentile = 1 / (2 * num_bins)
     upper_percentile = 1 - lower_percentile
-    df_qs = get_quantiles_case_duration_pql(
-        fp,
-        [lower_percentile, upper_percentile, min_percentile, max_percentile],
-        time_unit,
-    )
-    min_val = df_qs[str(min_percentile)].values[0]
-    max_val = df_qs[str(max_percentile)].values[0]
 
-    lower_end = df_qs[str(lower_percentile)].values[0]
-    upper_end = df_qs[str(upper_percentile)].values[0]
+    qs_label_val = get_quantiles_case_duration_pql(
+        fp, [lower_percentile, upper_percentile, min_percentile, max_percentile]
+    )
+    min_val = qs_label_val[min_percentile]
+    max_val = qs_label_val[max_percentile]
+
+    lower_end = qs_label_val[lower_percentile]
+    upper_end = qs_label_val[upper_percentile]
 
     bin_width = int(np.ceil((upper_end - lower_end) / (num_bins - 2)))
     if (max_val - min_val + 1) / bin_width < num_bins and bin_width > 1:
         bin_width -= 1
-    bins_within = (upper_end - lower_end + 1) // bin_width
+    bins_within = int((upper_end - lower_end + 1) // bin_width)
     bins = [
         (lower_end + i * bin_width, lower_end + (i + 1) * bin_width - 1)
         for i in range(bins_within)
@@ -406,10 +310,18 @@ def compute_binned_distribution_case_durations(
     else:
         max_inner_bin = upper_end_within
 
-    min_bin = (min_val, min_inner_bin - 1)
-    max_bin = (max_inner_bin + 1, max_val)
-    bins = [min_bin] + extra_bins_lower + bins + extra_bins_upper + [max_bin]
-    df_histogram = get_num_cases_with_durations(fp, bins, time_unit=time_unit)
+    if min_inner_bin == min_val:
+        min_bin = []
+    else:
+        min_bin = [(min_val, min_inner_bin - 1)]
+
+    if max_inner_bin == max_val:
+        max_bin = []
+    else:
+        max_bin = [(max_inner_bin + 1, max_val)]
+
+    bins = min_bin + extra_bins_lower + bins + extra_bins_upper + max_bin
+    df_histogram = get_num_cases_with_durations(fp, bins)
     df_histogram = df_histogram.transpose().reset_index()
     df_histogram.rename(
         columns={df_histogram.columns[0]: "range", df_histogram.columns[1]: "cases"},
