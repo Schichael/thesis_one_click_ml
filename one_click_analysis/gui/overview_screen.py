@@ -47,7 +47,7 @@ class OverviewScreen:
                             'style="color: Red; font-size:16px">'
                             + str(round(avg_case_duration))
                             + "\xa0"
-                            + self.fp.label.unit
+                            + self.fp.labels[0].unit
                             + "</span></center>"
                         )
                     ],
@@ -64,7 +64,7 @@ class OverviewScreen:
         fig_case_duration_development = px.area(
             df_case_duration_dev,
             x="Case start time",
-            y=self.fp.label.df_attribute_name,
+            y=self.fp.labels[0].df_attribute_name,
             title="Case duration development",
             height=250,
         )
@@ -112,7 +112,7 @@ def get_avg_case_duration(fp: FeatureProcessor) -> float:
     :return: aggregated case duration
     """
 
-    label_column_name = fp.label.df_attribute_name
+    label_column_name = fp.labels[0].df_attribute_name
     avg_case_duration = fp.df[label_column_name].mean()
     return avg_case_duration
 
@@ -126,10 +126,10 @@ def get_case_duration_development(
     :return: DataFrame with the aggregated case duration aggregated over time
     """
 
-    df = fp.df[["caseid", "Case start time", fp.label.df_attribute_name]].copy()
+    df = fp.df[["caseid", "Case start time", fp.labels[0].df_attribute_name]].copy()
     df["Case start time"] = df["Case start time"].dt.to_period("M").astype(str)
     num_cases_all_df = df.groupby("Case start time", as_index=False)[
-        fp.label.df_attribute_name
+        fp.labels[0].df_attribute_name
     ].mean()
 
     return num_cases_all_df
@@ -147,7 +147,7 @@ def get_quantiles_case_duration_pql(
 
     quantile_dict = {}
     for q in quantiles:
-        quantile_dict[q] = fp.df[fp.label.df_attribute_name].quantile(q)
+        quantile_dict[q] = fp.df[fp.labels[0].df_attribute_name].quantile(q)
 
     return quantile_dict
 
@@ -170,19 +170,19 @@ def get_num_cases_with_durations(
             continue
         elif d[0] is None:
             num_cases_dict[str(d)] = [
-                len(fp.df[fp.df[fp.label.df_attribute_name] <= d[1]].index)
+                len(fp.df[fp.df[fp.labels[0].df_attribute_name] <= d[1]].index)
             ]
 
         elif d[1] is None:
             num_cases_dict[str(d)] = [
-                len(fp.df[fp.df[fp.label.df_attribute_name] >= d[0]].index)
+                len(fp.df[fp.df[fp.labels[0].df_attribute_name] >= d[0]].index)
             ]
         else:
             num_cases_dict[str(d)] = [
                 len(
                     fp.df[
-                        (fp.df[fp.label.df_attribute_name] >= d[0])
-                        & (fp.df[fp.label.df_attribute_name] <= d[1])
+                        (fp.df[fp.labels[0].df_attribute_name] >= d[0])
+                        & (fp.df[fp.labels[0].df_attribute_name] <= d[1])
                     ].index
                 )
             ]

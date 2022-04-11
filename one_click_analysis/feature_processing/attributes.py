@@ -127,9 +127,9 @@ class Attribute:
     df_attribute_name: str
     display_name: str
     query: str
-    correlation: Optional[float] = 0.0
-    p_val: Optional[float] = 1.0
+    correlation: Optional[List[float]] = None
+    p_val: Optional[List[float]] = None
     unit: Optional[str] = ""
     column_name: str = None  # for generic column attributes
-    label_influence: Optional[float] = None  # for categorical attributes only
+    label_influence: Optional[List[float]] = None  # for categorical attributes only
     cases_with_attribute: Optional[int] = None  # for categorical attributes only

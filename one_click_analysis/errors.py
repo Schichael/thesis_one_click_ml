@@ -20,3 +20,13 @@ class NotAValidAttributeError(Exception):
     def __init__(self, attr):
         message = str(attr) + " is not avalid attribute."
         super().__init__(message)
+
+
+class DecisionRuleNotValidLabelTypesError(Exception):
+    def __init__(self, labels):
+        label_datatypes = [label.attribute_data_type for label in labels]
+        message = (
+            f"Decison rules require all categorical labels or exactly one "
+            f"numerical label without any other labels. But got: {label_datatypes}"
+        )
+        super().__init__(message)

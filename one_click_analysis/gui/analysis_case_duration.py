@@ -145,7 +145,6 @@ class AnalysisCaseDuration:
             self.selected_attributes,
             self.selected_activity_table_cols,
             self.selected_case_table_cols,
-            pos_class=None,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 

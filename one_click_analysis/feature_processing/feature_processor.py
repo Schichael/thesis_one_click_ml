@@ -73,8 +73,8 @@ class FeatureProcessor:
         self.config_file_name = None
         self.attributes = []
         self.attributes_dict = {}
-        self.label = None
-        self.label_dict = {}
+        self.labels = []
+        self.labels_dict = {}
         self.filters = []  # general PQL filters from configuration
         self._init_datamodel(self.dm)
         (
@@ -202,7 +202,7 @@ class FeatureProcessor:
 
     def compute_metrics(self, df: pd.DataFrame):
         """Compute metrics between independent variables (the ones stored in
-        self.attributes) and dependent variable (the one stored in self.label). The
+        self.attributes) and dependent variables (the ones stored in self.labels). The
         computed metrics are stored within the Attribute objects in self.attributes
 
         :param df: DataFrame with attributes
@@ -212,25 +212,34 @@ class FeatureProcessor:
         for attr in self.attributes:
             # For numerical attribute only compute the correlation coefficient
             if attr.attribute_data_type != attributes.AttributeDataType.NUMERICAL:
-                # Influence on dependent variable
-                label_val_0 = df[df[attr.df_attribute_name] == 0][
-                    self.label.df_attribute_name
-                ].mean()
-                label_val_1 = df[df[attr.df_attribute_name] == 1][
-                    self.label.df_attribute_name
-                ].mean()
-                attr.label_influence = label_val_1 - label_val_0
-
                 # Number of cases with this attribute
                 attr.cases_with_attribute = len(
                     df[df[attr.df_attribute_name] == 1].index
                 )
 
+                # Influence on dependent variable
+                label_influences = []
+                for label in self.labels:
+                    label_val_0 = df[df[attr.df_attribute_name] == 0][
+                        label.df_attribute_name
+                    ].mean()
+                    label_val_1 = df[df[attr.df_attribute_name] == 1][
+                        label.df_attribute_name
+                    ].mean()
+                    label_influences.append(label_val_1 - label_val_0)
+
+                attr.label_influence = label_influences
+
             # Correlation coefficient
-            label_series = df[self.label.df_attribute_name]
             attribute_df = pd.DataFrame(df[attr.df_attribute_name])
-            correlations = attribute_df.corrwith(label_series)
-            attr.correlation = correlations[attr.df_attribute_name]
+            correlations = []
+            for label in self.labels:
+                label_series = df[label.df_attribute_name]
+                correlation = attribute_df.corrwith(label_series)[
+                    attr.df_attribute_name
+                ]
+                correlations.append(correlation)
+            attr.correlation = correlations
 
     def get_df_with_filters(self, query: PQL):
         for f in self.filters:
@@ -888,8 +897,8 @@ class FeatureProcessor:
             unit=time_aggregation.lower(),
         )
         if is_label:
-            self.label = attr_obj
-            self.label_dict[df_attr_name] = attr_obj
+            self.labels.append(attr_obj)
+            self.labels_dict[df_attr_name] = attr_obj
         else:
             self.attributes.append(attr_obj)
             self.attributes_dict[df_attr_name] = attr_obj
@@ -973,8 +982,8 @@ class FeatureProcessor:
                 )
 
                 if is_label:
-                    self.label.append(attr_obj)
-                    self.label_dict[df_attr_name] = attr_obj
+                    self.labels.append(attr_obj)
+                    self.labels_dict[df_attr_name] = attr_obj
                 else:
                     self.attributes.append(attr_obj)
                     self.attributes_dict[df_attr_name] = attr_obj
@@ -1008,7 +1017,7 @@ class FeatureProcessor:
         """
         # Make label a list
         # TODO: Change self.label to self.labels and make it always a list
-        self.label = []
+        self.labels = []
 
         attribute_transitions = attributes.TransitionMinorAttribute(
             transitions=[(start_activity, end_activities)], is_label=True

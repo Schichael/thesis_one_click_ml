@@ -36,6 +36,7 @@ class StatisticalAnalysisScreen:
         self.selected_attributes = selected_attributes
         self.selected_activity_table_cols = selected_activity_table_cols
         self.selected_case_table_cols = selected_case_table_cols
+        self.label_index = 0
         self.statistical_analysis_box = VBox()
 
     def update_attr_selection(
@@ -88,11 +89,17 @@ class StatisticalAnalysisScreen:
         attr_boxes = []
 
         # remove nans
-        attr_not_nan = [i for i in self.fp.attributes if not np.isnan(i.correlation)]
+        attr_not_nan = [
+            i
+            for i in self.fp.attributes
+            if not np.isnan(i.correlation[self.label_index])
+        ]
 
         # sort attributes by correlation coefficient
         attrs_sorted = sorted(
-            attr_not_nan, key=lambda x: abs(x.correlation), reverse=True
+            attr_not_nan,
+            key=lambda x: abs(x.correlation[self.label_index]),
+            reverse=True,
         )
 
         selected_attr_types = tuple([type(i) for i in self.selected_attributes])
@@ -109,12 +116,16 @@ class StatisticalAnalysisScreen:
             ):
                 if attr.column_name not in self.selected_case_table_cols:
                     continue
-            if (attr.correlation >= self.th) or (
+            if (attr.correlation[self.label_index] >= self.th) or (
                 attr.attribute_data_type == attributes.AttributeDataType.NUMERICAL
-                and abs(attr.correlation) >= self.th
+                and abs(attr.correlation[self.label_index]) >= self.th
             ):
                 attr_field = AttributeField(
-                    attr, "Case duration", self.fp, self.statistical_analysis_box
+                    attr,
+                    "Case duration",
+                    self.fp,
+                    self.label_index,
+                    self.statistical_analysis_box,
                 )
                 attr_boxes.append(attr_field.attribute_box)
         attributes_box.children = attr_boxes
@@ -143,6 +154,7 @@ class AttributeField:
         attribute: attributes.Attribute,
         label: str,
         fp: FeatureProcessor,
+        label_index: int,
         statistical_screen_box: Box,
     ):
         """
@@ -150,11 +162,13 @@ class AttributeField:
         :param attribute: Attribute object containing the attribute information
         :param label: label of the dependent variable to use for visualization
         :param fp: FeatureProcessor with processed features
+        :param label_index: index of the label in the FeatureProcessor
         :param statistical_screen_box: the box that contains the statistical screen
         """
         self.label = label
         self.attribute = attribute
         self.fp = fp
+        self.label_index = label_index
         self.statistical_screen_box = statistical_screen_box
         self.attribute_name_label = self.create_attribute_label()
         self.metrics_label = self.create_metrics_label()
@@ -198,21 +212,21 @@ class AttributeField:
         """
         layout_padding = Layout(padding="0px 0px 0px 12px")
         correlation_html = '<span style="font-weight:bold"> Correlation: </span>' + str(
-            round(self.attribute.correlation, 2)
+            round(self.attribute.correlation[self.label_index], 2)
         )
         correlation_label = HTML(correlation_html)
         if self.attribute.attribute_data_type == attributes.AttributeDataType.NUMERICAL:
             return correlation_label
         else:
-            sign = "+" if self.attribute.label_influence > 0 else ""
+            sign = "+" if self.attribute.label_influence[self.label_index] > 0 else ""
             case_duration_effect_html = (
                 '<span style="font-weight:bold">Effect on '
                 + self.label
                 + ": </span>"
                 + sign
-                + str(round(self.attribute.label_influence))
+                + str(round(self.attribute.label_influence[self.label_index]))
                 + "\xa0"
-                + self.fp.label.unit
+                + self.fp.labels[self.label_index].unit
             )
 
             case_duration_effect_label = HTML(case_duration_effect_html)
@@ -334,7 +348,7 @@ class AttributeField:
                     "caseid",
                     "Case start time",
                     attribute.df_attribute_name,
-                    self.fp.label.df_attribute_name,
+                    self.fp.labels[self.label_index].df_attribute_name,
                 ]
             ]
             df_attr["starttime"] = (
@@ -342,24 +356,28 @@ class AttributeField:
             )
             avg_case_duration_over_attribute = (
                 df_attr.groupby(attribute.df_attribute_name, as_index=False)[
-                    self.fp.label.df_attribute_name
+                    self.fp.labels[self.label_index].df_attribute_name
                 ]
                 .mean()
                 .fillna(0)
             )
             fig_effect = go.Figure(
-                layout_title_text=self.fp.label.display_name + " over attribute value"
+                layout_title_text=self.fp.labels[self.label_index].display_name
+                + " over attribute value"
             )
             # Attribute effect on label
             fig_effect.add_trace(
                 go.Scatter(
                     x=avg_case_duration_over_attribute[attribute.df_attribute_name],
-                    y=avg_case_duration_over_attribute[self.fp.label.df_attribute_name],
+                    y=avg_case_duration_over_attribute[
+                        self.fp.labels[self.label_index].df_attribute_name
+                    ],
                     fill="tonexty",
                 )
             )
             fig_effect.update_layout(
-                title="Effect of attribute on " + self.fp.label.display_name,
+                title="Effect of attribute on "
+                + self.fp.labels[self.label_index].display_name,
                 xaxis_title=None,
                 yaxis_title=None,
                 height=250,
@@ -409,12 +427,12 @@ class AttributeField:
         """
         avg_with_attr = round(
             self.fp.df[self.fp.df[self.attribute.df_attribute_name] == 1][
-                self.fp.label.df_attribute_name
+                self.fp.labels[self.label_index].df_attribute_name
             ].mean()
         )
         avg_without_attr = round(
             self.fp.df[self.fp.df[self.attribute.df_attribute_name] != 1][
-                self.fp.label.df_attribute_name
+                self.fp.labels[self.label_index].df_attribute_name
             ].mean()
         )
 
@@ -428,7 +446,7 @@ class AttributeField:
                     'text-align: center">'
                     + str(avg_with_attr)
                     + "\xa0"
-                    + self.fp.label.unit
+                    + self.fp.labels[self.label_index].unit
                     + "</span></center>"
                 )
             ],
@@ -447,7 +465,7 @@ class AttributeField:
                     'text-align: center">'
                     + str(avg_without_attr)
                     + "\xa0"
-                    + self.fp.label.unit
+                    + self.fp.labels[self.label_index].unit
                     + "</span></center>"
                 )
             ],
