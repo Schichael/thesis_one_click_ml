@@ -393,7 +393,7 @@ class FeatureProcessor:
         query = PQL()
         # query.add(self.get_query_case_ids())
         for attribute in self.static_numerical_cols:
-            df_attr_name = self.case_table_name + "_" + attribute
+            df_attr_name = self.case_table_name + "." + attribute
             display_name = self.case_table_name + "." + attribute
 
             query_attr = '"' + self.case_table_name + '".' + '"' + attribute + '"'
@@ -909,7 +909,6 @@ class FeatureProcessor:
         query = PQL()
         query.add(self.get_query_case_ids())
         for attr in attrs:
-            print(f"Attribute fetching: {attr.attribute_name}")
             if not attr.is_label:
                 self.minor_attrs.append(attr)
             query.add(self.get_attr_df(attr))

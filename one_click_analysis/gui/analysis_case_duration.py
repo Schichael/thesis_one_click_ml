@@ -70,7 +70,7 @@ class AnalysisCaseDuration:
         self.expert_screen = None
         self.tabs = None
         self.tab_names = [
-            "Configuration",
+            "Configurations",
             "Overview",
             "Statistical Analysis",
             "Decision Rules",
