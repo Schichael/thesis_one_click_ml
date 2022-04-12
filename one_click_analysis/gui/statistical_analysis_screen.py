@@ -6,6 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from ipywidgets import Box
 from ipywidgets import Button
+from ipywidgets import Dropdown
 from ipywidgets import HBox
 from ipywidgets import HTML
 from ipywidgets import Layout
@@ -36,7 +37,8 @@ class StatisticalAnalysisScreen:
         self.selected_attributes = selected_attributes
         self.selected_activity_table_cols = selected_activity_table_cols
         self.selected_case_table_cols = selected_case_table_cols
-        self.label_index = 0
+        self.attributes_box = None
+        self.attributes_box_contents = []
         self.statistical_analysis_box = VBox()
 
     def update_attr_selection(
@@ -58,23 +60,95 @@ class StatisticalAnalysisScreen:
         self.selected_case_table_cols = selected_case_table_cols
         self.create_statistical_screen()
 
-    def create_title_attributes_box(self) -> HTML:
+    def create_title_attributes_box(self) -> VBox:
         """Create the title of the attributes box.
 
         :return: HTML widget with the title
         """
         title_attributes_box_layout = Layout(margin="5px 0px 0px 0px")
-        title_attributes_box_html = (
-            '<span style="font-weight:bold;  font-size:16px"> '
-            "Attributes with potential effect on case "
-            "duration:</span>"
-        )
-        title_attributes_box = HTML(
-            title_attributes_box_html, layout=title_attributes_box_layout
-        )
-        return title_attributes_box
+        if len(self.fp.labels) == 1:
+            label_str = self.fp.labels[0].display_name
+            title_attributes_html_str = (
+                '<span style="font-weight:bold;  font-size:16px"> '
+                "Attributes with potential effect on " + label_str + ":</span>"
+            )
+        else:
+            title_attributes_html_str = (
+                '<span style="font-weight:bold;  font-size:16px"> '
+                "Attributes with potential effect on </span>"
+            )
 
-    def create_attributes_box(self) -> VBox:
+        title_attributes_html = HTML(title_attributes_html_str)
+
+        def drop_down_on_change(change):
+            print(change)
+            if change.new != change.old:
+                self.attributes_box.children = self.attributes_box_contents[change.new]
+
+        if len(self.fp.labels) == 1:
+            title_box = VBox(children=[title_attributes_html])
+        else:
+            dropdpwn_options = [
+                (label.display_name, i) for i, label in enumerate(self.fp.labels)
+            ]
+            dropdown = Dropdown(options=dropdpwn_options, value=0)
+            dropdown.observe(drop_down_on_change, "value")
+            title_box = VBox(children=[title_attributes_html, dropdown])
+
+        title_box.layout = title_attributes_box_layout
+
+        return title_box
+
+    def create_attributes_box_contents(self):
+        attr_boxes_list = []
+        for label_index in range(len(self.fp.labels)):
+            attr_boxes = []
+
+            # remove nans
+            attr_not_nan = [
+                i
+                for i in self.fp.attributes
+                if not np.isnan(i.correlation[label_index])
+            ]
+
+            # sort attributes by correlation coefficient
+            attrs_sorted = sorted(
+                attr_not_nan,
+                key=lambda x: abs(x.correlation[label_index]),
+                reverse=True,
+            )
+
+            selected_attr_types = tuple([type(i) for i in self.selected_attributes])
+            for attr in attrs_sorted:
+                if not isinstance(attr.minor_attribute_type, selected_attr_types):
+                    continue
+                elif isinstance(
+                    attr.minor_attribute_type,
+                    attributes.ActivityTableColumnMinorAttribute,
+                ):
+                    if attr.column_name not in self.selected_activity_table_cols:
+                        continue
+                elif isinstance(
+                    attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
+                ):
+                    if attr.column_name not in self.selected_case_table_cols:
+                        continue
+                if (attr.correlation[label_index] >= self.th) or (
+                    attr.attribute_data_type == attributes.AttributeDataType.NUMERICAL
+                    and abs(attr.correlation[label_index]) >= self.th
+                ):
+                    attr_field = AttributeField(
+                        attr,
+                        "Case duration",
+                        self.fp,
+                        label_index,
+                        self.statistical_analysis_box,
+                    )
+                    attr_boxes.append(attr_field.attribute_box)
+            attr_boxes_list.append(attr_boxes)
+        self.attributes_box_contents = attr_boxes_list
+
+    def create_attributes_box(self, label_index: int) -> VBox:
         """Create the attributes box.
 
         :return: VBox with the attributes box
@@ -86,49 +160,8 @@ class StatisticalAnalysisScreen:
             padding="3px 3px 3px 3px",
         )
         attributes_box = VBox(layout=attributes_box_layout)
-        attr_boxes = []
 
-        # remove nans
-        attr_not_nan = [
-            i
-            for i in self.fp.attributes
-            if not np.isnan(i.correlation[self.label_index])
-        ]
-
-        # sort attributes by correlation coefficient
-        attrs_sorted = sorted(
-            attr_not_nan,
-            key=lambda x: abs(x.correlation[self.label_index]),
-            reverse=True,
-        )
-
-        selected_attr_types = tuple([type(i) for i in self.selected_attributes])
-        for attr in attrs_sorted:
-            if not isinstance(attr.minor_attribute_type, selected_attr_types):
-                continue
-            elif isinstance(
-                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
-            ):
-                if attr.column_name not in self.selected_activity_table_cols:
-                    continue
-            elif isinstance(
-                attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
-            ):
-                if attr.column_name not in self.selected_case_table_cols:
-                    continue
-            if (attr.correlation[self.label_index] >= self.th) or (
-                attr.attribute_data_type == attributes.AttributeDataType.NUMERICAL
-                and abs(attr.correlation[self.label_index]) >= self.th
-            ):
-                attr_field = AttributeField(
-                    attr,
-                    "Case duration",
-                    self.fp,
-                    self.label_index,
-                    self.statistical_analysis_box,
-                )
-                attr_boxes.append(attr_field.attribute_box)
-        attributes_box.children = attr_boxes
+        attributes_box.children = self.attributes_box_contents[label_index]
         return attributes_box
 
     def create_statistical_screen(
@@ -138,12 +171,13 @@ class StatisticalAnalysisScreen:
 
         :return: box with the screen for the statistical analysis
         """
-        title_attributes_box = self.create_title_attributes_box()
-        attributes_box = self.create_attributes_box()
 
+        title_attributes_box = self.create_title_attributes_box()
+        self.create_attributes_box_contents()
+        self.attributes_box = self.create_attributes_box(0)
         self.statistical_analysis_box.children = [
             title_attributes_box,
-            attributes_box,
+            self.attributes_box,
             VBox(),
         ]
 
