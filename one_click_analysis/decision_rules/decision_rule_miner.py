@@ -194,6 +194,12 @@ class DecisionRuleMiner:
         :return: Tuple with the metrics
         """
         true_labels = self.label_df[self.preprocessed_label_col].values
+        # remove nan rows
+        idxs_nan = np.argwhere(np.isnan(true_labels))
+        mask = np.full(len(true_labels), True)
+        mask[idxs_nan] = False
+        true_labels = true_labels[mask]
+        pred = pred[mask]
         true_n, false_p, false_n, true_p = confusion_matrix(true_labels, pred).ravel()
         recall_p = true_p / (true_p + false_n)
         recall_n = true_n / (true_n + false_p)

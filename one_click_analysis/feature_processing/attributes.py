@@ -21,94 +21,135 @@ class MinorAttribute(abc.ABC):
         self,
         attribute_name: str,
         major_attribute: MajorAttribute,
+        is_attr: bool = False,
         is_label: bool = False,
     ):
+        """
+
+        :param attribute_name: name of the attribute
+        :param major_attribute: the MajorAttribute
+        :param is_attr: whether to use as attribute (feature)
+        :param is_label: whether to use as label
+        """
+        self.is_attr = is_attr
         self.is_label = is_label
         self.attribute_name = attribute_name
         self.major_attribute = major_attribute
 
 
 class CaseDurationMinorAttribute(MinorAttribute):
-    def __init__(self, time_aggregation: str, is_label: bool = False):
+    def __init__(
+        self, time_aggregation: str, is_attr: bool = False, is_label: bool = False
+    ):
         self.time_aggregation = time_aggregation
         attribute_name = "Case duration"
         major_attribute = MajorAttribute.CASE
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class WorkInProgressMinorAttribute(MinorAttribute):
-    def __init__(self, aggregations: Union[str, List[str]], is_label: bool = False):
+    def __init__(
+        self,
+        aggregations: Union[str, List[str]],
+        is_attr: bool = False,
+        is_label: bool = False,
+    ):
         self.aggregations = aggregations
         attribute_name = "Work in Progress"
         major_attribute = MajorAttribute.CASE
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class EventCountMinorAttribute(MinorAttribute):
-    def __init__(self, is_label: bool = False):
+    def __init__(self, is_attr: bool = False, is_label: bool = False):
         attribute_name = "Event count"
         major_attribute = MajorAttribute.CASE
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class ReworkOccurenceMinorAttribute(MinorAttribute):
-    def __init__(self, is_label: bool = False):
+    def __init__(self, is_attr: bool = False, is_label: bool = False):
         attribute_name = "Rework"
         major_attribute = MajorAttribute.ACTIVITY
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class ActivityOccurenceMinorAttribute(MinorAttribute):
-    def __init__(self, is_label: bool = False):
+    def __init__(self, is_attr: bool = False, is_label: bool = False):
         attribute_name = "Activity occurence"
         major_attribute = MajorAttribute.ACTIVITY
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class ActivityCountMinorAttribute(MinorAttribute):
-    def __init__(self, is_label: bool = False):
+    def __init__(self, is_attr: bool = False, is_label: bool = False):
         attribute_name = "Activity Count"
         major_attribute = MajorAttribute.ACTIVITY
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class EndActivityMinorAttribute(MinorAttribute):
-    def __init__(self, is_label: bool = False):
+    def __init__(self, is_attr: bool = False, is_label: bool = False):
         attribute_name = "End activity"
         major_attribute = MajorAttribute.ACTIVITY
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class StartActivityMinorAttribute(MinorAttribute):
-    def __init__(self, is_label: bool = False):
+    def __init__(self, is_attr: bool = False, is_label: bool = False):
         attribute_name = "Start activity"
         major_attribute = MajorAttribute.ACTIVITY
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class ActivityTableColumnMinorAttribute(MinorAttribute):
-    def __init__(self, aggregations: Optional[Union[List[str], str]] = None):
+    def __init__(
+        self,
+        aggregations: Optional[Union[List[str], str]] = None,
+        is_attr: bool = False,
+    ):
         self.aggregations = aggregations
         attribute_name = "Activity table column"
         major_attribute = MajorAttribute.ACTIVITY
-        super().__init__(attribute_name, major_attribute)
+        super().__init__(attribute_name, major_attribute, is_attr=is_attr)
 
 
 class CaseTableColumnMinorAttribute(MinorAttribute):
-    def __init__(self):
+    def __init__(self, is_attr: bool = False):
         attribute_name = "Case table column"
         major_attribute = MajorAttribute.CASE
-        super().__init__(attribute_name, major_attribute)
+        super().__init__(attribute_name, major_attribute, is_attr=is_attr)
 
 
 class TransitionMinorAttribute(MinorAttribute):
     def __init__(
-        self, transitions: List[Tuple[str, List[str]]], is_label: bool = False
+        self,
+        transitions: List[Tuple[str, List[str]]],
+        is_attr: bool = False,
+        is_label: bool = False,
     ):
         self.transitions = transitions
         attribute_name = "Next activity"
         major_attribute = MajorAttribute.ACTIVITY
-        super().__init__(attribute_name, major_attribute, is_label)
+        super().__init__(
+            attribute_name, major_attribute, is_attr=is_attr, is_label=is_label
+        )
 
 
 class AttributeDataType(Enum):

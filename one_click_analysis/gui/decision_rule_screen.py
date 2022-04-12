@@ -1,7 +1,6 @@
 import functools
 from typing import Callable
 from typing import List
-from typing import Optional
 
 import ipysheet
 import ipywidgets as widgets
@@ -105,7 +104,7 @@ class DecisionRulesScreen:
         self.selected_attributes = selected_attributes
         self.selected_activity_table_cols = selected_activity_table_cols
         self.selected_case_table_cols = selected_case_table_cols
-        self.rule_box = HBox()
+        self.parent_rule_box = self._init_rules_parent_box()
         self.dr_miners = {}
         self.current_threshold_numerical = None
         self.attr_names = self.create_attribute_names()
@@ -146,10 +145,15 @@ class DecisionRulesScreen:
 
         :return: box with the decision rule screen
         """
-        self.decision_rule_box.children = [
-            self.value_selection.selection_box,
-            self.parent_rule_box,
-        ]
+        if self.is_numerical:
+            self.decision_rule_box.children = [
+                self.value_selection.selection_box,
+                self.parent_rule_box,
+            ]
+        else:
+            self.decision_rule_box.children = [
+                self.parent_rule_box,
+            ]
 
     def on_button_run_clicked(self, b, label_index: int):
         if self.is_numerical:
@@ -166,10 +170,11 @@ class DecisionRulesScreen:
         self.run_buttons[label_index].disabled = True
         self.dr_miners[label_index] = DecisionRuleMiner(
             self.fp.df,
-            self.fp.labels[0].df_attribute_name,
+            self.fp.labels[label_index].df_attribute_name,
             self.attr_names,
             pos_class=pos_class,
             threshold=threshold,
+            k=99,
         )
         self.run_decision_miner(label_index)
         rule_box = self.create_rule_box(label_index)
@@ -213,18 +218,18 @@ class DecisionRulesScreen:
         return html_rule_caption
 
     def _init_rules_parent_box(self):
-        layout_rule_box = Layout(
+        layout_rule_box_parent = Layout(
             margin="20px 0px 0px 0px", border="3px groove lightblue"
         )
 
-        labels = [label.display_name for label in self.fp.labels]
+        label_names = [label.display_name for label in self.fp.labels]
 
         rule_boxes = []
         if self.is_numerical:
-            rule_box = HBox(children=[self._gen_rule_caption(labels[0])])
+            rule_box = HBox(children=[self._gen_rule_caption(label_names[0])])
             rule_boxes.append(rule_box)
         else:
-            for label_index, label in enumerate(labels):
+            for label_index, label in enumerate(label_names):
 
                 button_run = Button(description="Mine rules!")
 
@@ -232,20 +237,25 @@ class DecisionRulesScreen:
                     self.on_button_run_clicked, label_index=label_index
                 )
                 button_run.on_click(button_clicked_partial)
+
                 self.run_buttons[label_index] = button_run
-                vbox_run_button_layout = Layout(
-                    flex="1", justify_content="flex-end", align_items="center"
+                # vbox_run_button_layout = Layout(
+                #    flex="1", justify_content="flex-end", align_items="center"
+                # )
+                vbox_run_button = VBox([button_run])  # , layout=vbox_run_button_layout)
+                layout_rule_box = Layout(
+                    margin="20px 20px 20px 20px", border="3px groove lightblue"
                 )
-                vbox_run_button = VBox([button_run], layout=vbox_run_button_layout)
                 rule_box = VBox(
-                    children=[self._gen_rule_caption(label), vbox_run_button]
+                    children=[self._gen_rule_caption(label), vbox_run_button],
+                    layout=layout_rule_box,
                 )
                 rule_boxes.append(rule_box)
 
-        rule_box_parent = Box(children=rule_boxes, layout=layout_rule_box)
+        rule_box_parent = VBox(children=rule_boxes, layout=layout_rule_box_parent)
         return rule_box_parent
 
-    def create_rule_box(self, label_index: Optional[int]) -> Box:
+    def create_rule_box(self, label_index: int) -> Box:
         """Create box with the decision rules and the rule metrics
 
         :param label_index: index of the label in FeatureProcessor.labels
@@ -271,13 +281,8 @@ class DecisionRulesScreen:
         :param label_index: index of the label in FeatureProcessor.labels
         :return:box with the decision rules
         """
-        html_rule_caption = HTML(
-            '<span style="font-weight:bold; font-size: 16px">'
-            + "Rule for case duration >=\xa0"
-            + str(self.current_threshold_numerical)
-            + ":</span>",
-            layout=Layout(margin="0px 0px 10px 0px"),
-        )
+        label_str = self.fp.labels[label_index].display_name
+        html_rule_caption = self._gen_rule_caption(label_str=label_str)
         html_rules = self.create_pretty_html_rules(label_index)
         rules_html_widget = Box([HTML(value=html_rules)])
 
@@ -408,10 +413,14 @@ class DecisionRulesScreen:
         :return: box that contains the metrics for the rules
         """
         conf_matrix = self.gen_conf_matrix(label_index)
-        avg_metrics = self.gen_avg_rule_metrics(label_index)
-        metrics_box = VBox(
-            [conf_matrix, avg_metrics], layout=Layout(margin="35px 0px 0px 30px")
-        )
+        if self.is_numerical:
+            avg_metrics = self.gen_avg_rule_metrics(label_index)
+            metrics_box = VBox(
+                [conf_matrix, avg_metrics], layout=Layout(margin="35px 0px 0px 30px")
+            )
+        else:
+            metrics_box = VBox([conf_matrix], layout=Layout(margin="35px 0px 0px 30px"))
+
         return metrics_box
 
     def gen_conf_matrix(self, label_index: int):
@@ -431,6 +440,14 @@ class DecisionRulesScreen:
         conf_matrix = ipysheet.sheet(
             rows=4, columns=4, column_headers=False, row_headers=False
         )
+        label_str = self.fp.labels[label_index].display_name
+        if self.is_numerical:
+            pos_label_str = "High " + label_str
+            neg_label_str = "Low " + label_str
+        else:
+            pos_label_str = label_str
+            neg_label_str = "Not " + label_str
+
         ipysheet.cell(0, 0, "", read_only=True, background_color=header_color)
         ipysheet.cell(
             0,
@@ -459,7 +476,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             1,
             0,
-            "High case duration",
+            pos_label_str,
             read_only=True,
             style={"font-weight": "bold", "font-size": font_size},
             background_color=header_color,
@@ -491,7 +508,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             2,
             0,
-            "Low case duration",
+            neg_label_str,
             read_only=True,
             style={"font-weight": "bold", "font-size": font_size},
             background_color=header_color,
@@ -630,7 +647,7 @@ class ValueSelection:
         # maximum value of dependent variable to display in cumulative probability plot
         self.max_display_val = None
         self.default_long_perc = (
-            default_large_perc  # default top percentage of long case duration
+            default_large_perc  # default top percentage of large value
         )
         # the currently selected threshold
         self.current_th = None
@@ -672,9 +689,10 @@ class ValueSelection:
 
         :return:
         """
-        label_title = Label("Define high case duration:")
+        label_str = self.fp.labels[0].display_name
+        label_title = Label("Define high " + label_str + ":")
 
-        label_description = Label("Case duration >=\xa0")
+        label_description = Label(label_str + " >=\xa0")
 
         label_unit = Label("\xa0" + self.fp.labels[0].unit, layout=Layout(width="auto"))
         label_percentage = Label(
@@ -764,9 +782,15 @@ class ValueSelection:
         label_name = self.fp.labels[0].df_attribute_name
         df_float = pd.DataFrame(self.fp.df[label_name].astype(float))
         fig = px.ecdf(df_float, x=label_name)
+        unit = self.fp.df.labels[0].unit
+        if unit != "":
+            unit_str = " (" + unit.lower() + ")"
+        else:
+            unit_str = ""
+        xaxis_title = self.fp.df.labels[0].display_name + unit_str
         fig.update_layout(
             {
-                "xaxis_title": "Case duration (days)",
+                "xaxis_title": xaxis_title,
                 "yaxis_title": "cumulative probability",
             }
         )
