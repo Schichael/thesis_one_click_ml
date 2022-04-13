@@ -1084,11 +1084,11 @@ class FeatureProcessor:
 
         return query
 
-    def filter_transition_PQL(self, start_activity: str, end_activities: List[str]):
-        term_end_activities = (
-            "(" + ", ".join("'" + act + "'" for act in end_activities) + ")"
-        )
-        filter_str = f"PROCESS EQUALS '{start_activity}' TO '{term_end_activities}'"
+    def filter_transition_PQL(self, start_activity: str):
+        # term_end_activities = (
+        #    "(" + ", ".join("'" + act + "'" for act in end_activities) + ")"
+        # )
+        filter_str = f"PROCESS EQUALS '{start_activity}'"
         return PQLFilter(filter_str)
 
     def run_decision_point_PQL(
@@ -1103,13 +1103,15 @@ class FeatureProcessor:
         :return:
         """
         # Make label a list
-        # TODO: Change self.label to self.labels and make it always a list
         self.labels = []
+
+        # add filter
+        self.filters.append(self.filter_transition_PQL(start_activity))
 
         # Get the attributes
         minor_attrs = [
             attributes.StartActivityMinorAttribute(is_attr=True),
-            attributes.EndActivityMinorAttribute(is_attr=True),
+            # attributes.EndActivityMinorAttribute(is_attr=True),
             attributes.CaseTableColumnMinorAttribute(is_attr=True),
             attributes.ActivityTableColumnMinorAttribute(
                 aggregations="AVG", is_attr=True
@@ -1132,58 +1134,8 @@ class FeatureProcessor:
         df_additional = self.get_df_with_filters(query_additional)
 
         df_joined = utils.join_dfs([df, df_additional], keys=["caseid"] * 2)
-
         self.df = df_joined
-
         self.post_process()
-        # Get labels
-
-        """
-        start_activity_time_df = self.start_activity_time_PQL()
-        end_activity_time_df = self.end_activity_time_PQL()
-        #start_activity_df = self.start_activity_PQL(
-        #    self.min_attr_count, self.max_attr_count
-        #)
-        #end_activity_df = self.end_activity_PQL(
-        #    self.min_attr_count, self.max_attr_count
-        #)
-        #binary_activity_occurence_df = self.binary_activity_occurence_PQL(
-        #    self.min_attr_count, self.max_attr_count
-        #)
-        #binary_rework_df = self.binary_rework_PQL(
-        #    self.min_attr_count, self.max_attr_count
-        #)
-        #work_in_progress_df = self.work_in_progress_PQL(aggregations=["AVG"])
-
-        static_cat_df = self.aggregate_static_categorical_PQL(
-            self.min_attr_count, self.max_attr_count
-        )
-        static_num_df = self.get_static_numerical_PQL()
-        dyn_cat_df = self.aggregate_dynamic_categorical_PQL(
-            self.min_attr_count, self.max_attr_count
-        )
-        dyn_num_df = self.aggregate_dynamic_numerical_PQL()
-        total_time_df = self.case_duration_PQL(time_unit, is_label=True)
-        joined_df = utils.join_dfs(
-            [
-                start_activity_time_df,
-                end_activity_time_df,
-                start_activity_df,
-                end_activity_df,
-                binary_activity_occurence_df,
-                binary_rework_df,
-                work_in_progress_df,
-                static_cat_df,
-                static_num_df,
-                dyn_cat_df,
-                dyn_num_df,
-                total_time_df,
-            ],
-            keys=["caseid"] * 12,
-        )
-        self.compute_metrics(joined_df)
-        self.df = joined_df
-        """
 
     def post_process(self):
         """postprocess DataFrame. numberical nans are replaced by median value,
