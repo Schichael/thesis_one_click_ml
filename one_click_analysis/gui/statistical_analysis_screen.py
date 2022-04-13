@@ -139,7 +139,7 @@ class StatisticalAnalysisScreen:
                 ):
                     attr_field = AttributeField(
                         attr,
-                        "Case duration",
+                        self.fp.labels[label_index].display_name,
                         self.fp,
                         label_index,
                         self.statistical_analysis_box,
@@ -253,17 +253,17 @@ class AttributeField:
             return correlation_label
         else:
             sign = "+" if self.attribute.label_influence[self.label_index] > 0 else ""
-            case_duration_effect_html = (
+            effect_on_label_html = (
                 '<span style="font-weight:bold">Effect on '
                 + self.label
                 + ": </span>"
                 + sign
-                + str(round(self.attribute.label_influence[self.label_index]))
+                + str(round(self.attribute.label_influence[self.label_index], 2))
                 + "\xa0"
                 + self.fp.labels[self.label_index].unit
             )
 
-            case_duration_effect_label = HTML(case_duration_effect_html)
+            case_duration_effect_label = HTML(effect_on_label_html)
             cases_with_attribute_html = (
                 '<span style="font-weight:bold">Cases with attribute: </span>'
                 + str(self.attribute.cases_with_attribute)
@@ -462,12 +462,14 @@ class AttributeField:
         avg_with_attr = round(
             self.fp.df[self.fp.df[self.attribute.df_attribute_name] == 1][
                 self.fp.labels[self.label_index].df_attribute_name
-            ].mean()
+            ].mean(),
+            2,
         )
         avg_without_attr = round(
             self.fp.df[self.fp.df[self.attribute.df_attribute_name] != 1][
                 self.fp.labels[self.label_index].df_attribute_name
-            ].mean()
+            ].mean(),
+            2,
         )
 
         html_avg_with_attr = Box(

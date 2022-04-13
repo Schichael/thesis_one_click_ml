@@ -782,12 +782,12 @@ class ValueSelection:
         label_name = self.fp.labels[0].df_attribute_name
         df_float = pd.DataFrame(self.fp.df[label_name].astype(float))
         fig = px.ecdf(df_float, x=label_name)
-        unit = self.fp.df.labels[0].unit
+        unit = self.fp.labels[0].unit
         if unit != "":
             unit_str = " (" + unit.lower() + ")"
         else:
             unit_str = ""
-        xaxis_title = self.fp.df.labels[0].display_name + unit_str
+        xaxis_title = self.fp.labels[0].display_name + unit_str
         fig.update_layout(
             {
                 "xaxis_title": xaxis_title,

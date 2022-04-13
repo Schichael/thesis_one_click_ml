@@ -110,7 +110,7 @@ class AnalysisRoutingDecision:
             print("Fetching data and preprocessing...")
         self.fp.run_decision_point_PQL(
             start_activity="Status Change",
-            end_activities=["Assignment", "Caused By CI"],
+            end_activities=["Assignment", "Caused By CI", "Operator Update", "Update"],
             time_unit="DAYS",
         )
         with out:

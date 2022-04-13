@@ -14,7 +14,7 @@ from ipywidgets import VBox
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
 # TODO: Make the OverviewBox more general or add an abstract overview class from
-# which the overview screens for the different analyses can inherent common
+# which the overview screens for the different analyses can inherit common
 # methods.
 
 
