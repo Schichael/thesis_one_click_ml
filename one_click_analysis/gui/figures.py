@@ -1,6 +1,8 @@
 import abc
+from typing import Callable
 from typing import List
 from typing import Optional
+from typing import Union
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -72,6 +74,7 @@ class AttributeDevelopmentFigure(Figure):
         attribute_cols: List[str] or str,
         attribute_names: Optional[List[str]] = None,
         time_aggregation: Optional[str] = "M",
+        data_aggregation: Union[str, Callable] = "mean",
         fill: bool = False,
         **kwargs
     ):
@@ -84,6 +87,7 @@ class AttributeDevelopmentFigure(Figure):
         :param time_aggregation: how to aggregate the time. One of pandas’ offset
         strings or an Offset object. E.g. 'Y' for yearly, 'M' for monthly, 'D' for
         daily
+        :param data_Aggregation: the way to aggregate the data
         :param fill: whether to fille the plot to become an area chart. If True,
         the plot for the last attribute in attribute_cols will be filled to zero_y.
         :param kwargs: arguments to use for the figure layout
@@ -97,6 +101,7 @@ class AttributeDevelopmentFigure(Figure):
         self.attribute_cols = utils.make_list(attribute_cols)
         self.attribute_names = attribute_names
         self.time_aggregation = time_aggregation
+        self.data_aggregation = data_aggregation
         self.fill = fill
         self.figure = self._create_figure()
 
@@ -105,7 +110,9 @@ class AttributeDevelopmentFigure(Figure):
         df["time_agg"] = (
             df[self.time_col].dt.to_period(self.time_aggregation).astype(str)
         )
-        df = df.groupby("time_agg", as_index=False)[self.attribute_cols].mean()
+        df = df.groupby("time_agg", as_index=False)[self.attribute_cols].aggregate(
+            self.data_aggregation
+        )
 
         fig = go.Figure(layout_title_text=self.layout_vals["title"])
 

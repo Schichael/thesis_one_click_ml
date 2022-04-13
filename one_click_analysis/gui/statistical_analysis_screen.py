@@ -12,9 +12,9 @@ from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
 
-from one_click_analysis import utils
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 
 
 class StatisticalAnalysisScreen:
@@ -328,49 +328,22 @@ class AttributeField:
             df_attr = self.fp.df[
                 ["caseid", "Case start time", attribute.df_attribute_name]
             ]
-            df_attr["starttime"] = (
-                df_attr["Case start time"].dt.to_period("M").astype(str)
+
+            df_attr["All Cases"] = 1
+            df_attr["Cases with attribute"] = 0
+            df_attr.loc[
+                df_attr[attribute.df_attribute_name] == 1, "Cases with " "attribute"
+            ] = 1
+            fig_attribute_development = AttributeDevelopmentFigure(
+                df=df_attr,
+                time_col="Case start time",
+                attribute_cols=["All Cases", "Cases with attribute"],
+                time_aggregation="M",
+                data_aggregation="sum",
+                fill=True,
             )
-            num_cases_all_df = (
-                df_attr.groupby("starttime", as_index=False)["caseid"].count().fillna(0)
-            )
-            num_cases_all_df = num_cases_all_df.rename({"caseid": "All cases"}, axis=1)
-            num_cases_attr_true = (
-                df_attr[df_attr[attribute.df_attribute_name] == 1]
-                .groupby("starttime", as_index=False)["caseid"]
-                .count()
-                .fillna(0)
-            )
-            num_cases_attr_true = num_cases_attr_true.rename(
-                {"caseid": "Cases with attribute"}, axis=1
-            )
-            complete_df = utils.join_dfs(
-                [num_cases_all_df, num_cases_attr_true], keys=["starttime"] * 2
-            ).fillna(0)
-            fig = go.Figure(layout_title_text="Attribute development")
-            fig.add_trace(
-                go.Scatter(
-                    x=complete_df["starttime"],
-                    y=complete_df["All cases"],
-                    fill="tonexty",
-                    name="All cases",
-                )
-            )  # fill down to xaxis
-            fig.add_trace(
-                go.Scatter(
-                    x=complete_df["starttime"],
-                    y=complete_df["Cases with attribute"],
-                    fill="tozeroy",
-                    name="Cases with attribute",
-                )
-            )  # fill to trace0 y
-            fig.update_layout(
-                xaxis_title=None,
-                yaxis_title=None,
-                height=300,
-                margin={"l": 10, "r": 10, "t": 40, "b": 10},
-            )
-            fig_widget = go.FigureWidget(fig)
+
+            fig_widget = go.FigureWidget(fig_attribute_development.figure)
             fig_box = VBox([fig_widget], layout=fig_layout)
             vbox_details = VBox(
                 children=[label_attribute, hbox_metrics, fig_box], layout=layout_box
