@@ -8,6 +8,8 @@ from ipywidgets import HBox
 from ipywidgets import HTML
 from ipywidgets import Layout
 
+from one_click_analysis import utils
+
 
 class SingleValueBox:
     def __init__(
@@ -47,6 +49,10 @@ class SingleValueBox:
 
 class Figure(abc.ABC):
     def __init__(self, **kwargs):
+        """
+
+        :param kwargs: arguments to use for the figure layout
+        """
         self.layout_vals = {
             "title": "",
             "height": 250,
@@ -63,7 +69,7 @@ class AttributeDevelopmentFigure(Figure):
         self,
         df: pd.DataFrame,
         time_col: str,
-        attribute_cols: List[str],
+        attribute_cols: List[str] or str,
         attribute_names: Optional[List[str]] = None,
         time_aggregation: Optional[str] = "M",
         fill: bool = False,
@@ -88,7 +94,7 @@ class AttributeDevelopmentFigure(Figure):
         super().__init__(**layout_vals_this_fig)
         self.df = df
         self.time_col = time_col
-        self.attribute_cols = attribute_cols
+        self.attribute_cols = utils.make_list(attribute_cols)
         self.attribute_names = attribute_names
         self.time_aggregation = time_aggregation
         self.fill = fill
@@ -96,9 +102,10 @@ class AttributeDevelopmentFigure(Figure):
 
     def _create_figure(self):
         df = self.df[[self.time_col] + self.attribute_cols].copy()
-        df["time_agg"] = df.groupby(self.time_col, as_index=False)[
-            self.attribute_cols
-        ].mean()
+        df["time_agg"] = (
+            df[self.time_col].dt.to_period(self.time_aggregation).astype(str)
+        )
+        df = df.groupby("time_agg", as_index=False)[self.attribute_cols].mean()
 
         fig = go.Figure(layout_title_text=self.layout_vals["title"])
 

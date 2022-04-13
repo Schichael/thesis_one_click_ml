@@ -12,6 +12,7 @@ from ipywidgets import Layout
 from ipywidgets import VBox
 
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 
 # TODO: Make the OverviewBox more general or add an abstract overview class from
 # which the overview screens for the different analyses can inherit common
@@ -60,20 +61,16 @@ class OverviewScreen:
         )
 
         # development of case duration
-        df_case_duration_dev = get_case_duration_development(self.fp)
-        fig_case_duration_development = px.area(
-            df_case_duration_dev,
-            x="Case start time",
-            y=self.fp.labels[0].df_attribute_name,
-            title="Case duration development",
-            height=250,
+        fig_case_duration_development = AttributeDevelopmentFigure(
+            df=self.fp.df,
+            time_col="Case start time",
+            attribute_cols=self.fp.labels[0].df_attribute_name,
+            fill=True,
         )
-        fig_case_duration_development.update_layout(
-            xaxis_title=None,
-            yaxis_title=None,
-            margin={"l": 10, "r": 10, "t": 40, "b": 10},
+
+        f_widget_case_duration_dev = go.FigureWidget(
+            fig_case_duration_development.figure
         )
-        f_widget_case_duration_dev = go.FigureWidget(fig_case_duration_development)
         # case duration distribution
         df_distribution = compute_binned_distribution_case_durations(self.fp, 10)
         fig_distribution = px.bar(
@@ -115,24 +112,6 @@ def get_avg_case_duration(fp: FeatureProcessor) -> float:
     label_column_name = fp.labels[0].df_attribute_name
     avg_case_duration = fp.df[label_column_name].mean()
     return avg_case_duration
-
-
-def get_case_duration_development(
-    fp: FeatureProcessor,
-) -> pd.DataFrame:
-    """Get aggregated case duration aggregated over a time period
-
-    :param fp: FeatureProcessor with the processed features
-    :return: DataFrame with the aggregated case duration aggregated over time
-    """
-
-    df = fp.df[["caseid", "Case start time", fp.labels[0].df_attribute_name]].copy()
-    df["Case start time"] = df["Case start time"].dt.to_period("M").astype(str)
-    num_cases_all_df = df.groupby("Case start time", as_index=False)[
-        fp.labels[0].df_attribute_name
-    ].mean()
-
-    return num_cases_all_df
 
 
 def get_quantiles_case_duration_pql(
