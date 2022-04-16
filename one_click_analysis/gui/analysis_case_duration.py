@@ -13,7 +13,7 @@ from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.expert_screen import ExpertScreen
-from one_click_analysis.gui.overview_screen import OverviewScreen
+from one_click_analysis.gui.overview_screen import OverviewScreenCaseDuration
 from one_click_analysis.gui.statistical_analysis_screen import StatisticalAnalysisScreen
 
 
@@ -126,8 +126,7 @@ class AnalysisCaseDuration:
         with out:
             print("Creatng GUI...")
         # Create overview box
-        self.overview_screen = OverviewScreen(self.fp)
-        self.overview_screen.create_overview_screen()
+        self.overview_screen = OverviewScreenCaseDuration(self.fp)
 
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
