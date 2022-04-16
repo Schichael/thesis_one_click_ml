@@ -59,8 +59,10 @@ def make_list(var: Any) -> List:
     """Wraps varibale var into a list if val is not a list itself.
 
     :param var: a variable
-    :return: var if var is of type list, else [var]
+    :return: var if var is of type list or empty list if var=None, else [var]
     """
+    if var is None:
+        return []
     if isinstance(var, List):
         return var
     else:
