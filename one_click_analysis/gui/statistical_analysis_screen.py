@@ -358,9 +358,10 @@ class AttributeField:
                     self.fp.labels[self.label_index].df_attribute_name,
                 ]
             ]
-            df_attr["starttime"] = (
-                df_attr["Case start time"].dt.to_period("M").astype(str)
-            )
+            # df_attr["starttime"] = (
+            #    df_attr["Case start time"].dt.to_period("M").astype(str)
+            # )
+
             avg_case_duration_over_attribute = (
                 df_attr.groupby(attribute.df_attribute_name, as_index=False)[
                     self.fp.labels[self.label_index].df_attribute_name
@@ -393,33 +394,19 @@ class AttributeField:
             fig_effect_widget = go.FigureWidget(fig_effect)
             fig_effect_box = VBox([fig_effect_widget], layout=fig_layout)
 
-            avg_attribute_over_time_df = (
-                df_attr.groupby("starttime", as_index=False)[
-                    attribute.df_attribute_name
-                ]
-                .mean()
-                .fillna(0)
+            attr_dev_fig = AttributeDevelopmentFigure(
+                df=self.fp.df,
+                time_col="Case start time",
+                attribute_cols=attribute.df_attribute_name,
+                attribute_names=attribute.display_name,
+                time_aggregation="M",
+                data_aggregation="mean",
+                fill=True,
+                title="Attribute value development",
             )
-            fig_dev = go.Figure(layout_title_text="Attribute value development")
-            fig_dev.add_trace(
-                go.Scatter(
-                    x=avg_attribute_over_time_df["starttime"],
-                    y=avg_attribute_over_time_df[attribute.df_attribute_name],
-                    fill="tonexty",
-                )
-            )
-            fig_dev.update_layout(
-                title="Average attribute value development",
-                xaxis_title=None,
-                yaxis_title=None,
-                height=250,
-                margin={"l": 5, "r": 10, "t": 40, "b": 10},
-            )
-            fig_dev_widget = go.FigureWidget(fig_dev)
-            fig_dev_box = VBox([fig_dev_widget], layout=fig_layout)
 
             vbox_details = VBox(
-                children=[label_attribute, fig_effect_box, fig_dev_box],
+                children=[label_attribute, fig_effect_box, attr_dev_fig.figure],
                 layout=layout_box,
             )
 
