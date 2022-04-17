@@ -13,6 +13,7 @@ from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.expert_screen import ExpertScreen
+from one_click_analysis.gui.overview_screen import OverviewScreenDecisionRules
 from one_click_analysis.gui.statistical_analysis_screen import StatisticalAnalysisScreen
 
 
@@ -70,7 +71,7 @@ class AnalysisRoutingDecision:
         self.tabs = None
         self.tab_names = [
             "Configurations",
-            # "Overview",
+            "Overview",
             "Statistical Analysis",
             "Decision Rules",
             "Expert Tab",
@@ -97,7 +98,7 @@ class AnalysisRoutingDecision:
         self.tabs = self.create_tabs(
             [
                 self.configurator.configurator_box,
-                # widgets.VBox(),
+                widgets.VBox(),
                 widgets.VBox(),
                 widgets.VBox(),
                 widgets.VBox(),
@@ -133,6 +134,17 @@ class AnalysisRoutingDecision:
         # self.overview_screen.create_overview_screen()
 
         # Ceate statistical analysis tab
+        self.overview_screen = OverviewScreenDecisionRules(
+            fp=self.fp,
+            source_activity="Status Change",
+            target_activities=[
+                "Assignment",
+                "Caused By CI",
+                "Operator Update",
+                "Update",
+            ],
+        )
+
         self.stat_analysis_screen = StatisticalAnalysisScreen(
             self.fp,
             self.th,
@@ -168,7 +180,7 @@ class AnalysisRoutingDecision:
         self.update_tabs(
             [
                 self.configurator.configurator_box,
-                # self.overview_screen.overview_box,
+                self.overview_screen.overview_box,
                 self.stat_analysis_screen.statistical_analysis_box,
                 self.dec_rule_screen.decision_rule_box,
                 self.expert_screen.expert_box,
