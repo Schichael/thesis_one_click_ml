@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 from ipywidgets import HBox
 from ipywidgets import HTML
 from ipywidgets import Layout
+from plotly.subplots import make_subplots
 
 from one_click_analysis import utils
 
@@ -35,10 +36,12 @@ class SingleValueBox:
     def _crate_box(self):
         unit = "" if self.unit is None else self.unit
         html = HTML(
-            '<center><span style="font-weight:bold"> '
+            '<center><span style="font-weight:bold; color: '
+            + self.title_color
+            + '"> '
             + self.title
             + '</span><br><span style="color: '
-            + self.title_color
+            + self.val_color
             + '; font-size:16px">'
             + str(self.val)
             + "\xa0"
@@ -153,6 +156,33 @@ class AttributeDevelopmentFigure(Figure):
         fig.update_layout(**self.layout_vals)
         fig_widget = go.FigureWidget(fig)
         return fig_widget
+
+
+class BarWithLines(Figure):
+    def __init__(self, barplot_args: dict, line_plot_args: dict, **kwargs):
+        self.barplot_args = barplot_args
+        self.line_plot_args = line_plot_args
+        layout_args = self._get_layout_args(**kwargs)
+        super().__init__(**layout_args)
+        self.figure = self._create_figure()
+
+    def _create_figure(self):
+        trace_bar = go.Bar(self.barplot_args, marker=dict(color="rgb(34,163,192)"))
+        trace_metric = go.Scatter(
+            self.line_plot_args, mode="lines", marker={"color": "red"}
+        )
+
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(trace_bar, secondary_y=False)
+        fig.add_trace(trace_metric, secondary_y=True)
+
+        fig.update_layout(self.layout_vals)
+        fig_widget = go.FigureWidget(fig)
+        return fig_widget
+
+    def _get_layout_args(self, **kwargs):
+        layout_args = kwargs
+        return layout_args
 
 
 class NumericalAttributeEffectOnLabel(Figure):
