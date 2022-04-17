@@ -8,6 +8,7 @@ from ipywidgets import widgets
 from one_click_analysis import utils
 from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.configuration.configurations import DatePickerConfig
+from one_click_analysis.configuration.configurations import TransitionConfig
 from one_click_analysis.configuration.configurator import Configurator
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
@@ -94,7 +95,10 @@ class AnalysisRoutingDecision:
 
         self.fp = FeatureProcessor(self.dm)
         dp_config = DatePickerConfig(self.fp)
-        self.configurator = Configurator(self.fp, [dp_config], self.run_analysis, out)
+        tr_config = TransitionConfig(fp=self.fp, required=True)
+        self.configurator = Configurator(
+            self.fp, [dp_config, tr_config], self.run_analysis, out
+        )
         self.tabs = self.create_tabs(
             [
                 self.configurator.configurator_box,
@@ -107,12 +111,26 @@ class AnalysisRoutingDecision:
         display(self.tabs)
 
     def run_analysis(self, out: widgets.Output):
+        # Reset fp from a previous run
+        self.fp.reset_fp()
+
         with out:
             print("Fetching data and preprocessing...")
+
+        # Get configurations
+        start_date = self.configurator.applied_configs.get("start_date")
+        end_date = self.configurator.applied_configs.get("end_date")
+        start_activity = self.configurator.applied_configs.get("source_activity")
+        end_activities = self.configurator.applied_configs.get("target_activities")
+        print(f"source_activities: {start_activity}")
+        print(f"end_activities: {end_activities}")
+
         self.fp.run_decision_point_PQL(
-            start_activity="Status Change",
-            end_activities=["Assignment", "Caused By CI", "Operator Update", "Update"],
+            start_activity=start_activity,
+            end_activities=end_activities,
             time_unit="DAYS",
+            start_date=start_date,
+            end_date=end_date,
         )
         with out:
             print("Done")

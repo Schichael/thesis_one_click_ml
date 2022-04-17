@@ -875,6 +875,34 @@ class FeatureProcessor:
         # df = self.dm.get_data_frame(query, chunksize=self.chunksize)
         return query
 
+    def date_filter_PQL(
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None
+    ):
+        """
+        :param start_date: date in the form yyyy-mm-dd
+        :param end_date: date in the form yyyy-mm-dd
+        :return:
+        """
+        if start_date:
+            date_str_pql = f"{{d'{start_date}'}}"
+            filter_str = (
+                f'PU_FIRST("{self.case_table_name}", '
+                f'"{self.activity_table_name}"."'
+                f'{self.eventtime_col}") >= {date_str_pql}'
+            )
+            filter_start = PQLFilter(filter_str)
+            self.filters.append(filter_start)
+
+        if end_date:
+            date_str_pql = f"{{d'{end_date}'}}"
+            filter_str = (
+                f'PU_FIRST("{self.case_table_name}", '
+                f'"{self.activity_table_name}"."'
+                f'{self.eventtime_col}") <= {date_str_pql}'
+            )
+            filter_start = PQLFilter(filter_str)
+            self.filters.append(filter_start)
+
     def work_in_progress_PQL(
         self,
         aggregations: Optional[List[str]] = None,
@@ -1008,12 +1036,20 @@ class FeatureProcessor:
         self.compute_metrics(df)
         return df
 
-    def run_total_time_PQL(self, time_unit="DAYS"):
+    def run_total_time_PQL(
+        self,
+        time_unit="DAYS",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ):
         """Run feature processing for total case time analysis.
 
         :param time_unit: time unit to use. E.g. DAYS if attributes shall be in days.
         :return:
         """
+        # Add filters for start and end date
+        self.date_filter_PQL(start_date, end_date)
+
         minor_attrs = [
             attributes.StartActivityMinorAttribute(is_attr=True),
             attributes.EndActivityMinorAttribute(is_attr=True),
@@ -1092,7 +1128,12 @@ class FeatureProcessor:
         return PQLFilter(filter_str)
 
     def run_decision_point_PQL(
-        self, start_activity: str, end_activities: List[str], time_unit="DAYS"
+        self,
+        start_activity: str,
+        end_activities: List[str],
+        time_unit="DAYS",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
     ):
         """Fetching data and preprocessing for the decision point analysis. Currently
         only static attributes are supported
@@ -1102,6 +1143,9 @@ class FeatureProcessor:
         :param time_unit:
         :return:
         """
+        # Add filters for start and end date
+        self.date_filter_PQL(start_date, end_date)
+
         # Make label a list
         self.labels = []
 
@@ -1136,6 +1180,33 @@ class FeatureProcessor:
         df_joined = utils.join_dfs([df, df_additional], keys=["caseid"] * 2)
         self.df = df_joined
         self.post_process()
+
+    def get_activities(self) -> pd.DataFrame:
+        """Get DataFrame with the activities
+
+        :return:
+        """
+        query_activities = (
+            f'DISTINCT("{self.activity_table_name}".' f'"{self.activity_col}")'
+        )
+        pql_query = PQL()
+        pql_query.add(PQLColumn(query=query_activities, name="activity"))
+        df = self.dm.get_data_frame(pql_query)
+        return df
+
+    def get_activity_case_counts(self) -> pd.DataFrame:
+        """Get DataFrame with the activities and the number of cases in which they
+        occur.
+
+        :return:
+        """
+        query_activities = f'"{self.activity_table_name}"."{self.activity_col}"'
+        query_cases = f'COUNT_TABLE("{self.case_table_name}")'
+        pql_query = PQL()
+        pql_query.add(PQLColumn(query_activities, name="activity"))
+        pql_query.add(PQLColumn(query_cases, name="case count"))
+        df = self.dm.get_data_frame(pql_query)
+        return df
 
     def post_process(self):
         """postprocess DataFrame. numberical nans are replaced by median value,

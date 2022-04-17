@@ -1,5 +1,7 @@
+import abc
 from typing import List
 
+import numpy as np
 from ipywidgets import HBox
 from ipywidgets import Layout
 from ipywidgets import VBox
@@ -32,12 +34,21 @@ class OverviewScreen:
         vbox_overview.children = boxes_traits
         return vbox_overview
 
+    @property
+    @abc.abstractmethod
+    def overview_box(self):
+        pass
+
 
 class OverviewScreenCaseDuration(OverviewScreen):
     def __init__(self, fp: FeatureProcessor):
         self.fp = fp
 
-        self.overview_box = self._create_overview_screen()
+        self._overview_box = self._create_overview_screen()
+
+    @property
+    def overview_box(self):
+        return self._overview_box
 
     def _create_overview_screen(self):
         """Create and get the overview screen
@@ -92,7 +103,11 @@ class OverviewScreenDecisionRules(OverviewScreen):
         self.fp = fp
         self.source_activity = source_activity
         self.target_activities = target_activities
-        self.overview_box = self._create_overview_screen()
+        self._overview_box = self._create_overview_screen()
+
+    @property
+    def overview_box(self):
+        return self._overview_box
 
     def _create_overview_screen(self):
         """Create and get the overview screen
@@ -113,12 +128,17 @@ class OverviewScreenDecisionRules(OverviewScreen):
         # Get average case durations
         avg_case_durations = []
         for col_name in label_column_names:
-
-            avg_case_durations.append(
-                round(
-                    self.fp.df[self.fp.df[col_name] == 1]["case " "duration"].mean(), 2
+            if len(self.fp.df[self.fp.df[col_name] == 1].index) == 0:
+                avg_case_durations.append(0)
+            else:
+                avg_case_durations.append(
+                    round(
+                        self.fp.df[self.fp.df[col_name] == 1][
+                            "case " "duration"
+                        ].mean(),
+                        2,
+                    )
                 )
-            )
 
         num_cases_with_label = []
         for col_name in label_column_names:
@@ -163,6 +183,7 @@ class OverviewScreenDecisionRules(OverviewScreen):
             attribute_names=self.target_activities,
             fill=False,
             title=title_transition_development,
+            data_aggregation=np.sum,
         )
         return self.create_box(
             [

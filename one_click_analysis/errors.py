@@ -30,3 +30,13 @@ class DecisionRuleNotValidLabelTypesError(Exception):
             f"numerical label without any other labels. But got: {label_datatypes}"
         )
         super().__init__(message)
+
+
+class ConfiguratorNotSetError(Exception):
+    def __init__(self):
+        message = (
+            f"A configuration must have a configurator initialized. This is done "
+            f"by initializing a Configurator object with this Configuration "
+            f"instance"
+        )
+        super().__init__(message)

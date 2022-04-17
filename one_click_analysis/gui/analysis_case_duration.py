@@ -107,9 +107,19 @@ class AnalysisCaseDuration:
         display(self.tabs)
 
     def run_analysis(self, out: widgets.Output):
+        # Reset fp from a previous run
+        self.fp.reset_fp()
+
         with out:
             print("Fetching data and preprocessing...")
-        self.fp.run_total_time_PQL(time_unit="DAYS")
+
+        # Get configurations
+        start_date = self.configurator.applied_configs.get("start_date")
+        end_date = self.configurator.applied_configs.get("end_date")
+
+        self.fp.run_total_time_PQL(
+            time_unit="DAYS", start_date=start_date, end_date=end_date
+        )
         with out:
             print("Done")
 

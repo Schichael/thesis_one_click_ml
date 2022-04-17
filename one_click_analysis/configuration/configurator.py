@@ -6,6 +6,7 @@ from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
 
+from one_click_analysis import utils
 from one_click_analysis.configuration.configurations import Configuration
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 
@@ -31,14 +32,22 @@ class Configurator:
         """
         self.fp = fp
         self.configurations = configurations
+        self._init_configurations_with_configurator()
         self.run_analysis = run_analysis
         self.run_analysis_args = run_analysis_args
         self.children_config_box_layouts = Layout(margin="20px 0px 0px 0px")
+        # Dictionary with filter queries. They keys are the configuration instances,
+        # the values a list of PQL Filter queries
+        self.filters = {}
         self.apply_button = None
         self._set_layouts_configs()
         self.configurator_box = self.create_box()
         self.applied_configs = {}  # Configs at the time the apply button was clicked
         self.button_was_clicked = False
+
+    def _init_configurations_with_configurator(self):
+        for config in self.configurations:
+            config.configurator = self
 
     def _set_layouts_configs(self):
         for config in self.configurations:
@@ -46,14 +55,21 @@ class Configurator:
 
     def on_apply_clicked(self, b):
         """Define what happens when apply button is clicked"""
+        # Reset applied configs
+        self.applied_configs = {}
+        for config in self.configurations:
+            self.applied_configs.update(config.config)
+            if not config.requirement_met:
+                # TODO Print the requirements that are not met.
+                return
 
         self.apply_button.disabled = True
 
-        if self.button_was_clicked:
-            self.fp.reset_fp()
-        for config in self.configurations:
-            config.apply()
-            self.applied_configs.update(config.config)
+        filter_list = []
+        filter_vals = self.filters.values()
+        for f in filter_vals:
+            filter_list = filter_list + utils.make_list(f)
+        self.fp.filters.append(filter_list)
 
         self.run_analysis(*self.run_analysis_args)
         self.button_was_clicked = True
