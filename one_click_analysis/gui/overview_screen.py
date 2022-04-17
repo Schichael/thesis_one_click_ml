@@ -8,6 +8,7 @@ from plotly.graph_objs import FigureWidget
 
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
+from one_click_analysis.gui.figures import BarWithLines
 from one_click_analysis.gui.figures import DistributionFigure
 from one_click_analysis.gui.figures import SingleValueBox
 
@@ -52,12 +53,12 @@ class OverviewScreenCaseDuration(OverviewScreen):
             title=title,
             val=avg_case_duration,
             unit=unit,
-            title_color="Blue",
-            val_color="Black",
+            title_color="Black",
+            val_color="Blue",
         )
         metrics_box = HBox(
             children=[avg_case_duration_box.box],
-            layout=Layout(margin="0px 30px 0px " "0px"),
+            layout=Layout(margin="0px 30px 0px 0px"),
         )
 
         # development of case duration
@@ -82,5 +83,91 @@ class OverviewScreenCaseDuration(OverviewScreen):
                 [metrics_box],
                 [fig_case_duration_development.figure],
                 [fig_distribution.figure],
+            ]
+        )
+
+
+class OverviewScreenDecisionRules(OverviewScreen):
+    def __init__(self, fp, source_activity: str, target_activities: List[str]):
+        self.fp = fp
+        self.source_activity = source_activity
+        self.target_activities = target_activities
+        self.overview_box = self._create_overview_screen()
+
+    def _create_overview_screen(self):
+        """Create and get the overview screen
+
+        :return:
+        """
+
+        cases_with_source_activity = len(self.fp.df.index)
+        title = "Cases with activity " + self.source_activity
+        cases_with_activity_box = SingleValueBox(
+            title=title,
+            val=cases_with_source_activity,
+            title_color="Black",
+            val_color="Blue",
+        )
+
+        label_column_names = [x.df_attribute_name for x in self.fp.labels]
+        # Get average case durations
+        avg_case_durations = []
+        for col_name in label_column_names:
+
+            avg_case_durations.append(
+                round(
+                    self.fp.df[self.fp.df[col_name] == 1]["case " "duration"].mean(), 2
+                )
+            )
+
+        num_cases_with_label = []
+        for col_name in label_column_names:
+
+            num_cases_with_label.append(
+                len(self.fp.df[self.fp.df[col_name] == 1].index)
+            )
+
+        # barplot with cases with target activities and metric line plot
+
+        barplot_args = {
+            "x": self.target_activities,
+            "y": num_cases_with_label,
+            "name": "Cases with transition",
+        }
+        line_plot_args = {
+            "x": self.target_activities,
+            "y": avg_case_durations,
+            "name": "Average case duration",
+        }
+
+        layout_args = {
+            "xaxis_title": "Transitions to",
+            "yaxis_title": "Cases with transition",
+            "yaxis2_title": "Average case duration [Days]",
+            "title": "Cases with transitions and average case duration",
+        }
+
+        barplot = BarWithLines(barplot_args, line_plot_args, **layout_args)
+
+        # development of case duration
+        title_transition_development = (
+            "Cases with transitions from "
+            + self.source_activity
+            + " to selected target "
+            "activities"
+        )
+        fig_transition_development = AttributeDevelopmentFigure(
+            df=self.fp.df,
+            time_col="Case start time",
+            attribute_cols=label_column_names,
+            attribute_names=self.target_activities,
+            fill=False,
+            title=title_transition_development,
+        )
+        return self.create_box(
+            [
+                [cases_with_activity_box.box],
+                [barplot.figure],
+                [fig_transition_development.figure],
             ]
         )
