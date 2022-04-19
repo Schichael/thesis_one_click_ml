@@ -36,6 +36,7 @@ class Attribute(abc.ABC):
 class AttributeDataType(Enum):
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
+    DATETIME = "datetime"
 
     def __lt__(self, other):
         return self.value <= other.value

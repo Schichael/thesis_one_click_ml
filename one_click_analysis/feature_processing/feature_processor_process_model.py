@@ -15,10 +15,9 @@ from one_click_analysis.errors import NotAValidAttributeError
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.attributes import AttributeDataType
 from one_click_analysis.feature_processing.attributes_new.static_attributes import (
-    CaseDurationAttribute,
-    WorkInProgressAttribute,
-    ActivityOccurenceAttribute,
-)
+    CaseDurationAttribute, WorkInProgressAttribute, ActivityOccurenceAttribute,
+    StartActivityAttribute, EndActivityAttribute, NumericActivityTableColumnAttribute,
+    CaseTableColumnNumericAttribute, CaseTableColumnCategoricalAttribute, )
 
 pd.options.mode.chained_assignment = None
 
@@ -581,26 +580,111 @@ class FeatureProcessor:
             filter_start = PQLFilter(filter_str)
             self.filters.append(filter_start)
 
-    def _gen_activity_occurence_attributes(self, is_feature: bool = True,
-                                           is_class_feature: bool = False) -> List[ActivityOccurenceAttribute]:
-        """Generates the static ActivitiyOccurenceAttributes for the valid
-        activities. Valid = Not too many and not too few occurences."""
-        valid_activities = self.get_valid_vals(
-            table_name=self.process_model.activity_table_str,
-            column_names=[self.process_model.activity_column_str],
-            min_vals=self.min_attr_count, max_vals=self.max_attr_count)[
-            self.process_model.activity_column_str]
+    def _gen_static_activity_occurence_attributes(
+        self,
+        activities: List[str] = None,
+        min_vals: int = 0,
+        max_vals: int = np.inf,
+        is_feature: bool = True,
+        is_class_feature: bool = False,
+    ) -> List[ActivityOccurenceAttribute]:
+        """Generates the static ActivitiyOccurenceAttributes. If no activities are
+        given, all activities are used and it's checked for min and max values. If
+        activities are given, it is not checked for min and max occurences."""
+        if activities is None:
+            activities = self.get_valid_vals(
+                table_name=self.process_model.activity_table_str,
+                column_names=[self.process_model.activity_column_str],
+                min_vals=min_vals,
+                max_vals=max_vals,
+            )[self.process_model.activity_column_str]
 
         activity_occ_attributes = []
-        for activity in valid_activities:
-            attr = ActivityOccurenceAttribute(process_model=self.process_model,
-                activity=activity, is_feature=is_feature,
-                                       is_class_feature=is_class_feature,
-             )
+        for activity in activities:
+            attr = ActivityOccurenceAttribute(
+                process_model=self.process_model,
+                activity=activity,
+                is_feature=is_feature,
+                is_class_feature=is_class_feature,
+            )
             activity_occ_attributes.append(attr)
 
         return activity_occ_attributes
 
+    def _gen_static_numeric_activity_table_attributes(
+        self,
+        columns: List[str],
+        aggregation: str,
+        is_feature: bool = True,
+        is_class_feature: bool = False,
+    ):
+        """Generate list of static NumericActivityTableColumnAttributes
+
+        :param columns:
+        :param aggregation:
+        :param is_feature:
+        :param is_class_feature:
+        :return:
+        """
+        attrs = []
+        for column in columns:
+            attr = NumericActivityTableColumnAttribute(
+                process_model=self.process_model,
+                column_name=column,
+                aggregation=aggregation,
+                is_feature=is_feature,
+                is_class_feature=is_class_feature,
+            )
+            attrs.append(attr)
+        return attrs
+
+    def _gen_numeric_case_column_attributes(
+        self,
+        columns: List[str],
+        is_feature: bool = True,
+        is_class_feature: bool = False,
+    ):
+        """Generate list of static CaseTableColumnNumericAttributes
+
+        :param columns:
+        :param is_feature:
+        :param is_class_feature:
+        :return:
+        """
+        attrs = []
+        for column in columns:
+            attr = CaseTableColumnNumericAttribute(
+                process_model=self.process_model,
+                column_name=column,
+                is_feature=is_feature,
+                is_class_feature=is_class_feature,
+            )
+            attrs.append(attr)
+        return attrs
+
+    def _gen_categorical_case_column_attributes(
+        self,
+        columns: List[str],
+        is_feature: bool = True,
+        is_class_feature: bool = False,
+    ):
+        """Generate list of static CaseTableColumnNumericAttributes
+
+        :param columns:
+        :param is_feature:
+        :param is_class_feature:
+        :return:
+        """
+        attrs = []
+        for column in columns:
+            attr = CaseTableColumnCategoricalAttribute(
+                process_model=self.process_model,
+                column_name=column,
+                is_feature=is_feature,
+                is_class_feature=is_class_feature,
+            )
+            attrs.append(attr)
+        return attrs
 
     def run_total_time_PQL(
         self,
@@ -629,6 +713,16 @@ class FeatureProcessor:
                 is_feature=True,
                 is_class_feature=False,
             ),
+            StartActivityAttribute(
+                process_model=self.process_model,
+                is_feature=True,
+                is_class_feature=False,
+            ),
+            EndActivityAttribute(
+                process_model=self.process_model,
+                is_feature=True,
+                is_class_feature=False,
+            ),
             # ActivityOccurenceAttribute(process_model=self.process_model,
             #    aggregation="AVG", is_feature=True, is_class_feature=False,
             # )
@@ -637,27 +731,40 @@ class FeatureProcessor:
         # First see which activities happen often enough to be used. Then create the
         # attributes for those.
 
-        activity_occ_attributes = self._gen_activity_occurence_attributes(
-            is_feature=True)
+        activity_occ_attributes = self._gen_static_activity_occurence_attributes(
+            is_feature=True
+        )
+        numeric_activity_column_attributes = (
+            self._gen_static_numeric_activity_table_attributes(
+                columns=self.dynamic_numerical_cols,
+                aggregation="AVG",
+                is_feature=True,
+                is_class_feature=False,
+            )
+        )
 
-        static_attributes = static_attributes + activity_occ_attributes
+        categorical_case_table_column_attrs = self._gen_categorical_case_column_attributes(
+            columns=self.static_categorical_cols,
+            is_feature=True,
+            is_class_feature=False,
+        )
 
-        minor_attrs = [
-            attributes.StartActivityMinorAttribute(is_attr=True),
-            attributes.EndActivityMinorAttribute(is_attr=True),
-            attributes.ActivityOccurenceMinorAttribute(is_attr=True),
-            attributes.ReworkOccurenceMinorAttribute(is_attr=True),
-            attributes.WorkInProgressMinorAttribute(aggregations=["AVG"], is_attr=True),
-            attributes.CaseTableColumnMinorAttribute(is_attr=True),
-            attributes.ActivityTableColumnMinorAttribute(
-                aggregations=["AVG"], is_attr=True
-            ),
-            attributes.CaseDurationMinorAttribute(
-                time_aggregation=time_unit, is_label=True
-            ),
-        ]
+        numeric_case_table_column_attrs = self._gen_numeric_case_column_attributes(
+            columns=self.static_numerical_cols, is_feature=True,
+            is_class_feature=False, )
 
-        df = self.process_attributes(minor_attrs)
+        static_attributes = (
+            static_attributes
+            + activity_occ_attributes
+            + numeric_activity_column_attributes
+            + categorical_case_table_column_attrs
+            + numeric_case_table_column_attrs
+        )
+
+        # Defined closed case
+
+        # Get DataFrame
+
 
         # Additional columns
         query_additional = PQL()
