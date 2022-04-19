@@ -376,3 +376,37 @@ class CaseTableColumnAttribute(StaticAttribute):
     def _gen_query(self) -> pql.PQLColumn:
         q = f'"{self.process_model.case_table_str}"."{self.column_name}"'
         return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
+class TransitionOccurenceAttribute(StaticAttribute):
+    """Whether a transition happens in a case"""
+
+    def __init__(
+        self,
+        process_model: ProcessModel,
+        transition_start: str,
+        transition_end: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+    ):
+        self.process_model = process_model
+        self.transition_start = transition_start
+        self.transition_end = transition_end
+        self.attribute_name = (
+            f"Transition occurence ({transition_start} -> {transition_end})"
+        )
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            process_model=self.process_model,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            f"CASE WHEN PROCESS EQUALS '{self.transition_start}' TO "
+            f"'{self.transition_end}' THEN 1 ELSE 0 END"
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
