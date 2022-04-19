@@ -410,3 +410,57 @@ class TransitionOccurenceAttribute(StaticAttribute):
             f"'{self.transition_end}' THEN 1 ELSE 0 END"
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
+class StartActivityTimeAttribute(StaticAttribute):
+    """Start activity time"""
+
+    def __init__(self, process_model: ProcessModel):
+        self.process_model = process_model
+        self.attribute_name = f"Start activity Time"
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            process_model=self.process_model,
+            attribute_name=self.attribute_name,
+            is_feature=False,
+            is_class_feature=False,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            'PU_FIRST("' + self.process_model.case_table_str + '", '
+            '"'
+            + self.process_model.activity_table_str
+            + '"."'
+            + self.process_model.timestamp_column_str
+            + '")'
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
+class EndActivityTimeAttribute(StaticAttribute):
+    """End activity time"""
+
+    def __init__(self, process_model: ProcessModel):
+        self.process_model = process_model
+        self.attribute_name = f"Start activity Time"
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            process_model=self.process_model,
+            attribute_name=self.attribute_name,
+            is_feature=False,
+            is_class_feature=False,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            'PU_Last("' + self.process_model.case_table_str + '", '
+            '"'
+            + self.process_model.activity_table_str
+            + '"."'
+            + self.process_model.timestamp_column_str
+            + '")'
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
