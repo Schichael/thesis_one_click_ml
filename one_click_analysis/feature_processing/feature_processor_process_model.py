@@ -1,28 +1,58 @@
-from typing import List, Any
+from typing import Any
+from typing import List
 from typing import Optional
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from prediction_builder.data_extraction import ProcessModelFactory, StaticPQLExtractor, \
-    PQLExtractor
+from prediction_builder.data_extraction import PQLExtractor
+from prediction_builder.data_extraction import ProcessModelFactory
+from prediction_builder.data_extraction import StaticPQLExtractor
 from pycelonis.celonis_api.event_collection import data_model
 from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
 from pycelonis.celonis_api.pql.pql import PQLFilter
 
 from one_click_analysis import utils
-from one_click_analysis.errors import NotAValidAttributeError
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.attributes import AttributeDataType
 from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
     DynamicAttribute,
 )
 from one_click_analysis.feature_processing.attributes_new.static_attributes import (
-    CaseDurationAttribute, WorkInProgressAttribute, ActivityOccurenceAttribute,
-    StartActivityAttribute, EndActivityAttribute, NumericActivityTableColumnAttribute,
-    CaseTableColumnNumericAttribute, CaseTableColumnCategoricalAttribute,
-    StaticAttribute, StartActivityTimeAttribute, )
+    ActivityOccurenceAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    CaseDurationAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    CaseTableColumnCategoricalAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    CaseTableColumnNumericAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    EndActivityAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    EndActivityTimeAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    NumericActivityTableColumnAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    StartActivityAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    StartActivityTimeAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    StaticAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+    WorkInProgressAttribute,
+)
+from one_click_analysis.feature_processing.post_processing import PostProcessor
 
 pd.options.mode.chained_assignment = None
 
@@ -276,19 +306,21 @@ class FeatureProcessor:
             # Can just query enough occurences using filter
 
         df_val_counts = self.get_df_with_filters(query)
-        cols = df_val_counts.columns
-
+        cols = df_val_counts.columns.tolist()
+        print(df_val_counts)
+        print(cols)
         valid_vals_dict = {}
         for col in cols:
-            if ~col.endswith("_values"):
+            if not col.endswith("_values"):
                 continue
             col_name = col[:-7]
+
             count_col_name = col_name + "_count"
             valid_vals_dict[col_name] = df_val_counts[
                 (df_val_counts[count_col_name] >= min_vals)
                 & (df_val_counts[count_col_name] <= max_vals)
             ][col].values.tolist()
-
+        print(valid_vals_dict)
         return valid_vals_dict
 
     def one_hot_encoding_PQL(
@@ -694,16 +726,20 @@ class FeatureProcessor:
     def _default_target_query(self, name="TARGET"):
         """Return PQLColumn that evaluates to 1 for all cases wth default column name
         TARGET"""
-        q_str = (f'CASE WHEN COUNT("{self.process_model.activity_table_str}"."'
-                 f'{self.process_model.activity_column_str}") >= 1 THEN 1 ELSE 0')
+        q_str = (
+            f'CASE WHEN PU_COUNT("{self.process_model.case_table_str}", '
+            f'"{self.process_model.activity_table_str}"."'
+            f'{self.process_model.activity_column_str}") >= 1 THEN 1 ELSE 0 END'
+        )
         return PQLColumn(name=name, query=q_str)
 
-    def _all_cases_closed_query(self, name='IS_CLOSED'):
+    def _all_cases_closed_query(self, name="IS_CLOSED"):
         """Return PQLColumn that evaluates to 1 for all cases with default column name
         IS_CLOSED"""
         q_str = (
-            f'CASE WHEN COUNT("{self.process_model.activity_table_str}"."'
-            f'{self.process_model.activity_column_str}") >= 1 THEN 1 ELSE 0'
+            f'CASE WHEN PU_COUNT("{self.process_model.case_table_str}", '
+            f'"{self.process_model.activity_table_str}"."'
+            f'{self.process_model.activity_column_str}") >= 1 THEN 1 ELSE 0 END'
         )
         return PQLColumn(name=name, query=q_str)
 
@@ -718,22 +754,24 @@ class FeatureProcessor:
         static_attributes_pql = [attr.pql_query for attr in static_attributes]
         if dynamic_attributes:
             dynamic_attributes_pql = [attr.pql_query for attr in dynamic_attributes]
-            extractor = PQLExtractor(process_model=self.process_model,
-                target_variable=target_variable, is_closed_indicator=is_closed_indicator,
-                                     static_features=static_attributes_pql,
-                dynamic_features=dynamic_attributes_pql
+            extractor = PQLExtractor(
+                process_model=self.process_model,
+                target_variable=target_variable,
+                is_closed_indicator=is_closed_indicator,
+                static_features=static_attributes_pql,
+                dynamic_features=dynamic_attributes_pql,
             )
             df_x, df_y = extractor.get_closed_cases(self.dm, only_last_state=False)
         else:
-            extractor = StaticPQLExtractor(process_model=self.process_model,
-                                     target_variable=target_variable,
-                                     is_closed_indicator=is_closed_indicator,
-                                     static_features=static_attributes_pql
-                                           )
+            extractor = StaticPQLExtractor(
+                process_model=self.process_model,
+                target_variable=target_variable,
+                is_closed_indicator=is_closed_indicator,
+                static_features=static_attributes_pql,
+            )
             df_x, df_y = extractor.get_closed_cases(self.dm, only_last_state=False)
 
         return df_x, df_y
-
 
     def run_total_time_PQL(
         self,
@@ -766,12 +804,8 @@ class FeatureProcessor:
                 is_feature=True,
                 is_class_feature=False,
             ),
-            StartActivityTimeAttribute(
-                process_model=self.process_model
-            ),
-            EndActivityAttribute(
-                process_model=self.process_model
-            )
+            StartActivityTimeAttribute(process_model=self.process_model),
+            EndActivityTimeAttribute(process_model=self.process_model)
             # ActivityOccurenceAttribute(process_model=self.process_model,
             #    aggregation="AVG", is_feature=True, is_class_feature=False,
             # )
@@ -779,10 +813,11 @@ class FeatureProcessor:
 
         # First see which activities happen often enough to be used. Then create the
         # attributes for those.
-
+        print("_gen_static_activity_occurence_attributes")
         activity_occ_attributes = self._gen_static_activity_occurence_attributes(
             is_feature=True
         )
+        print("_gen_static_numeric_activity_table_attributes")
         numeric_activity_column_attributes = (
             self._gen_static_numeric_activity_table_attributes(
                 columns=self.dynamic_numerical_cols,
@@ -791,7 +826,7 @@ class FeatureProcessor:
                 is_class_feature=False,
             )
         )
-
+        print("_gen_categorical_case_column_attributes")
         categorical_case_table_column_attrs = (
             self._gen_categorical_case_column_attributes(
                 columns=self.static_categorical_cols,
@@ -799,7 +834,7 @@ class FeatureProcessor:
                 is_class_feature=False,
             )
         )
-
+        print("_gen_numeric_case_column_attributes")
         numeric_case_table_column_attrs = self._gen_numeric_case_column_attributes(
             columns=self.static_numerical_cols,
             is_feature=True,
@@ -816,22 +851,43 @@ class FeatureProcessor:
 
         dynamic_attributes = []
 
-        target_attribute = CaseDurationAttribute(process_model=self.process_model,
-            time_aggregation=time_unit, is_feature=False, is_class_feature=True)
-
+        target_attribute = CaseDurationAttribute(
+            process_model=self.process_model,
+            time_aggregation=time_unit,
+            is_feature=False,
+            is_class_feature=True,
+        )
 
         # Define closed case (currently define that every case is a closed case)
         is_closed_indicator = self._all_cases_closed_query()
         # Define a default target variable
-        target_variable = self._default_target_query()
+        target_variable = target_attribute.pql_query
 
         # Get DataFrames
+        print("extract dfs")
         df_x, df_y = self.extract_dfs(
-            static_attributes=static_attributes + [target_attribute],
+            static_attributes=static_attributes,
             dynamic_attributes=dynamic_attributes,
-            is_closed_indicator=is_closed_indicator, target_variable=target_variable
+            is_closed_indicator=is_closed_indicator,
+            target_variable=target_variable,
+        )
+        print("finish extracting")
+        print("start postprocessing")
+        pp = PostProcessor(
+            df_x=df_x,
+            df_target=df_y,
+            static_attributes=static_attributes,
+            dynamic_attributes=dynamic_attributes,
+            target_attribute=target_attribute,
+            valid_target_values=None,
+            invalid_target_replacement=None,
+            min_counts_perc=0.02,
+            max_counts_perc=0.98,
         )
 
+        df_x, df_y, target_features, features = pp.process()
+        print("finish postprocessing")
+        return df_x, df_y, target_features, features
 
     def transition_occurence_PQL(
         self,
@@ -839,7 +895,6 @@ class FeatureProcessor:
         is_attr: bool = False,
         is_label: bool = False,
     ):
-
         query = PQL()
         for transition in transitions:
             start_activity = transition[0]

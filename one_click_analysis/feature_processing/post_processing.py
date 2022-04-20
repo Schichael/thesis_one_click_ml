@@ -1,4 +1,6 @@
-from typing import List, Optional, Tuple
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -6,8 +8,8 @@ from pandas.api.types import is_numeric_dtype
 from pandas.core.dtypes.common import is_string_dtype
 
 from one_click_analysis.errors import WrongFeatureTypeError
+from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
 from one_click_analysis.feature_processing.attributes_new.attribute import (
-    Attribute,
     AttributeDataType,
 )
 from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
@@ -90,22 +92,24 @@ class PostProcessor:
     def process_feature_attributes(self, attributes: List[Attribute]):
         feature_list = []
         for attr in attributes:
+            if not attr.is_feature:
+                continue
             self.validate_attr_datatype(attr)
             # OHE if categorical and not yet encoded
             if attr.data_type == AttributeDataType.CATEGORICAL and is_string_dtype(
                 self.df_x[attr.attribute_name]
             ):
-                # Remove too few occurences (set them to np.nan)
+                # Remove too few and too many occurences (set them to np.nan)
                 self.df_x.loc[
                     (
                         self.df_x[attr.attribute_name]
-                        .value_counts()[self.df_x[attr.attribute_name]]
+                        .value_counts(dropna=False)[self.df_x[attr.attribute_name]]
                         .values
                         <= self.min_counts
                     )
-                    & (
+                    | (
                         self.df_x[attr.attribute_name]
-                        .value_counts()[self.df_x[attr.attribute_name]]
+                        .value_counts(dropna=False)[self.df_x[attr.attribute_name]]
                         .values
                         >= self.max_counts
                     ),
@@ -118,11 +122,15 @@ class PostProcessor:
                     prefix=attr.attribute_name,
                     prefix_sep=" = ",
                 )
+
+                # update target df
+                self._update_df(df=self.df_x, new_cols_df=df_attr_cols, attr=attr)
+
                 features_attr = self._create_features(df=df_attr_cols, attr=attr)
                 feature_list = feature_list + features_attr
             else:
                 features_attr = self._create_features(
-                    df=self.df_x[attr.attribute_name], attr=attr
+                    df=pd.DataFrame(self.df_x[attr.attribute_name]), attr=attr
                 )
                 feature_list = feature_list + features_attr
         return feature_list
@@ -165,7 +173,6 @@ class PostProcessor:
             df=self.df_target, new_cols_df=df_target_cols, attr=self.target_attribute
         )
         # Remove old column in df
-        # self.df_target.drop(self.target_attribute.attribute_name, axis=1, inplace=True)
         # Set new columns
         # self.df_target[df_target_cols.columns] = df_target_cols
         return target_features

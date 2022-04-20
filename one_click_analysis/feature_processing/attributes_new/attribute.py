@@ -21,7 +21,7 @@ class Attribute(abc.ABC):
     ):
         self.process_model = process_model
         self.attribute_name = attribute_name
-        self.pql_query = pql_query,
+        self.pql_query = pql_query
         self.data_type = data_type
         self.is_feature = is_feature
         self.is_class_feature = is_class_feature

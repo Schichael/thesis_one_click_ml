@@ -5,6 +5,9 @@ from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
 from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
+from one_click_analysis.feature_processing.attributes_new.attribute import (
+    AttributeDataType,
+)
 
 
 class DynamicAttribute(Attribute, abc.ABC):
@@ -13,6 +16,7 @@ class DynamicAttribute(Attribute, abc.ABC):
         process_model: ProcessModel,
         attribute_name: str,
         pql_query: pql.PQLColumn,
+        data_type: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
@@ -20,6 +24,7 @@ class DynamicAttribute(Attribute, abc.ABC):
             process_model=process_model,
             attribute_name=attribute_name,
             pql_query=pql_query,
+            data_type=data_type,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -41,6 +46,7 @@ class NextActivityAttribute(DynamicAttribute):
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -62,6 +68,7 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
         self,
         process_model: ProcessModel,
         column_name: str,
+        data_type: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
@@ -74,6 +81,7 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
+            data_type=data_type,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -106,6 +114,7 @@ class ActivityCountAttribute(DynamicAttribute):
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
+            data_type=AttributeDataType.NUMERICAL,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
