@@ -4,6 +4,8 @@ from enum import Enum
 from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
+from one_click_analysis.feature_processing.attributes import AttributeDataType
+
 
 class Attribute(abc.ABC):
     """Abstract Attribute class"""
@@ -13,12 +15,14 @@ class Attribute(abc.ABC):
         process_model: ProcessModel,
         attribute_name: str,
         pql_query: pql.PQLColumn,
+        data_type: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
         self.process_model = process_model
         self.attribute_name = attribute_name
-        self.pql_query = pql_query
+        self.pql_query = pql_query,
+        self.data_type = data_type
         self.is_feature = is_feature
         self.is_class_feature = is_class_feature
 

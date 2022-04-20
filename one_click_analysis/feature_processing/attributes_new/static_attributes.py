@@ -21,7 +21,7 @@ class StaticAttribute(Attribute, abc.ABC):
         super().__init__(
             process_model=process_model,
             attribute_name=attribute_name,
-            pql_query=pql_query,
+            pql_query=pql_query, datatype=datatype,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
