@@ -53,6 +53,7 @@ from one_click_analysis.feature_processing.attributes_new.static_attributes impo
     WorkInProgressAttribute,
 )
 from one_click_analysis.feature_processing.post_processing import PostProcessor
+from one_click_analysis.feature_processing.statistics_computer import StatisticsComputer
 
 pd.options.mode.chained_assignment = None
 
@@ -127,6 +128,12 @@ class FeatureProcessor:
         )
         self.df = None
         self.minor_attrs = []
+
+        # HERE ARE THE NEW VARIABLES SINCE THE BIG REFACTORING
+        self.features = []
+        self.target_features = []
+        self.df_x = None
+        self.df_target = None
 
     def reset_fp(self):
         """Reset the feature_processor to its initial values."""
@@ -770,7 +777,8 @@ class FeatureProcessor:
                 static_features=static_attributes_pql,
             )
             df_x, df_y = extractor.get_closed_cases(self.dm, only_last_state=False)
-
+        # df_y is a Series object. Make it a DataFrame
+        df_y = pd.DataFrame(df_y)
         return df_x, df_y
 
     def run_total_time_PQL(
@@ -865,19 +873,19 @@ class FeatureProcessor:
 
         # Get DataFrames
         print("extract dfs")
-        df_x, df_y = self.extract_dfs(
+        self.df_x, self.df_target = self.extract_dfs(
             static_attributes=static_attributes,
             dynamic_attributes=dynamic_attributes,
             is_closed_indicator=is_closed_indicator,
             target_variable=target_variable,
         )
+
         print("finish extracting")
         print("start postprocessing")
         pp = PostProcessor(
-            df_x=df_x,
-            df_target=df_y,
-            static_attributes=static_attributes,
-            dynamic_attributes=dynamic_attributes,
+            df_x=self.df_x,
+            df_target=self.df_target,
+            attributes=static_attributes + dynamic_attributes,
             target_attribute=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -885,9 +893,18 @@ class FeatureProcessor:
             max_counts_perc=0.98,
         )
 
-        df_x, df_y, target_features, features = pp.process()
+        self.df_x, self.df_target, self.target_features, self.features = pp.process()
+
+        statistics_computer = StatisticsComputer(
+            features=self.features,
+            target_features=self.target_features,
+            df_x=self.df_x,
+            df_target=self.df_target,
+        )
+        statistics_computer.compute_all_statistics()
+
         print("finish postprocessing")
-        return df_x, df_y, target_features, features
+        # return df_x, df_y, target_features, features
 
     def transition_occurence_PQL(
         self,

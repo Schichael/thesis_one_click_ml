@@ -31,10 +31,13 @@ class StaticAttribute(Attribute, abc.ABC):
         )
 
     def get_query_with_value(self, value: Optional[str] = None):
-        """Get PQL query for the attribute
+        """Get PQL query for the attribute for a specific value. If the
+        attribute was one-hot-encoded, the query for just the value is used. The
+        result will be 0s and 1s. If the attribute was not one-hot-encoded, the
+        pql query is the same as for the attribute.
 
-        :param value:
-        :return:
+        :param value: specific value of the attribute (from one-hot-encoding)
+        :return: the PQL query
         """
         return self.pql_query
 
@@ -295,6 +298,24 @@ class StartActivityAttribute(StaticAttribute):
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
+    def get_query_with_value(self, value: Optional[str] = None):
+        """Get PQL query for the attribute for a specific value. If the
+        attribute was one-hot-encoded, the query for just the value is used. The
+        result will be 0s and 1s. If the attribute was not one-hot-encoded, the
+        pql query is the same as for the attribute.
+
+        :param value: specific value of the attribute (from one-hot-encoding)
+        :return: the PQL query
+        """
+        q = (
+            f'CASE WHEN  PU_FIRST("{self.process_model.case_table_str}", '
+            + f'"{self.process_model.activity_table_str}"."'
+            f"{self.process_model.activity_column_str}\" = '{value}') THEN 1 ELSE "
+            f"0 END"
+        )
+
+        return pql.PQLColumn(name=f"{self.attribute_name} = {value}", query=q)
+
 
 class EndActivityAttribute(StaticAttribute):
     """End activity"""
@@ -327,6 +348,24 @@ class EndActivityAttribute(StaticAttribute):
             + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
+
+    def get_query_with_value(self, value: Optional[str] = None):
+        """Get PQL query for the attribute for a specific value. If the
+        attribute was one-hot-encoded, the query for just the value is used. The
+        result will be 0s and 1s. If the attribute was not one-hot-encoded, the
+        pql query is the same as for the attribute.
+
+        :param value: specific value of the attribute (from one-hot-encoding)
+        :return: the PQL query
+        """
+        q = (
+            f'CASE WHEN  PU_LAST("{self.process_model.case_table_str}", '
+            + f'"{self.process_model.activity_table_str}"."'
+            f"{self.process_model.activity_column_str}\" = '{value}') THEN 1 ELSE "
+            f"0 END"
+        )
+
+        return pql.PQLColumn(name=f"{self.attribute_name} = {value}", query=q)
 
 
 class NumericActivityTableColumnAttribute(StaticAttribute):
@@ -429,7 +468,21 @@ class CaseTableColumnCategoricalAttribute(StaticAttribute):
         q = f'"{self.process_model.case_table_str}"."{self.column_name}"'
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
+    def get_query_with_value(self, value: Optional[str] = None):
+        """Get PQL query for the attribute for a specific value. If the
+        attribute was one-hot-encoded, the query for just the value is used. The
+        result will be 0s and 1s. If the attribute was not one-hot-encoded, the
+        pql query is the same as for the attribute.
 
+        :param value: specific value of the attribute (from one-hot-encoding)
+        :return: the PQL query
+        """
+        q = (
+            f'CASE WHEN "{self.process_model.case_table_str}"."{self.column_name}" = '
+            f"'value' THEN 1 ELSE 0 END"
+        )
+
+        return pql.PQLColumn(name=f"{self.attribute_name} = {value}", query=q)
 
 
 class TransitionOccurenceAttribute(StaticAttribute):

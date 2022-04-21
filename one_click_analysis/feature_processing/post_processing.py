@@ -12,13 +12,7 @@ from one_click_analysis.feature_processing.attributes_new.attribute import Attri
 from one_click_analysis.feature_processing.attributes_new.attribute import (
     AttributeDataType,
 )
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
-    DynamicAttribute,
-)
 from one_click_analysis.feature_processing.attributes_new.feature import Feature
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
-    StaticAttribute,
-)
 
 
 class PostProcessor:
@@ -28,8 +22,7 @@ class PostProcessor:
         self,
         df_x: pd.DataFrame,
         df_target: pd.DataFrame,
-        static_attributes: List[StaticAttribute],
-        dynamic_attributes: List[DynamicAttribute],
+        attributes: List[Attribute],
         target_attribute: Attribute,
         valid_target_values: Optional[List[str]] = None,
         invalid_target_replacement: Optional[str] = None,
@@ -40,8 +33,7 @@ class PostProcessor:
 
         :param df_x:
         :param df_target:
-        :param static_attributes:
-        :param dynamic_attributes:
+        :param attributes:
         :param target_attribute: target attribute.
         :param valid_target_values: if the target attribute is categorical and not
         encoded with 0 and 1 yet, the values not in valid_target_values are encoded
@@ -56,8 +48,7 @@ class PostProcessor:
         """
         self.df_x = df_x
         self.df_target = df_target
-        self.static_attributes = static_attributes
-        self.dynamic_attributes = dynamic_attributes
+        self.attributes = attributes
         self.target_attribute = target_attribute
         self.valid_target_values = valid_target_values
         self.invalid_target_replacement = invalid_target_replacement
@@ -76,9 +67,7 @@ class PostProcessor:
         """
         # process target df
         target_features = self.process_target_attribute()
-        static_features = self.process_feature_attributes(self.static_attributes)
-        dynamic_features = self.process_feature_attributes(self.dynamic_attributes)
-        features = static_features + dynamic_features
+        features = self.process_feature_attributes(self.attributes)
         return self.df_x, self.df_target, target_features, features
 
     def validate_attr_datatype(self, attr: Attribute):
@@ -128,8 +117,9 @@ class PostProcessor:
                 # update target df
                 self._update_df(df=self.df_x, new_cols_df=df_attr_cols, attr=attr)
 
-                features_attr = self._create_features(df=df_attr_cols, attr=attr,
-                                                      prefix =prefix + prefix_sep)
+                features_attr = self._create_features(
+                    df=df_attr_cols, attr=attr, prefix=prefix + prefix_sep
+                )
                 feature_list = feature_list + features_attr
             else:
                 features_attr = self._create_features(
@@ -144,37 +134,42 @@ class PostProcessor:
         # Check whether the target attributes are numerical or categorical
         self.validate_attr_datatype(self.target_attribute)
         attr_datatype = self.target_attribute.data_type
-        if attr_datatype == AttributeDataType.NUMERICAL:
-            return
-        # Check if the target is already encoded to be numerical
-        if is_numeric_dtype(self.df_target[target_col_name]):
-            return
+        if attr_datatype == AttributeDataType.CATEGORICAL and not is_numeric_dtype(
+            self.df_target[target_col_name]
+        ):
+            # Handle invalid target value names
+            if self.valid_target_values:
+                if self.invalid_target_replacement is None:
+                    # Set invalid values to NAN
+                    self.df_target.loc[
+                        self.df_target[target_col_name] not in self.valid_target_values
+                    ] = np.nan
+                else:
+                    self.df_target.loc[
+                        self.df_target[target_col_name] not in self.valid_target_values
+                    ] = self.invalid_target_replacement
 
-        # Handle invalid target value names
-        if self.valid_target_values:
-            if self.invalid_target_replacement is None:
-                # Set invalid values to NAN
-                self.df_target.loc[
-                    self.df_target[target_col_name] not in self.valid_target_values
-                ] = np.nan
-            else:
-                self.df_target.loc[
-                    self.df_target[target_col_name] not in self.valid_target_values
-                ] = self.invalid_target_replacement
+            # One hot encoding
+            df_target_cols = pd.get_dummies(
+                self.df_target[target_col_name],
+                prefix=target_col_name,
+                prefix_sep=" = ",
+            )
 
-        # One hot encoding
-        df_target_cols = pd.get_dummies(
-            self.df_target[target_col_name], prefix=target_col_name, prefix_sep=" = "
-        )
+            target_features = self._create_features(
+                df=df_target_cols, attr=self.target_attribute
+            )
 
-        target_features = self._create_features(
-            df=df_target_cols, attr=self.target_attribute
-        )
-
-        # update target df
-        self._update_df(
-            df=self.df_target, new_cols_df=df_target_cols, attr=self.target_attribute
-        )
+            # update target df
+            self._update_df(
+                df=self.df_target,
+                new_cols_df=df_target_cols,
+                attr=self.target_attribute,
+            )
+        else:
+            target_features = self._create_features(
+                df=self.df_target, attr=self.target_attribute
+            )
         # Remove old column in df
         # Set new columns
         # self.df_target[df_target_cols.columns] = df_target_cols
@@ -187,7 +182,7 @@ class PostProcessor:
         # Set new columns
         df[new_cols_df.columns] = new_cols_df
 
-    def _create_features(self, df: pd.DataFrame, attr: Attribute, prefix: str=None):
+    def _create_features(self, df: pd.DataFrame, attr: Attribute, prefix: str = None):
         """
 
         :param df:
@@ -200,11 +195,15 @@ class PostProcessor:
 
         for col in df.columns:
             if prefix:
-                attribute_value = col[len(prefix):]
+                attribute_value = col[len(prefix) :]
             else:
                 attribute_value = None
-            feature = Feature(column_name=col, datatype=attr.data_type,
-                              attribute=attr, attribute_value=attribute_value)
+            feature = Feature(
+                column_name=col,
+                datatype=attr.data_type,
+                attribute=attr,
+                attribute_value=attribute_value,
+            )
             features.append(feature)
         return features
 
