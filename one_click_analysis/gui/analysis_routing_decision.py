@@ -153,14 +153,7 @@ class AnalysisRoutingDecision:
 
         # Ceate statistical analysis tab
         self.overview_screen = OverviewScreenDecisionRules(
-            fp=self.fp,
-            source_activity="Status Change",
-            target_activities=[
-                "Assignment",
-                "Caused By CI",
-                "Operator Update",
-                "Update",
-            ],
+            fp=self.fp, source_activity=start_activity, target_activities=end_activities
         )
 
         self.stat_analysis_screen = StatisticalAnalysisScreen(
