@@ -39,10 +39,11 @@ class NextActivityAttribute(DynamicAttribute):
         next_activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        attribute_name: str = "Next activity"
     ):
         self.process_model = process_model
         self.next_activity = next_activity
-        self.attribute_name = "Next activity"
+        self.attribute_name = attribute_name
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,

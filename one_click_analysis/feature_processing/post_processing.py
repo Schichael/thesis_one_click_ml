@@ -117,16 +117,19 @@ class PostProcessor:
                 ] = np.nan
 
                 # One hot encode
+                prefix = attr.attribute_name
+                prefix_sep = "="
                 df_attr_cols = pd.get_dummies(
                     self.df_x[attr.attribute_name],
-                    prefix=attr.attribute_name,
-                    prefix_sep=" = ",
+                    prefix=prefix,
+                    prefix_sep=prefix_sep,
                 )
 
                 # update target df
                 self._update_df(df=self.df_x, new_cols_df=df_attr_cols, attr=attr)
 
-                features_attr = self._create_features(df=df_attr_cols, attr=attr)
+                features_attr = self._create_features(df=df_attr_cols, attr=attr,
+                                                      prefix =prefix + prefix_sep)
                 feature_list = feature_list + features_attr
             else:
                 features_attr = self._create_features(
@@ -184,10 +187,24 @@ class PostProcessor:
         # Set new columns
         df[new_cols_df.columns] = new_cols_df
 
-    def _create_features(self, df: pd.DataFrame, attr: Attribute):
+    def _create_features(self, df: pd.DataFrame, attr: Attribute, prefix: str=None):
+        """
+
+        :param df:
+        :param attr:
+        :param prefix: prefix before the actual value name if feature was created
+        from ohe.
+        :return:
+        """
         features = []
+
         for col in df.columns:
-            feature = Feature(column_name=col, datatype=attr.data_type, attribute=attr)
+            if prefix:
+                attribute_value = col[len(prefix):]
+            else:
+                attribute_value = None
+            feature = Feature(column_name=col, datatype=attr.data_type,
+                              attribute=attr, attribute_value=attribute_value)
             features.append(feature)
         return features
 

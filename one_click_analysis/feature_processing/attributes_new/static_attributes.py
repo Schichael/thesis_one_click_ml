@@ -1,4 +1,5 @@
 import abc
+from typing import Optional
 
 from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
@@ -28,6 +29,14 @@ class StaticAttribute(Attribute, abc.ABC):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
+
+    def get_query_with_value(self, value: Optional[str] = None):
+        """Get PQL query for the attribute
+
+        :param value:
+        :return:
+        """
+        return self.pql_query
 
 
 class CaseDurationAttribute(StaticAttribute):
@@ -421,6 +430,8 @@ class CaseTableColumnCategoricalAttribute(StaticAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+
+
 class TransitionOccurenceAttribute(StaticAttribute):
     """Whether a transition happens in a case"""
 
@@ -510,3 +521,6 @@ class EndActivityTimeAttribute(StaticAttribute):
             + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
+
+    def gen_query_with_value(self, value: Optional[str] = None):
+        return self.pql_query
