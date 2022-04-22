@@ -16,4 +16,5 @@ class Feature:
     # If the feature was generated from a categorical attribute using ohe,
     # an attribute_value can be given to be used later.
     attribute_value: Optional[str] = None
+    unit: str = ""
     metrics: dict = field(default_factory=lambda: {})
