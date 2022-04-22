@@ -20,27 +20,31 @@ from one_click_analysis.decision_rules.decision_rule_miner import DecisionRuleMi
 from one_click_analysis.errors import DecisionRuleNotValidLabelTypesError
 from one_click_analysis.errors import MaximumValueReachedError
 from one_click_analysis.errors import MinimumValueReachedError
-from one_click_analysis.feature_processing import attributes
-from one_click_analysis.feature_processing.attributes import AttributeDataType
-from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.attributes_new.attribute import (
+    AttributeDataType,
+)
+from one_click_analysis.feature_processing.attributes_new.feature import Feature
 
 
 class DecisionRulesScreen:
     def __init__(
         self,
-        fp: FeatureProcessor,
-        selected_attributes: List[attributes.MinorAttribute],
-        selected_activity_table_cols: List[str],
-        selected_case_table_cols: List[str],
+        df: pd.DataFrame,
+        features: List[Feature],
+        target_features: List[Feature],
     ):
         """
+        :param df: DataFrame with feature and target columns
         :param fp: FeatureProcessor with processed features
         """
-        self.fp = fp
-        self.selected_attributes = selected_attributes
-        self.selected_activity_table_cols = selected_activity_table_cols
-        self.selected_case_table_cols = selected_case_table_cols
-        self.attr_names = self.create_attribute_names()
+        self.df = df
+        # Concatenate df_x and df_target
+        self.df_concat = pd.concat
+        self.features = features
+        self.target_features = target_features
+        self.feature_names = self._create_feature_names()
+        # map feature names to values (0 to n)
+        self.target_feature_map = self._create_target_feature_map()
         # Stores the dr miners. If the label is numerical, the miner will be stored
         # with key 0
         self.dr_miners = {}
@@ -55,20 +59,34 @@ class DecisionRulesScreen:
         self.value_selection = self._create_ValueSelection()
         self.parent_rule_box = self._init_rules_parent_box()
 
+    def _create_feature_names(self):
+        """Generate list of feature names"""
+        attribute_names = []
+        for f in self.features:
+            attribute_names.append(f.column_name)
+        return attribute_names
+
+    def _create_target_feature_map(self):
+        target_feature_map = {}
+        for i, tf in enumerate(self.target_features):
+            target_feature_map[tf.column_name] = i
+
+        return target_feature_map
+
     def _set_numerical(self):
         """Set the is_numerical member variable
 
         :return: True if label is numerical and False if labels are all categorical
         """
-        datatypes = [label.attribute_data_type for label in self.fp.labels]
+        datatypes = [tf.datatype for tf in self.target_features]
         if len(datatypes) == 1:
-            if datatypes[0] == attributes.AttributeDataType.NUMERICAL:
+            if datatypes[0] == AttributeDataType.NUMERICAL:
                 return True
             else:
                 return False
         elif (
-            len(self.fp.labels) > 1
-            and attributes.AttributeDataType.NUMERICAL not in datatypes
+            len(self.target_features) > 1
+            and AttributeDataType.NUMERICAL not in datatypes
         ):
             return False
         else:
@@ -81,17 +99,23 @@ class DecisionRulesScreen:
         else None
         """
         if self.is_numerical:
-            value_selection = ValueSelection(self.fp, self.on_button_run_clicked)
-            self.run_buttons[0] = value_selection.button_run
+            value_selection = ValueSelection(
+                df=self.df,
+                target_feature=self.target_features[0],
+                on_button_run_clicked=self.on_button_run_clicked,
+                min_display_perc=1.0,
+                max_display_perc=99.0,
+                default_large_perc=20,
+            )
+            self.run_buttons[
+                self.target_features[0].column_name
+            ] = value_selection.button_run
             return value_selection
         else:
             return None
 
     def update_attr_selection(
         self,
-        selected_attributes,
-        selected_activity_table_cols,
-        selected_case_table_cols,
     ):
         """Define behaviour when the attribute selection is updated. Here, the screen is
         simply constructed again with the new attributes.
@@ -101,43 +125,11 @@ class DecisionRulesScreen:
         :param selected_case_table_cols:
         :return:
         """
-        self.selected_attributes = selected_attributes
-        self.selected_activity_table_cols = selected_activity_table_cols
-        self.selected_case_table_cols = selected_case_table_cols
         self.parent_rule_box = self._init_rules_parent_box()
         self.dr_miners = {}
         self.current_threshold_numerical = None
-        self.attr_names = self.create_attribute_names()
 
         self.create_decision_rule_screen()
-
-    def create_attribute_names(self) -> List[str]:
-        """Create DataFrame with the selected attribute values and activity and
-        case columns and the dependent variable
-
-        :return: Dataframe with the attributes and the dependent variable
-        """
-        selected_attr_types = tuple([type(i) for i in self.selected_attributes])
-        attr_col_names = []
-        for attr in self.fp.attributes:
-            if not isinstance(
-                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
-            ) and not isinstance(
-                attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
-            ):
-                if isinstance(attr.minor_attribute_type, selected_attr_types):
-                    attr_col_names.append(attr.df_attribute_name)
-            elif isinstance(
-                attr.minor_attribute_type, attributes.ActivityTableColumnMinorAttribute
-            ):
-                if attr.column_name in self.selected_activity_table_cols:
-                    attr_col_names.append(attr.df_attribute_name)
-            elif isinstance(
-                attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
-            ):
-                if attr.column_name in self.selected_case_table_cols:
-                    attr_col_names.append(attr.df_attribute_name)
-        return attr_col_names
 
     def create_decision_rule_screen(self):
         """Create and get the decision rule screen, i.e. the box that contains the
@@ -155,7 +147,7 @@ class DecisionRulesScreen:
                 self.parent_rule_box,
             ]
 
-    def on_button_run_clicked(self, b, label_index: int):
+    def on_button_run_clicked(self, b, target_feature: Feature):
         if self.is_numerical:
             threshold = self.value_selection.get_selected_threshold()
             # Do not run the miner twice for the same threshold value
@@ -166,25 +158,27 @@ class DecisionRulesScreen:
         else:
             threshold = None
             pos_class = 1
+        target_col_name = target_feature.column_name
+        self.run_buttons[target_col_name].disabled = True
 
-        self.run_buttons[label_index].disabled = True
-        self.dr_miners[label_index] = DecisionRuleMiner(
-            self.fp.df,
-            self.fp.labels[label_index].df_attribute_name,
-            self.attr_names,
+        self.dr_miners[target_col_name] = DecisionRuleMiner(
+            self.df,
+            target_col_name,
+            self.feature_names,
             pos_class=pos_class,
             threshold=threshold,
             k=99,
         )
-        self.run_decision_miner(label_index)
-        rule_box = self.create_rule_box(label_index)
+        self.run_decision_miner(target_feature)
+        rule_box = self.create_rule_box(target_feature)
         children = self.parent_rule_box.children
-        children_first = children[:label_index]
-        children_last = children[label_index + 1 :]
+        target_index = self.target_feature_map[target_col_name]
+        children_first = children[:target_index]
+        children_last = children[target_index + 1 :]
 
         children = list(children_first) + [rule_box] + list(children_last)
         self.parent_rule_box.children = children
-        self.run_buttons[label_index].disabled = False
+        self.run_buttons[target_col_name].disabled = False
 
     def get_percentile(self, series: pd.Series, val: float):
         """Get the percentile of a value in a series
@@ -195,13 +189,13 @@ class DecisionRulesScreen:
         """
         return round(100 - stats.percentileofscore(series, val))
 
-    def _gen_rule_caption(self, label_str: str):
+    def _gen_rule_caption(self, target_str: str):
         layout = Layout(margin="0px 0px 10px 0px")
         if self.is_numerical:
             html_rule_caption = HTML(
                 '<span style="font-weight:bold; font-size: 16px">'
                 + "Rule for "
-                + label_str
+                + target_str
                 + ">=\xa0"
                 + str(self.current_threshold_numerical)
                 + ":</span>",
@@ -211,7 +205,7 @@ class DecisionRulesScreen:
             html_rule_caption = HTML(
                 '<span style="font-weight:bold; font-size: 16px">'
                 + "Rule for "
-                + label_str
+                + target_str
                 + "</span>",
                 layout=layout,
             )
@@ -222,23 +216,23 @@ class DecisionRulesScreen:
             margin="20px 0px 0px 0px", border="3px groove lightblue"
         )
 
-        label_names = [label.display_name for label in self.fp.labels]
-
         rule_boxes = []
         if self.is_numerical:
-            rule_box = HBox(children=[self._gen_rule_caption(label_names[0])])
+            rule_box = HBox(
+                children=[self._gen_rule_caption(self.target_features[0].column_name)]
+            )
             rule_boxes.append(rule_box)
         else:
-            for label_index, label in enumerate(label_names):
-
+            for tf in self.target_features:
+                tf_col_name = tf.column_name
                 button_run = Button(description="Mine rules!")
 
                 button_clicked_partial = functools.partial(
-                    self.on_button_run_clicked, label_index=label_index
+                    self.on_button_run_clicked, target_feature=tf
                 )
                 button_run.on_click(button_clicked_partial)
 
-                self.run_buttons[label_index] = button_run
+                self.run_buttons[tf_col_name] = button_run
                 # vbox_run_button_layout = Layout(
                 #    flex="1", justify_content="flex-end", align_items="center"
                 # )
@@ -247,7 +241,7 @@ class DecisionRulesScreen:
                     margin="20px 20px 20px 20px", border="3px groove lightblue"
                 )
                 rule_box = VBox(
-                    children=[self._gen_rule_caption(label), vbox_run_button],
+                    children=[self._gen_rule_caption(tf_col_name), vbox_run_button],
                     layout=layout_rule_box,
                 )
                 rule_boxes.append(rule_box)
@@ -255,14 +249,14 @@ class DecisionRulesScreen:
         rule_box_parent = VBox(children=rule_boxes, layout=layout_rule_box_parent)
         return rule_box_parent
 
-    def create_rule_box(self, label_index: int) -> Box:
+    def create_rule_box(self, target_feature: Feature) -> Box:
         """Create box with the decision rules and the rule metrics
 
         :param label_index: index of the label in FeatureProcessor.labels
         :return: box with the rules and the rule metrics
         """
-        rule_box_rules = self.create_rule_box_rules(label_index)
-        rule_box_metrics = self.gen_rule_box_metrics(label_index)
+        rule_box_rules = self.create_rule_box_rules(target_feature)
+        rule_box_metrics = self.gen_rule_box_metrics(target_feature)
         # layout_rule_box = Layout(
         #    margin="20px 0px 0px 0px", border="3px groove lightblue"
         # )
@@ -275,65 +269,67 @@ class DecisionRulesScreen:
         # rule_box_parent = Box(children=[rule_box_all], layout=layout_rule_box)
         return rule_box_all
 
-    def create_rule_box_rules(self, label_index: int) -> VBox:
+    def create_rule_box_rules(self, target_feature: Feature) -> VBox:
         """Create box with the decision rules
 
         :param label_index: index of the label in FeatureProcessor.labels
         :return:box with the decision rules
         """
-        label_str = self.fp.labels[label_index].display_name
-        html_rule_caption = self._gen_rule_caption(label_str=label_str)
-        html_rules = self.create_pretty_html_rules(label_index)
+        target_feature_col_name = target_feature.column_name
+        label_str = target_feature_col_name
+        html_rule_caption = self._gen_rule_caption(target_str=label_str)
+        html_rules = self.create_pretty_html_rules(target_feature)
         rules_html_widget = Box([HTML(value=html_rules)])
+        target_index = self.target_feature_map[target_feature_col_name]
 
         def on_click_simplify_rules(b):
             try:
                 button_simplify_rules.disabled = True
                 button_elaborate_rules.disabled = True
-                self.run_buttons[label_index].disabled = True
-                self.dr_miners[label_index].simplify_rule_config()
-                self.run_decision_miner(label_index)
-                rule_box = self.create_rule_box(label_index)
+                self.run_buttons[target_feature_col_name].disabled = True
+                self.dr_miners[target_feature_col_name].simplify_rule_config()
+                self.run_decision_miner(target_feature)
+                rule_box = self.create_rule_box(target_feature)
                 children = self.parent_rule_box.children
-                children_first = children[:label_index]
-                children_last = children[label_index + 1 :]
+                children_first = children[:target_index]
+                children_last = children[target_index + 1 :]
 
                 children = list(children_first) + [rule_box] + list(children_last)
                 self.parent_rule_box.children = children
             except MinimumValueReachedError:
                 button_simplify_rules.disabled = True
             finally:
-                self.run_buttons[label_index].disabled = False
+                self.run_buttons[target_feature_col_name].disabled = False
 
         def on_click_elaborate_rules(b):
             try:
                 button_simplify_rules.disabled = True
                 button_elaborate_rules.disabled = True
-                self.dr_miners[label_index].elaborate_rule_config()
-                self.run_decision_miner(label_index)
-                rule_box = self.create_rule_box(label_index)
+                self.dr_miners[target_feature_col_name].elaborate_rule_config()
+                self.run_decision_miner(target_feature)
+                rule_box = self.create_rule_box(target_feature)
                 children = self.parent_rule_box.children
-                children_first = children[:label_index]
-                children_last = children[label_index + 1 :]
+                children_first = children[:target_index]
+                children_last = children[target_index + 1 :]
 
                 children = list(children_first) + [rule_box] + list(children_last)
                 self.parent_rule_box.children = children
             except MaximumValueReachedError:
                 button_elaborate_rules.disabled = True
             finally:
-                self.run_buttons[label_index].disabled = False
+                self.run_buttons[target_feature_col_name].disabled = False
 
         button_simplify_rules = Button(description="Simplify rules")
-        self.button_simplify_rules = button_simplify_rules
+        self.buttons_simplify_rules[target_feature_col_name] = button_simplify_rules
         button_simplify_rules.on_click(on_click_simplify_rules)
-        if self.dr_miners[label_index].config_index == 0:
+        if self.dr_miners[target_feature_col_name].config_index == 0:
             button_simplify_rules.disabled = True
         button_elaborate_rules = Button(description="Elaborate rules")
-        self.button_elaborate_rules = button_elaborate_rules
+        self.buttons_elaborate_rules[target_feature_col_name] = button_elaborate_rules
         button_elaborate_rules.on_click(on_click_elaborate_rules)
         if (
-            self.dr_miners[label_index].config_index
-            >= len(self.dr_miners[label_index].configs) - 1
+            self.dr_miners[target_feature_col_name].config_index
+            >= len(self.dr_miners[target_feature_col_name].configs) - 1
         ):
             button_elaborate_rules.disabled = True
 
@@ -346,39 +342,42 @@ class DecisionRulesScreen:
 
         return vbox_rule
 
-    def run_decision_miner(self, label_index: int):
+    def run_decision_miner(self, target_feature: Feature):
         """Run the decision rule miner to get decision rules
 
         :return:
         """
-        self.dr_miners[label_index].run_pipeline()
-        self.decision_rules[label_index] = self.dr_miners[label_index].structured_rules
+        target_feature_col_name = target_feature.column_name
+        self.dr_miners[target_feature_col_name].run_pipeline()
+        self.decision_rules[target_feature_col_name] = self.dr_miners[
+            target_feature_col_name
+        ].structured_rules
 
-    def create_pretty_html_rules(self, label_index) -> str:
+    def create_pretty_html_rules(self, target_feature: Feature) -> str:
         """Create html string with pretty decision rules
 
         :return: html string with pretty decision rules
         """
+        feature_dict = {f.column_name: f for f in self.features}
         pretty_rules = []
-        for rule in self.decision_rules[label_index]:
+        for rule in self.decision_rules[target_feature.column_name]:
             pretty_conds = []
             for cond in rule:
-                attr = cond["attribute"]
+                feature_name = cond["attribute"]
                 val = cond["value"]
                 unequality = cond["unequal_sign"]
-                if (
-                    self.fp.attributes_dict[attr].attribute_data_type
-                    == AttributeDataType.NUMERICAL
-                ):
+                if feature_dict[feature_name].datatype == AttributeDataType.NUMERICAL:
                     if unequality != "between":
-                        pretty_str = attr + " " + unequality + "= " + val
+                        pretty_str = feature_name + " " + unequality + "= " + val
                     else:
-                        pretty_str = attr + " is in range " + val
+                        pretty_str = feature_name + " is in range " + val
                 else:
                     if val == "1":
-                        pretty_str = attr
+                        pretty_str = feature_name
                     else:
-                        pretty_str = '<span style="color: Red">NOT</span> ' + attr
+                        pretty_str = (
+                            '<span style="color: Red">NOT</span> ' + feature_name
+                        )
                 pretty_conds.append(pretty_str)
             pretty_rule = ""
             for pretty_cond in pretty_conds:
@@ -406,15 +405,15 @@ class DecisionRulesScreen:
             all_rules_html_text = all_rules_html_text + pretty_rule
         return all_rules_html_text
 
-    def gen_rule_box_metrics(self, label_index: int) -> VBox:
+    def gen_rule_box_metrics(self, target_feature: Feature) -> VBox:
         """Generate box that contains the metrics for the rules
 
         :param label_index: index of the label in FeatureProcessor.labels
         :return: box that contains the metrics for the rules
         """
-        conf_matrix = self.gen_conf_matrix(label_index)
+        conf_matrix = self.gen_conf_matrix(target_feature)
         if self.is_numerical:
-            avg_metrics = self.gen_avg_rule_metrics(label_index)
+            avg_metrics = self.gen_avg_rule_metrics(target_feature)
             metrics_box = VBox(
                 [conf_matrix, avg_metrics], layout=Layout(margin="35px 0px 0px 30px")
             )
@@ -423,7 +422,7 @@ class DecisionRulesScreen:
 
         return metrics_box
 
-    def gen_conf_matrix(self, label_index: int):
+    def gen_conf_matrix(self, target_feature: Feature):
         """Generate the box with the confusion matrix for the decision rules
 
         TODO: Exchange ipysheet with a box from ipywidgets as ipysheet is not working in
@@ -440,13 +439,13 @@ class DecisionRulesScreen:
         conf_matrix = ipysheet.sheet(
             rows=4, columns=4, column_headers=False, row_headers=False
         )
-        label_str = self.fp.labels[label_index].display_name
+        target_col_name = target_feature.column_name
         if self.is_numerical:
-            pos_label_str = "High " + label_str
-            neg_label_str = "Low " + label_str
+            pos_label_str = "High " + target_col_name
+            neg_label_str = "Low " + target_col_name
         else:
-            pos_label_str = label_str
-            neg_label_str = "Not " + label_str
+            pos_label_str = target_col_name
+            neg_label_str = "Not " + target_col_name
 
         ipysheet.cell(0, 0, "", read_only=True, background_color=header_color)
         ipysheet.cell(
@@ -484,7 +483,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             1,
             1,
-            str(self.dr_miners[label_index].metrics["true_p"]),
+            str(self.dr_miners[target_col_name].metrics["true_p"]),
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -492,7 +491,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             1,
             2,
-            str(self.dr_miners[label_index].metrics["false_n"]),
+            str(self.dr_miners[target_col_name].metrics["false_n"]),
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -500,7 +499,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             1,
             3,
-            str(round(self.dr_miners[label_index].metrics["recall_p"] * 100)) + "%",
+            str(round(self.dr_miners[target_col_name].metrics["recall_p"] * 100)) + "%",
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -516,7 +515,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             2,
             1,
-            str(self.dr_miners[label_index].metrics["false_p"]),
+            str(self.dr_miners[target_col_name].metrics["false_p"]),
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -524,7 +523,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             2,
             2,
-            str(self.dr_miners[label_index].metrics["true_n"]),
+            str(self.dr_miners[target_col_name].metrics["true_n"]),
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -532,7 +531,7 @@ class DecisionRulesScreen:
         ipysheet.cell(
             2,
             3,
-            str(round(self.dr_miners[label_index].metrics["recall_n"] * 100)) + "%",
+            str(round(self.dr_miners[target_col_name].metrics["recall_n"] * 100)) + "%",
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -548,7 +547,8 @@ class DecisionRulesScreen:
         ipysheet.cell(
             3,
             1,
-            str(round(self.dr_miners[label_index].metrics["precision_p"] * 100)) + "%",
+            str(round(self.dr_miners[target_col_name].metrics["precision_p"] * 100))
+            + "%",
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -556,7 +556,8 @@ class DecisionRulesScreen:
         ipysheet.cell(
             3,
             2,
-            str(round(self.dr_miners[label_index].metrics["precision_n"] * 100)) + "%",
+            str(round(self.dr_miners[target_col_name].metrics["precision_n"] * 100))
+            + "%",
             read_only=True,
             style={"font-size": font_size},
             background_color=cell_color,
@@ -565,22 +566,23 @@ class DecisionRulesScreen:
         vbox_all = VBox(children=[html_rule_performance, conf_matrix])
         return vbox_all
 
-    def gen_avg_rule_metrics(self, label_index: int) -> VBox:
+    def gen_avg_rule_metrics(self, target_feature: Feature) -> VBox:
         """Generate box with the average values of the dependent variable for cases
         for which the decision rules evaluate to true or false
 
         :param label_index: index of the label in FeatureProcessor.labels
         :return: box with the average rule metrics
         """
-        label_unit = self.fp.labels[label_index].unit
+        target_unit = target_feature.unit
+        target_col_name = target_feature.column_name
         html_avg_true = Box(
             [
                 HTML(
                     '<center><span style="font-weight:bold"> Rule = '
                     'True</span><br><span style="color: Red; font-size:16px">'
-                    + str(round(self.dr_miners[label_index].metrics["avg_True"]))
+                    + str(round(self.dr_miners[target_col_name].metrics["avg_True"]))
                     + "\xa0"
-                    + label_unit
+                    + target_unit
                     + "</span></center>"
                 )
             ],
@@ -593,9 +595,9 @@ class DecisionRulesScreen:
                 HTML(
                     '<center><span style="font-weight:bold"> Rule = '
                     'False</span><br><span style="color: Green; font-size:16px">'
-                    + str(round(self.dr_miners[label_index].metrics["avg_False"]))
+                    + str(round(self.dr_miners[target_col_name].metrics["avg_False"]))
                     + "\xa0"
-                    + label_unit
+                    + target_unit
                     + "</span></center>"
                 )
             ],
@@ -621,19 +623,20 @@ class ValueSelection:
     """
     Creates the value selection box with which the user can select the values for
     which that are considered large.
-    It is assumed that there is only one label (dependent variable).
+    It is assumed that there is only one target.
     """
 
     def __init__(
         self,
-        fp: FeatureProcessor,
+        df: pd.DataFrame,
+        target_feature: Feature,
         on_button_run_clicked: Callable,
         min_display_perc: float = 1.0,
         max_display_perc: float = 99.0,
         default_large_perc: int = 20,
     ):
-
-        self.fp = fp
+        self.df = df
+        self.target_feature = target_feature
         self.on_button_run_clicked = on_button_run_clicked
         self.default_val = None
         self.min_val = None  # minimum value of dependent variable
@@ -671,16 +674,16 @@ class ValueSelection:
 
         :return:
         """
-        label_name = self.fp.labels[0].df_attribute_name
-        self.default_val = self.fp.df[label_name].quantile(
+        target_name = self.target_feature.column_name
+        self.default_val = self.df[target_name].quantile(
             (100 - self.default_long_perc) / 100
         )
-        self.min_val = self.fp.df[label_name].min()
-        self.max_val = self.fp.df[label_name].max()
-        self.min_display_val = self.fp.df[label_name].quantile(
+        self.min_val = self.df[target_name].min()
+        self.max_val = self.df[target_name].max()
+        self.min_display_val = self.df[target_name].quantile(
             self.min_display_perc / 100
         )
-        self.max_display_val = self.fp.df[label_name].quantile(
+        self.max_display_val = self.df[target_name].quantile(
             self.max_display_perc / 100
         )
 
@@ -689,19 +692,16 @@ class ValueSelection:
 
         :return:
         """
-        label_str = self.fp.labels[0].display_name
-        label_title = Label("Define high " + label_str + ":")
+        target_name = self.target_feature.column_name
+        target_unit = self.target_feature.unit
+        label_title = Label("Define high " + target_name + ":")
 
-        label_description = Label(label_str + " >=\xa0")
+        label_description = Label(target_name + " >=\xa0")
 
-        label_unit = Label("\xa0" + self.fp.labels[0].unit, layout=Layout(width="auto"))
+        label_unit = Label("\xa0" + target_unit, layout=Layout(width="auto"))
         label_percentage = Label(
             "\xa0 (Top\xa0"
-            + str(
-                self.get_percentile(
-                    self.fp.df[self.fp.labels[0].df_attribute_name], self.default_val
-                )
-            )
+            + str(self.get_percentile(self.df[target_name], self.default_val))
             + "%)",
             layout=Layout(width="auto"),
         )
@@ -716,13 +716,10 @@ class ValueSelection:
         self.threshold_box = selection_box_number
 
         def handle_label_percentage_description(change):
+            target_col_name = self.target_feature.column_name
             new_description = (
                 "\xa0 (Top\xa0"
-                + str(
-                    self.get_percentile(
-                        self.fp.df[self.fp.labels[0].df_attribute_name], change.new
-                    )
-                )
+                + str(self.get_percentile(self.df[target_col_name], change.new))
                 + "%)"
             )
             label_percentage.value = new_description
@@ -747,7 +744,7 @@ class ValueSelection:
         button_run = Button(description="Mine rules!")
         self.button_run = button_run
         button_clicked_partial = functools.partial(
-            self.on_button_run_clicked, label_index=0
+            self.on_button_run_clicked, target_feature=self.target_feature
         )
         button_run.on_click(button_clicked_partial)
 
@@ -779,15 +776,16 @@ class ValueSelection:
 
         :return: FigureWidget object with the figure
         """
-        label_name = self.fp.labels[0].df_attribute_name
-        df_float = pd.DataFrame(self.fp.df[label_name].astype(float))
-        fig = px.ecdf(df_float, x=label_name)
-        unit = self.fp.labels[0].unit
+        target_col_name = self.target_feature.column_name
+        target_unit = self.target_feature.unit
+        df_float = pd.DataFrame(self.df[target_col_name].astype(float))
+        fig = px.ecdf(df_float, x=target_col_name)
+        unit = target_unit
         if unit != "":
             unit_str = " (" + unit.lower() + ")"
         else:
             unit_str = ""
-        xaxis_title = self.fp.labels[0].display_name + unit_str
+        xaxis_title = target_col_name + unit_str
         fig.update_layout(
             {
                 "xaxis_title": xaxis_title,
