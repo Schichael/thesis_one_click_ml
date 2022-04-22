@@ -144,11 +144,11 @@ class ExpertScreen:
         """
         # Configs based on table value
         if table == "activity":
-            title = "Activity table attributes"
+            title = "Selection of Activity table columns to be usable by attributes:"
             selected_cat_cols = self.local_selected_activity_cat_cols
             selected_num_cols = self.local_selected_activity_num_cols
         elif table == "case":
-            title = "Case table attributes"
+            title = "Selection of Case table columns to be usable by attributes:"
             selected_cat_cols = self.local_selected_case_cat_cols
             selected_num_cols = self.local_selected_case_num_cols
         else:
