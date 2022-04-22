@@ -20,6 +20,7 @@ class StaticAttribute(Attribute, abc.ABC):
         data_type: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        unit: str = "",
     ):
         super().__init__(
             process_model=process_model,
@@ -28,6 +29,7 @@ class StaticAttribute(Attribute, abc.ABC):
             data_type=data_type,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            unit=unit,
         )
 
     def get_query_with_value(self, value: Optional[str] = None):
@@ -63,6 +65,7 @@ class CaseDurationAttribute(StaticAttribute):
             data_type=AttributeDataType.NUMERICAL,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            unit=self.time_aggregation.lower(),
         )
 
     def _gen_query(self) -> pql.PQLColumn:

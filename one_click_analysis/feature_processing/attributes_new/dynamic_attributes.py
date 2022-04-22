@@ -19,6 +19,7 @@ class DynamicAttribute(Attribute, abc.ABC):
         data_type: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        unit: str = "",
     ):
         super().__init__(
             process_model=process_model,
@@ -27,6 +28,7 @@ class DynamicAttribute(Attribute, abc.ABC):
             data_type=data_type,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            unit=unit,
         )
 
 
@@ -39,7 +41,7 @@ class NextActivityAttribute(DynamicAttribute):
         next_activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
-        attribute_name: str = "Next activity"
+        attribute_name: str = "Next activity",
     ):
         self.process_model = process_model
         self.next_activity = next_activity
