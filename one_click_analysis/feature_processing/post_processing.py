@@ -203,6 +203,7 @@ class PostProcessor:
                 datatype=attr.data_type,
                 attribute=attr,
                 attribute_value=attribute_value,
+                unit=attr.unit,
             )
             features.append(feature)
         return features
