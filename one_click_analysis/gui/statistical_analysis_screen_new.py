@@ -48,12 +48,7 @@ class StatisticalAnalysisScreen:
         self.attributes_box_contents = []
         self.statistical_analysis_box = VBox()
 
-    def update_attr_selection(
-        self,
-        selected_attributes,
-        selected_activity_table_cols,
-        selected_case_table_cols,
-    ):
+    def update_attr_selection(self, features: List[Feature]):
         """Define behaviour when the attribute selection is updated. Here, the screen is
         simply constructed again with the new attributes.
 
@@ -62,6 +57,7 @@ class StatisticalAnalysisScreen:
         :param selected_case_table_cols:
         :return:
         """
+        self.features = features
         self.create_statistical_screen()
 
     def create_title_attributes_box(self) -> VBox:

@@ -11,6 +11,8 @@ from one_click_analysis.configuration.configurations import DatePickerConfig
 from one_click_analysis.configuration.configurations import TransitionConfig
 from one_click_analysis.configuration.configurator import Configurator
 from one_click_analysis.feature_processing import attributes
+from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
+from one_click_analysis.feature_processing.attributes_new.feature import Feature
 from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.expert_screen import ExpertScreen
@@ -26,24 +28,39 @@ class AttributeSelectionRoutingDecision(AttributeSelection):
         selected_case_table_cols: List[str],
         statistical_analysis_screen: StatisticalAnalysisScreen,
         decision_rules_screen: DecisionRulesScreen,
+        features: List[Feature],
     ):
         super().__init__(
-            selected_attributes, selected_activity_table_cols, selected_case_table_cols
+            selected_attributes,
+            selected_activity_table_cols,
+            selected_case_table_cols,
+            features,
         )
         self.statistical_analysis_screen = statistical_analysis_screen
         self.decision_rules_screen = decision_rules_screen
+        self.updated_features = features.copy()
 
     def update(self):
-        self.statistical_analysis_screen.update_attr_selection(
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
-        )
-        self.decision_rules_screen.update_attr_selection(
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
-        )
+        self.updated_features = []
+        for f in self.features:
+            if f.attribute in self.selected_attributes:
+                if f.attribute.attribute_type == AttributeType.OTHER:
+                    self.updated_features.append(f)
+                elif f.attribute.attribute_type in [
+                    AttributeType.ACTIVITY_COL_NUMERICAL,
+                    AttributeType.ACTIVITY_COL_CATEGORICAL,
+                ]:
+                    if f.column_name in self.selected_activity_table_cols:
+                        self.updated_features.append(f)
+                elif f.attribute.attribute_type in [
+                    AttributeType.CASE_COL_CATEGORICAL,
+                    AttributeType.CASE_COL_NUMERICAL,
+                ]:
+                    if f.column_name in self.selected_activity_table_cols:
+                        self.updated_features.append(f)
+
+        self.statistical_analysis_screen.update_attr_selection(self.updated_features)
+        self.decision_rules_screen.update_features(self.updated_features)
 
 
 class AnalysisRoutingDecision:

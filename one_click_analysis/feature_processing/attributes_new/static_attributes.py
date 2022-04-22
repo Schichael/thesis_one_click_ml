@@ -9,15 +9,19 @@ from one_click_analysis.feature_processing.attributes_new.attribute import Attri
 from one_click_analysis.feature_processing.attributes_new.attribute import (
     AttributeDataType,
 )
+from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
 
 
 class StaticAttribute(Attribute, abc.ABC):
+    display_name = "Static attribute"
+
     def __init__(
         self,
         process_model: ProcessModel,
         attribute_name: str,
         pql_query: pql.PQLColumn,
         data_type: AttributeDataType,
+        attribute_type: AttributeType,
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
@@ -27,6 +31,7 @@ class StaticAttribute(Attribute, abc.ABC):
             attribute_name=attribute_name,
             pql_query=pql_query,
             data_type=data_type,
+            attribute_type=attribute_type,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=unit,
@@ -47,6 +52,8 @@ class StaticAttribute(Attribute, abc.ABC):
 class CaseDurationAttribute(StaticAttribute):
     """Duration of the whle case"""
 
+    display_name = "Case duration"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -63,6 +70,7 @@ class CaseDurationAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=self.time_aggregation.lower(),
@@ -84,6 +92,8 @@ class CaseDurationAttribute(StaticAttribute):
 class WorkInProgressAttribute(StaticAttribute):
     """Work in Progress for whole case"""
 
+    display_name = "Work in Progress dring case"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -101,6 +111,7 @@ class WorkInProgressAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -136,6 +147,8 @@ class WorkInProgressAttribute(StaticAttribute):
 class EventCountAttribute(StaticAttribute):
     """Event Count for a whole case"""
 
+    display_name = "Case Event count"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -150,6 +163,7 @@ class EventCountAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -169,6 +183,8 @@ class EventCountAttribute(StaticAttribute):
 class ActivityOccurenceAttribute(StaticAttribute):
     """Rework occurence for a whole case"""
 
+    display_name = "Activity occurence in case"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -185,6 +201,7 @@ class ActivityOccurenceAttribute(StaticAttribute):
             data_type=AttributeDataType.CATEGORICAL,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
+            attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -203,6 +220,8 @@ class ActivityOccurenceAttribute(StaticAttribute):
 class ReworkCountAttribute(StaticAttribute):
     """Count of reworked activities"""
 
+    display_name = "Rework count in case"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -215,6 +234,7 @@ class ReworkCountAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.OTHER,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -237,6 +257,8 @@ class ReworkCountAttribute(StaticAttribute):
 class ReworkOccurrenceAttribute(StaticAttribute):
     """Whether any activity was done more than once"""
 
+    display_name = "Rework occurence in case"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -249,6 +271,7 @@ class ReworkOccurrenceAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -272,6 +295,8 @@ class ReworkOccurrenceAttribute(StaticAttribute):
 class StartActivityAttribute(StaticAttribute):
     """Start activity"""
 
+    display_name = "Start activity"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -284,6 +309,7 @@ class StartActivityAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -323,6 +349,8 @@ class StartActivityAttribute(StaticAttribute):
 class EndActivityAttribute(StaticAttribute):
     """End activity"""
 
+    display_name = "End activity"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -335,6 +363,7 @@ class EndActivityAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -374,6 +403,8 @@ class EndActivityAttribute(StaticAttribute):
 class NumericActivityTableColumnAttribute(StaticAttribute):
     """Any numeric activity table column."""
 
+    display_name = "Numeric activity table column aggregation"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -394,6 +425,7 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.ACTIVITY_COL_NUMERICAL,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -415,6 +447,8 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
 class CaseTableColumnNumericAttribute(StaticAttribute):
     """Any case table column."""
 
+    display_name = "Numeric case table column"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -431,6 +465,7 @@ class CaseTableColumnNumericAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.CASE_COL_NUMERICAL,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -444,6 +479,8 @@ class CaseTableColumnNumericAttribute(StaticAttribute):
 
 class CaseTableColumnCategoricalAttribute(StaticAttribute):
     """Any case table column."""
+
+    display_name = "Categorical case table column"
 
     def __init__(
         self,
@@ -461,6 +498,7 @@ class CaseTableColumnCategoricalAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.CASE_COL_CATEGORICAL,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -491,6 +529,8 @@ class CaseTableColumnCategoricalAttribute(StaticAttribute):
 class TransitionOccurenceAttribute(StaticAttribute):
     """Whether a transition happens in a case"""
 
+    display_name = "Transition occurence in case"
+
     def __init__(
         self,
         process_model: ProcessModel,
@@ -509,6 +549,7 @@ class TransitionOccurenceAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -526,6 +567,8 @@ class TransitionOccurenceAttribute(StaticAttribute):
 class StartActivityTimeAttribute(StaticAttribute):
     """Start activity time"""
 
+    display_name = "Start activity time"
+
     def __init__(self, process_model: ProcessModel):
         self.process_model = process_model
         self.attribute_name = f"Start activity Time"
@@ -533,6 +576,7 @@ class StartActivityTimeAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.DATETIME,
+            attribute_type=AttributeType.OTHER,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=False,
@@ -554,6 +598,8 @@ class StartActivityTimeAttribute(StaticAttribute):
 class EndActivityTimeAttribute(StaticAttribute):
     """End activity time"""
 
+    display_name = "End activity time"
+
     def __init__(self, process_model: ProcessModel):
         self.process_model = process_model
         self.attribute_name = f"End activity Time"
@@ -561,6 +607,7 @@ class EndActivityTimeAttribute(StaticAttribute):
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.DATETIME,
+            attribute_type=AttributeType.OTHER,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=False,

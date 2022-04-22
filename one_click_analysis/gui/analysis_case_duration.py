@@ -10,11 +10,20 @@ from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.configuration.configurations import DatePickerConfig
 from one_click_analysis.configuration.configurator import Configurator
 from one_click_analysis.feature_processing import attributes
-from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
+from one_click_analysis.feature_processing.attributes_new.attribute_utils import (
+    remove_duplicate_attributes,
+)
+from one_click_analysis.feature_processing.attributes_new.feature import Feature
+from one_click_analysis.feature_processing.feature_processor_process_model import (
+    FeatureProcessor,
+)
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.expert_screen import ExpertScreen
 from one_click_analysis.gui.overview_screen import OverviewScreenCaseDuration
-from one_click_analysis.gui.statistical_analysis_screen import StatisticalAnalysisScreen
+from one_click_analysis.gui.statistical_analysis_screen_new import (
+    StatisticalAnalysisScreen,
+)
 
 
 class AttributeSelectionCaseDuration(AttributeSelection):
@@ -25,24 +34,39 @@ class AttributeSelectionCaseDuration(AttributeSelection):
         selected_case_table_cols: List[str],
         statistical_analysis_screen: StatisticalAnalysisScreen,
         decision_rules_screen: DecisionRulesScreen,
+        features: List[Feature],
     ):
         super().__init__(
-            selected_attributes, selected_activity_table_cols, selected_case_table_cols
+            selected_attributes,
+            selected_activity_table_cols,
+            selected_case_table_cols,
+            features,
         )
         self.statistical_analysis_screen = statistical_analysis_screen
         self.decision_rules_screen = decision_rules_screen
+        self.updated_features = features.copy()
 
     def update(self):
-        self.statistical_analysis_screen.update_attr_selection(
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
-        )
-        self.decision_rules_screen.update_attr_selection(
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
-        )
+        self.updated_features = []
+        for f in self.features:
+            if f.attribute in self.selected_attributes:
+                if f.attribute.attribute_type == AttributeType.OTHER:
+                    self.updated_features.append(f)
+                elif f.attribute.attribute_type in [
+                    AttributeType.ACTIVITY_COL_NUMERICAL,
+                    AttributeType.ACTIVITY_COL_CATEGORICAL,
+                ]:
+                    if f.column_name in self.selected_activity_table_cols:
+                        self.updated_features.append(f)
+                elif f.attribute.attribute_type in [
+                    AttributeType.CASE_COL_CATEGORICAL,
+                    AttributeType.CASE_COL_NUMERICAL,
+                ]:
+                    if f.column_name in self.selected_activity_table_cols:
+                        self.updated_features.append(f)
+
+        self.statistical_analysis_screen.update_attr_selection(self.updated_features)
+        self.decision_rules_screen.update_features(self.updated_features)
 
 
 class AnalysisCaseDuration:
@@ -124,7 +148,7 @@ class AnalysisCaseDuration:
             print("Done")
 
         # assign the attributes and columns
-        self.selected_attributes = self.fp.minor_attrs
+        self.selected_attributes = self.fp.attributes
         self.selected_activity_table_cols = (
             self.fp.dynamic_categorical_cols + self.fp.dynamic_numerical_cols
         )
@@ -136,24 +160,33 @@ class AnalysisCaseDuration:
         with out:
             print("Creatng GUI...")
         # Create overview box
-        self.overview_screen = OverviewScreenCaseDuration(self.fp)
+        self.overview_screen = OverviewScreenCaseDuration(
+            self.fp.df_x,
+            self.fp.df_target,
+            self.fp.features,
+            self.fp.target_features,
+            self.fp.df_timestamp_column,
+        )
 
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
-            self.fp,
-            self.th,
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
+            self.fp.df_x,
+            self.fp.df_target,
+            self.fp.features,
+            self.fp.target_features,
+            self.fp.df_timestamp_column,
+            datapoint_str="Cases",
+            th=self.th,
         )
         self.stat_analysis_screen.create_statistical_screen()
 
         # Create decision rule miner box
+        df_combined = self.fp.df_x
+        df_combined[self.fp.df_target.columns.tolist()] = self.fp.df_target
         self.dec_rule_screen = DecisionRulesScreen(
-            self.fp,
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
+            df_combined,
+            features=self.fp.features,
+            target_features=self.fp.target_features,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 
@@ -164,10 +197,22 @@ class AnalysisCaseDuration:
             self.selected_case_table_cols,
             self.stat_analysis_screen,
             self.dec_rule_screen,
+            features=self.fp.features,
         )
 
         # Create expert box
-        self.expert_screen = ExpertScreen(self.fp, attr_selection_case_duration)
+        attributes = self.fp.static_attributes + self.fp.dynamic_attributes
+        attributes = remove_duplicate_attributes(attributes)
+
+        self.expert_screen = ExpertScreen(
+            attributes=attributes,
+            categorical_activity_table_cols=self.fp.dynamic_categorical_cols,
+            numerical_activity_table_cols=self.fp.dynamic_numerical_cols,
+            categorical_case_table_cols=self.fp.static_categorical_cols,
+            numerical_case_table_cols=self.fp.static_numerical_cols,
+            features=self.fp.features,
+            attr_selection=attr_selection_case_duration,
+        )
         self.expert_screen.create_expert_box()
 
         # Create tabs

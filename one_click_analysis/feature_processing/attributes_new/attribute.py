@@ -7,8 +7,21 @@ from pycelonis.celonis_api.pql import pql
 from one_click_analysis.feature_processing.attributes import AttributeDataType
 
 
+class AttributeType(Enum):
+    """Enum to check whether the attribute is a categorical or numerical activity or
+    case attribute or none of the two"""
+
+    ACTIVITY_COL_NUMERICAL = "ACTIVITY_NUMERICAL"
+    ACTIVITY_COL_CATEGORICAL = "ACTIVITY_COL_CATEGORICAL"
+    CASE_COL_NUMERICAL = "CASE_COL_NUMERICAL"
+    CASE_COL_CATEGORICAL = "CASE_COL_CATEGORICAL"
+    OTHER = "OTHER"
+
+
 class Attribute(abc.ABC):
     """Abstract Attribute class"""
+
+    display_name = "Attribute"
 
     def __init__(
         self,
@@ -16,6 +29,7 @@ class Attribute(abc.ABC):
         attribute_name: str,
         pql_query: pql.PQLColumn,
         data_type: AttributeDataType,
+        attribute_type: AttributeType,
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
@@ -24,6 +38,7 @@ class Attribute(abc.ABC):
         self.attribute_name = attribute_name
         self.pql_query = pql_query
         self.data_type = data_type
+        self.attribute_type = attribute_type
         self.is_feature = is_feature
         self.is_class_feature = is_class_feature
         self.unit = unit

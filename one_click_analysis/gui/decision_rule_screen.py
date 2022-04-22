@@ -114,17 +114,14 @@ class DecisionRulesScreen:
         else:
             return None
 
-    def update_attr_selection(
-        self,
-    ):
+    def update_features(self, features: List[Feature]):
         """Define behaviour when the attribute selection is updated. Here, the screen is
         simply constructed again with the new attributes.
 
-        :param selected_attributes:
-        :param selected_activity_table_cols:
-        :param selected_case_table_cols:
+        :param features: List with features
         :return:
         """
+        self.features = features
         self.parent_rule_box = self._init_rules_parent_box()
         self.dr_miners = {}
         self.current_threshold_numerical = None

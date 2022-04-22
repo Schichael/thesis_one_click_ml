@@ -115,9 +115,12 @@ class FeatureProcessor:
         self.activity_end = "Activity_END"
         self.config_file_name = None
         self.attributes = []
+        self.static_attributes = []
+        self.dynamic_attributes = []
         self.attributes_dict = {}
         self.labels = []
         self.labels_dict = {}
+        self.df_timestamp_column = ""
         self.filters = []  # general PQL filters from configuration
         self._init_datamodel(self.dm)
         (
@@ -857,7 +860,13 @@ class FeatureProcessor:
             + numeric_case_table_column_attrs
         )
 
+        self.static_attributes = static_attributes
+
         dynamic_attributes = []
+
+        self.dynamic_attributes = dynamic_attributes
+
+        self.df_timestamp_column = "Start activity Time"
 
         target_attribute = CaseDurationAttribute(
             process_model=self.process_model,
