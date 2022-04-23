@@ -1,4 +1,5 @@
 from typing import List
+from typing import Type
 
 from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
 
@@ -24,9 +25,18 @@ def get_aggregation_df_name(agg: str):
         return "last"
 
 
-def remove_duplicate_attributes(attributes: List[Attribute]) -> List[Attribute]:
+def get_attribute_types(attributes: List[Attribute]) -> List[Type[Attribute]]:
+    """Get types of attributes (non duplicate)"""
+    attribute_types = []
+    for attr in attributes:
+        if type(attr) not in attribute_types:
+            attribute_types.append(type(attr))
+    return attribute_types
+
+
+def remove_duplicates(attributes: List[Attribute]) -> List[Attribute]:
     """Remove duplicate attributes. A duplicated is when two attributes are of the
-    same class."""
+    same class. So, always the first attribute is kept"""
     used_attribute_types = []
     non_duplicates = []
     for attr in attributes:

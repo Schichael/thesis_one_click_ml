@@ -126,12 +126,12 @@ class StatisticalAnalysisScreen:
                     attr.minor_attribute_type,
                     attributes.ActivityTableColumnMinorAttribute,
                 ):
-                    if attr.column_name not in self.selected_activity_table_cols:
+                    if attr.df_column_name not in self.selected_activity_table_cols:
                         continue
                 elif isinstance(
                     attr.minor_attribute_type, attributes.CaseTableColumnMinorAttribute
                 ):
-                    if attr.column_name not in self.selected_case_table_cols:
+                    if attr.df_column_name not in self.selected_case_table_cols:
                         continue
                 if (attr.correlation[label_index] >= self.th) or (
                     attr.attribute_data_type == attributes.AttributeDataType.NUMERICAL

@@ -63,13 +63,13 @@ class DecisionRulesScreen:
         """Generate list of feature names"""
         attribute_names = []
         for f in self.features:
-            attribute_names.append(f.column_name)
+            attribute_names.append(f.df_column_name)
         return attribute_names
 
     def _create_target_feature_map(self):
         target_feature_map = {}
         for i, tf in enumerate(self.target_features):
-            target_feature_map[tf.column_name] = i
+            target_feature_map[tf.df_column_name] = i
 
         return target_feature_map
 
@@ -108,7 +108,7 @@ class DecisionRulesScreen:
                 default_large_perc=20,
             )
             self.run_buttons[
-                self.target_features[0].column_name
+                self.target_features[0].df_column_name
             ] = value_selection.button_run
             return value_selection
         else:
@@ -122,6 +122,7 @@ class DecisionRulesScreen:
         :return:
         """
         self.features = features
+        self.feature_names = self._create_feature_names()
         self.parent_rule_box = self._init_rules_parent_box()
         self.dr_miners = {}
         self.current_threshold_numerical = None
@@ -155,7 +156,7 @@ class DecisionRulesScreen:
         else:
             threshold = None
             pos_class = 1
-        target_col_name = target_feature.column_name
+        target_col_name = target_feature.df_column_name
         self.run_buttons[target_col_name].disabled = True
 
         self.dr_miners[target_col_name] = DecisionRuleMiner(
@@ -216,12 +217,14 @@ class DecisionRulesScreen:
         rule_boxes = []
         if self.is_numerical:
             rule_box = HBox(
-                children=[self._gen_rule_caption(self.target_features[0].column_name)]
+                children=[
+                    self._gen_rule_caption(self.target_features[0].df_column_name)
+                ]
             )
             rule_boxes.append(rule_box)
         else:
             for tf in self.target_features:
-                tf_col_name = tf.column_name
+                tf_col_name = tf.df_column_name
                 button_run = Button(description="Mine rules!")
 
                 button_clicked_partial = functools.partial(
@@ -272,7 +275,7 @@ class DecisionRulesScreen:
         :param label_index: index of the label in FeatureProcessor.labels
         :return:box with the decision rules
         """
-        target_feature_col_name = target_feature.column_name
+        target_feature_col_name = target_feature.df_column_name
         label_str = target_feature_col_name
         html_rule_caption = self._gen_rule_caption(target_str=label_str)
         html_rules = self.create_pretty_html_rules(target_feature)
@@ -344,7 +347,7 @@ class DecisionRulesScreen:
 
         :return:
         """
-        target_feature_col_name = target_feature.column_name
+        target_feature_col_name = target_feature.df_column_name
         self.dr_miners[target_feature_col_name].run_pipeline()
         self.decision_rules[target_feature_col_name] = self.dr_miners[
             target_feature_col_name
@@ -355,9 +358,9 @@ class DecisionRulesScreen:
 
         :return: html string with pretty decision rules
         """
-        feature_dict = {f.column_name: f for f in self.features}
+        feature_dict = {f.df_column_name: f for f in self.features}
         pretty_rules = []
-        for rule in self.decision_rules[target_feature.column_name]:
+        for rule in self.decision_rules[target_feature.df_column_name]:
             pretty_conds = []
             for cond in rule:
                 feature_name = cond["attribute"]
@@ -436,7 +439,7 @@ class DecisionRulesScreen:
         conf_matrix = ipysheet.sheet(
             rows=4, columns=4, column_headers=False, row_headers=False
         )
-        target_col_name = target_feature.column_name
+        target_col_name = target_feature.df_column_name
         if self.is_numerical:
             pos_label_str = "High " + target_col_name
             neg_label_str = "Low " + target_col_name
@@ -571,7 +574,7 @@ class DecisionRulesScreen:
         :return: box with the average rule metrics
         """
         target_unit = target_feature.unit
-        target_col_name = target_feature.column_name
+        target_col_name = target_feature.df_column_name
         html_avg_true = Box(
             [
                 HTML(
@@ -671,7 +674,7 @@ class ValueSelection:
 
         :return:
         """
-        target_name = self.target_feature.column_name
+        target_name = self.target_feature.df_column_name
         self.default_val = self.df[target_name].quantile(
             (100 - self.default_long_perc) / 100
         )
@@ -689,7 +692,7 @@ class ValueSelection:
 
         :return:
         """
-        target_name = self.target_feature.column_name
+        target_name = self.target_feature.df_column_name
         target_unit = self.target_feature.unit
         label_title = Label("Define high " + target_name + ":")
 
@@ -713,7 +716,7 @@ class ValueSelection:
         self.threshold_box = selection_box_number
 
         def handle_label_percentage_description(change):
-            target_col_name = self.target_feature.column_name
+            target_col_name = self.target_feature.df_column_name
             new_description = (
                 "\xa0 (Top\xa0"
                 + str(self.get_percentile(self.df[target_col_name], change.new))
@@ -773,7 +776,7 @@ class ValueSelection:
 
         :return: FigureWidget object with the figure
         """
-        target_col_name = self.target_feature.column_name
+        target_col_name = self.target_feature.df_column_name
         target_unit = self.target_feature.unit
         df_float = pd.DataFrame(self.df[target_col_name].astype(float))
         fig = px.ecdf(df_float, x=target_col_name)

@@ -9,10 +9,10 @@ from one_click_analysis import utils
 from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.configuration.configurations import DatePickerConfig
 from one_click_analysis.configuration.configurator import Configurator
-from one_click_analysis.feature_processing import attributes
+from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
 from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
 from one_click_analysis.feature_processing.attributes_new.attribute_utils import (
-    remove_duplicate_attributes,
+    get_attribute_types,
 )
 from one_click_analysis.feature_processing.attributes_new.feature import Feature
 from one_click_analysis.feature_processing.feature_processor_process_model import (
@@ -29,7 +29,7 @@ from one_click_analysis.gui.statistical_analysis_screen_new import (
 class AttributeSelectionCaseDuration(AttributeSelection):
     def __init__(
         self,
-        selected_attributes: List[attributes.MinorAttribute],
+        selected_attributes: List[Attribute],
         selected_activity_table_cols: List[str],
         selected_case_table_cols: List[str],
         statistical_analysis_screen: StatisticalAnalysisScreen,
@@ -48,25 +48,25 @@ class AttributeSelectionCaseDuration(AttributeSelection):
 
     def update(self):
         self.updated_features = []
+        selected_Attribute_types = get_attribute_types(self.selected_attributes)
         for f in self.features:
-            if f.attribute in self.selected_attributes:
+            if type(f.attribute) in selected_Attribute_types:
                 if f.attribute.attribute_type == AttributeType.OTHER:
                     self.updated_features.append(f)
                 elif f.attribute.attribute_type in [
                     AttributeType.ACTIVITY_COL_NUMERICAL,
                     AttributeType.ACTIVITY_COL_CATEGORICAL,
                 ]:
-                    if f.column_name in self.selected_activity_table_cols:
+                    if f.df_column_name in self.selected_activity_table_cols:
                         self.updated_features.append(f)
                 elif f.attribute.attribute_type in [
                     AttributeType.CASE_COL_CATEGORICAL,
                     AttributeType.CASE_COL_NUMERICAL,
                 ]:
-                    if f.column_name in self.selected_activity_table_cols:
+                    x = f.attribute.column_name in self.selected_case_table_cols
+                    print(f"{f.attribute.column_name} in selected columns: {x}")
+                    if f.attribute.column_name in self.selected_case_table_cols:
                         self.updated_features.append(f)
-
-        self.statistical_analysis_screen.update_attr_selection(self.updated_features)
-        self.decision_rules_screen.update_features(self.updated_features)
 
 
 class AnalysisCaseDuration:
@@ -138,8 +138,8 @@ class AnalysisCaseDuration:
             print("Fetching data and preprocessing...")
 
         # Get configurations
-        start_date = self.configurator.applied_configs.get("start_date")
-        end_date = self.configurator.applied_configs.get("end_date")
+        start_date = self.configurator.applied_configs.get("date_start")
+        end_date = self.configurator.applied_configs.get("date_end")
 
         self.fp.run_total_time_PQL(
             time_unit="DAYS", start_date=start_date, end_date=end_date
@@ -148,7 +148,9 @@ class AnalysisCaseDuration:
             print("Done")
 
         # assign the attributes and columns
-        self.selected_attributes = self.fp.attributes
+        self.selected_attributes = (
+            self.fp.static_attributes + self.fp.dynamic_attributes
+        )
         self.selected_activity_table_cols = (
             self.fp.dynamic_categorical_cols + self.fp.dynamic_numerical_cols
         )
@@ -202,7 +204,6 @@ class AnalysisCaseDuration:
 
         # Create expert box
         attributes = self.fp.static_attributes + self.fp.dynamic_attributes
-        attributes = remove_duplicate_attributes(attributes)
 
         self.expert_screen = ExpertScreen(
             attributes=attributes,

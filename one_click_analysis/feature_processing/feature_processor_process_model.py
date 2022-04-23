@@ -17,7 +17,16 @@ from one_click_analysis import utils
 from one_click_analysis.feature_processing import attributes
 from one_click_analysis.feature_processing.attributes import AttributeDataType
 from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+    CurrentCategoricalActivityColumnAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+    CurrentNumericalActivityColumnAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
     DynamicAttribute,
+)
+from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+    NextActivityAttribute,
 )
 from one_click_analysis.feature_processing.attributes_new.static_attributes import (
     ActivityOccurenceAttribute,
@@ -761,6 +770,7 @@ class FeatureProcessor:
         target_variable: PQLColumn,
     ) -> Tuple[Any, ...]:
         # Get PQLColumns from the attributes
+        self.process_model.global_filters = self.filters
         static_attributes_pql = [attr.pql_query for attr in static_attributes]
         if dynamic_attributes:
             dynamic_attributes_pql = [attr.pql_query for attr in dynamic_attributes]
@@ -961,6 +971,145 @@ class FeatureProcessor:
         # )
         filter_str = f"PROCESS EQUALS '{start_activity}'"
         return PQLFilter(filter_str)
+
+    def _get_current_numerical_activity_col_attributes(self):
+        attrs = []
+        for col in self.dynamic_numerical_cols:
+            attr = CurrentNumericalActivityColumnAttribute(
+                process_model=self.process_model, column_name=col, is_feature=True
+            )
+            attrs.append(attr)
+        return attrs
+
+    def _get_current_categorical_activity_col_attributes(self):
+        attrs = []
+        for col in self.dynamic_categorical_cols:
+            attr = CurrentCategoricalActivityColumnAttribute(
+                process_model=self.process_model, column_name=col, is_feature=True
+            )
+            attrs.append(attr)
+        return attrs
+
+    def run_decision_point_new(
+        self,
+        source_activity: str,
+        target_activities: List[str],
+        time_unit="DAYS",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        invalid_target_replacement: str = "OTHER",
+    ):
+        """Run feature processing for total case time analysis.
+
+        :param time_unit: time unit to use. E.g. DAYS if attributes shall be in days.
+        :return:
+        """
+        # Add filters for start and end date
+        self.date_filter_PQL(start_date, end_date)
+
+        static_attributes = [
+            StartActivityAttribute(
+                process_model=self.process_model,
+                is_feature=True,
+                is_class_feature=False,
+            ),
+            StartActivityTimeAttribute(process_model=self.process_model),
+            EndActivityTimeAttribute(process_model=self.process_model),
+            CaseDurationAttribute(
+                process_model=self.process_model,
+                time_aggregation=time_unit,
+                is_feature=False,
+                is_class_feature=False,
+            )
+            # ActivityOccurenceAttribute(process_model=self.process_model,
+            #    aggregation="AVG", is_feature=True, is_class_feature=False,
+            # )
+        ]
+
+        # First see which activities happen often enough to be used. Then create the
+        # attributes for those.
+
+        print("_gen_categorical_case_column_attributes")
+        categorical_case_table_column_attrs = (
+            self._gen_categorical_case_column_attributes(
+                columns=self.static_categorical_cols,
+                is_feature=True,
+                is_class_feature=False,
+            )
+        )
+        print("_gen_numeric_case_column_attributes")
+        numeric_case_table_column_attrs = self._gen_numeric_case_column_attributes(
+            columns=self.static_numerical_cols,
+            is_feature=True,
+            is_class_feature=False,
+        )
+
+        static_attributes = (
+            static_attributes
+            + categorical_case_table_column_attrs
+            + numeric_case_table_column_attrs
+        )
+
+        self.static_attributes = static_attributes
+
+        dynamic_attributes = []
+        num_act_cols = self._get_current_numerical_activity_col_attributes()
+        cat_act_cols = self._get_current_categorical_activity_col_attributes()
+
+        dynamic_attributes = dynamic_attributes + num_act_cols + cat_act_cols
+
+        self.dynamic_attributes = dynamic_attributes
+
+        self.df_timestamp_column = "Start activity Time"
+
+        # Set key activity
+        self.process_model.key_activities = [source_activity]
+
+        target_attribute = NextActivityAttribute(
+            process_model=self.process_model,
+            is_class_feature=True,
+            attribute_name="Transition to activity",
+        )
+
+        # Define closed case (currently define that every case is a closed case)
+        is_closed_indicator = self._all_cases_closed_query()
+        # Define a default target variable
+        target_variable = target_attribute.pql_query
+
+        # Get DataFrames
+        print("extract dfs")
+        self.df_x, self.df_target = self.extract_dfs(
+            static_attributes=static_attributes,
+            dynamic_attributes=dynamic_attributes,
+            is_closed_indicator=is_closed_indicator,
+            target_variable=target_variable,
+        )
+
+        print("finish extracting")
+        print("start postprocessing")
+        pp = PostProcessor(
+            df_x=self.df_x,
+            df_target=self.df_target,
+            attributes=static_attributes + dynamic_attributes,
+            target_attribute=target_attribute,
+            valid_target_values=target_activities,
+            invalid_target_replacement=invalid_target_replacement,
+            min_counts_perc=0.02,
+            max_counts_perc=0.98,
+        )
+
+        self.df_x, self.df_target, self.target_features, self.features = pp.process()
+
+        statistics_computer = StatisticsComputer(
+            features=self.features,
+            target_features=self.target_features,
+            df_x=self.df_x,
+            df_target=self.df_target,
+        )
+        statistics_computer.compute_all_statistics()
+
+        print("finish postprocessing")
+        # return df_x, df_y, target_features, features
 
     def run_decision_point_PQL(
         self,

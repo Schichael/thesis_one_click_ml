@@ -10,7 +10,7 @@ from one_click_analysis.feature_processing.attributes_new.attribute import (
 
 @dataclass
 class Feature:
-    column_name: str
+    df_column_name: str
     datatype: AttributeDataType
     attribute: Attribute
     # If the feature was generated from a categorical attribute using ohe,

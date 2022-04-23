@@ -25,6 +25,7 @@ class StaticAttribute(Attribute, abc.ABC):
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
+        column_name: Optional[str] = None,
     ):
         super().__init__(
             process_model=process_model,
@@ -35,6 +36,7 @@ class StaticAttribute(Attribute, abc.ABC):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=unit,
+            column_name=column_name,
         )
 
     def get_query_with_value(self, value: Optional[str] = None):
@@ -430,6 +432,7 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            column_name=column_name,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -470,6 +473,7 @@ class CaseTableColumnNumericAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            column_name=column_name,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -503,6 +507,7 @@ class CaseTableColumnCategoricalAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            column_name=column_name,
         )
 
     def _gen_query(self) -> pql.PQLColumn:

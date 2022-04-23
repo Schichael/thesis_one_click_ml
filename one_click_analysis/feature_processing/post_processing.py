@@ -107,7 +107,7 @@ class PostProcessor:
 
                 # One hot encode
                 prefix = attr.attribute_name
-                prefix_sep = "="
+                prefix_sep = " = "
                 df_attr_cols = pd.get_dummies(
                     self.df_x[attr.attribute_name],
                     prefix=prefix,
@@ -146,18 +146,22 @@ class PostProcessor:
                     ] = np.nan
                 else:
                     self.df_target.loc[
-                        self.df_target[target_col_name] not in self.valid_target_values
+                        ~self.df_target[target_col_name].isin(self.valid_target_values)
                     ] = self.invalid_target_replacement
 
             # One hot encoding
+            prefix = target_col_name
+            prefix_sep = " = "
             df_target_cols = pd.get_dummies(
                 self.df_target[target_col_name],
-                prefix=target_col_name,
-                prefix_sep=" = ",
+                prefix=prefix,
+                prefix_sep=prefix_sep,
             )
 
             target_features = self._create_features(
-                df=df_target_cols, attr=self.target_attribute
+                df=df_target_cols,
+                attr=self.target_attribute,
+                prefix=prefix + prefix_sep,
             )
 
             # update target df
@@ -199,7 +203,7 @@ class PostProcessor:
             else:
                 attribute_value = None
             feature = Feature(
-                column_name=col,
+                df_column_name=col,
                 datatype=attr.data_type,
                 attribute=attr,
                 attribute_value=attribute_value,

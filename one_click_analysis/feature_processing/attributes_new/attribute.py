@@ -1,5 +1,6 @@
 import abc
 from enum import Enum
+from typing import Optional
 
 from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
@@ -33,6 +34,7 @@ class Attribute(abc.ABC):
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
+        column_name: Optional[str] = None,
     ):
         self.process_model = process_model
         self.attribute_name = attribute_name
@@ -42,6 +44,7 @@ class Attribute(abc.ABC):
         self.is_feature = is_feature
         self.is_class_feature = is_class_feature
         self.unit = unit
+        self.column_name = column_name
 
     def validate_feature_type(self):
         if self.is_feature and self.is_class_feature:

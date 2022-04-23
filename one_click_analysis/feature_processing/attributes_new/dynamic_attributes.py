@@ -1,4 +1,5 @@
 import abc
+from typing import Optional
 
 from prediction_builder.data_extraction import dynamic_features
 from prediction_builder.data_extraction import ProcessModel
@@ -24,6 +25,7 @@ class DynamicAttribute(Attribute, abc.ABC):
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
+        column_name: Optional[str] = None,
     ):
         super().__init__(
             process_model=process_model,
@@ -34,6 +36,7 @@ class DynamicAttribute(Attribute, abc.ABC):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=unit,
+            column_name=column_name,
         )
 
 
@@ -45,13 +48,11 @@ class NextActivityAttribute(DynamicAttribute):
     def __init__(
         self,
         process_model: ProcessModel,
-        next_activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
         attribute_name: str = "Next activity",
     ):
         self.process_model = process_model
-        self.next_activity = next_activity
         self.attribute_name = attribute_name
         pql_query = self._gen_query()
         super().__init__(
@@ -87,8 +88,7 @@ class CurrentNumericalActivityColumnAttribute(DynamicAttribute):
         self.process_model = process_model
         self.column_name = column_name
         self.attribute_name = (
-            f"{self.process_model.activity_table_str}."
-            f"{self.process_model.activity_column_str}"
+            f"{self.process_model.activity_table_str}." f"{column_name} (dynamic)"
         )
         pql_query = self._gen_query()
 
@@ -100,13 +100,11 @@ class CurrentNumericalActivityColumnAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            column_name=column_name,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
-        q = (
-            f'"{self.process_model.activity_table_str}".'
-            f'"{self.process_model.activity_column_str}"'
-        )
+        q = f'"{self.process_model.activity_table_str}".' f'"{self.column_name}"'
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
@@ -125,8 +123,7 @@ class CurrentCategoricalActivityColumnAttribute(DynamicAttribute):
         self.process_model = process_model
         self.column_name = column_name
         self.attribute_name = (
-            f"{self.process_model.activity_table_str}."
-            f"{self.process_model.activity_column_str}"
+            f"{self.process_model.activity_table_str}." f"{column_name} (dynamic)"
         )
         pql_query = self._gen_query()
 
@@ -138,13 +135,11 @@ class CurrentCategoricalActivityColumnAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            column_name=column_name,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
-        q = (
-            f'"{self.process_model.activity_table_str}".'
-            f'"{self.process_model.activity_column_str}"'
-        )
+        q = f'"{self.process_model.activity_table_str}".' f'"{self.column_name}"'
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 

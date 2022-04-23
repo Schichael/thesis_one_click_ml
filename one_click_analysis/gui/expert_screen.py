@@ -8,6 +8,9 @@ from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.feature_processing.attributes_new.attribute import (
     Attribute,
 )
+from one_click_analysis.feature_processing.attributes_new.attribute_utils import (
+    remove_duplicates,
+)
 from one_click_analysis.feature_processing.attributes_new.feature import Feature
 
 
@@ -29,7 +32,7 @@ class ExpertScreen:
         :param attr_selection: AttributeSelection object
 
         """
-        self.attributes = attributes
+        self.attributes = remove_duplicates(attributes)
         self.categorical_activity_table_cols = categorical_activity_table_cols
         self.numerical_activity_table_cols = numerical_activity_table_cols
         self.categorical_case_table_cols = categorical_case_table_cols
@@ -74,6 +77,8 @@ class ExpertScreen:
 
         for attr in self.attributes:
             # if the attribute is the label,
+            if not attr.is_feature:
+                continue
             cb = widgets.Checkbox(
                 value=True, description=attr.display_name, indent=False
             )

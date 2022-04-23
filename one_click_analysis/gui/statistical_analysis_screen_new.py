@@ -67,7 +67,7 @@ class StatisticalAnalysisScreen:
         """
         title_attributes_box_layout = Layout(margin="5px 0px 0px 0px")
         if len(self.target_features) == 1:
-            label_str = self.target_features[0].column_name
+            label_str = self.target_features[0].df_column_name
             title_attributes_html_str = (
                 '<span style="font-weight:bold;  font-size:16px"> '
                 "Attributes with potential effect on " + label_str + ":</span>"
@@ -89,7 +89,8 @@ class StatisticalAnalysisScreen:
             title_box = VBox(children=[title_attributes_html])
         else:
             dropdpwn_options = [
-                (label.column_name, i) for i, label in enumerate(self.target_features)
+                (label.df_column_name, i)
+                for i, label in enumerate(self.target_features)
             ]
             dropdown = Dropdown(options=dropdpwn_options, value=0)
             dropdown.observe(drop_down_on_change, "value")
@@ -102,7 +103,7 @@ class StatisticalAnalysisScreen:
     def create_features_box_contents(self):
         feature_boxes_list = []
         for target_feature in self.target_features:
-            target_name = target_feature.column_name
+            target_name = target_feature.df_column_name
             feature_boxes = []
 
             # remove nans
@@ -230,7 +231,7 @@ class FeatureField:
         """
         html_feature = (
             '<span style="font-weight:bold"> Attribute: '
-            + f'<span style="color: Blue">{self.feature.column_name}</span></span>'
+            + f'<span style="color: Blue">{self.feature.df_column_name}</span></span>'
         )
         feature_label = HTML(html_feature, layout=Layout(padding="0px 0px 0px 0px"))
         return feature_label
@@ -240,7 +241,7 @@ class FeatureField:
 
         :return: box with the metrics
         """
-        target_name = self.target_feature.column_name
+        target_name = self.target_feature.df_column_name
         corr = self.feature.metrics["correlations"][target_name]
 
         layout_padding = Layout(padding="0px 0px 0px 12px")
@@ -255,7 +256,7 @@ class FeatureField:
             sign = "+" if target_influence > 0 else ""
             effect_on_label_html = (
                 '<span style="font-weight:bold">Effect on '
-                + self.target_feature.column_name
+                + self.target_feature.df_column_name
                 + ": </span>"
                 + sign
                 + str(round(target_influence, 2))
@@ -324,14 +325,14 @@ class FeatureField:
         if self.feature.datatype == AttributeDataType.CATEGORICAL:
             hbox_metrics = self.gen_avg_metrics_box()
 
-            df_attr = self.df_x[[self.timestamp_column, self.feature.column_name]]
+            df_attr = self.df_x[[self.timestamp_column, self.feature.df_column_name]]
 
             datapoint_with_attr_str = f"{self.datapoint_str} with attribute"
             datapoint_all_str = f"{self.datapoint_str} (all)"
             df_attr[datapoint_all_str] = 1
             df_attr[datapoint_with_attr_str] = 0
             df_attr.loc[
-                df_attr[self.feature.column_name] == 1,
+                df_attr[self.feature.df_column_name] == 1,
                 f"{self.datapoint_str} with attribute",
             ] = 1
             fig_attribute_development = AttributeDevelopmentFigure(
@@ -353,34 +354,34 @@ class FeatureField:
             df_attr = self.df_x[
                 [
                     self.timestamp_column,
-                    self.feature.column_name,
+                    self.feature.df_column_name,
                 ]
             ]
-            df_attr[self.target_feature.column_name] = self.df_target[
-                self.target_feature.column_name
+            df_attr[self.target_feature.df_column_name] = self.df_target[
+                self.target_feature.df_column_name
             ]
 
             avg_target_over_attribute = (
-                df_attr.groupby(self.feature.column_name, as_index=False)[
-                    self.target_feature.column_name
+                df_attr.groupby(self.feature.df_column_name, as_index=False)[
+                    self.target_feature.df_column_name
                 ]
                 .mean()
                 .fillna(0)
             )
             fig_effect = go.Figure(
-                layout_title_text=self.target_feature.column_name
+                layout_title_text=self.target_feature.df_column_name
                 + " over attribute value"
             )
             # Attribute effect on label
             fig_effect.add_trace(
                 go.Scatter(
-                    x=avg_target_over_attribute[self.feature.column_name],
-                    y=avg_target_over_attribute[self.target_feature.column_name],
+                    x=avg_target_over_attribute[self.feature.df_column_name],
+                    y=avg_target_over_attribute[self.target_feature.df_column_name],
                     fill="tonexty",
                 )
             )
             fig_effect.update_layout(
-                title=self.target_feature.column_name + " over attribute value",
+                title=self.target_feature.df_column_name + " over attribute value",
                 xaxis_title=None,
                 yaxis_title=None,
                 height=250,
@@ -392,8 +393,8 @@ class FeatureField:
             attr_dev_fig = AttributeDevelopmentFigure(
                 df=self.df_x,
                 time_col=self.timestamp_column,
-                attribute_cols=self.feature.column_name,
-                attribute_names=self.feature.column_name,
+                attribute_cols=self.feature.df_column_name,
+                attribute_names=self.feature.df_column_name,
                 time_aggregation="M",
                 data_aggregation="mean",
                 fill=True,
@@ -415,14 +416,14 @@ class FeatureField:
         :return: box with average metrics
         """
         avg_with_attr = round(
-            self.df_target[self.df_x[self.feature.column_name] == 1][
-                self.target_feature.column_name
+            self.df_target[self.df_x[self.feature.df_column_name] == 1][
+                self.target_feature.df_column_name
             ].mean(),
             2,
         )
         avg_without_attr = round(
-            self.df_target[self.df_x[self.feature.column_name] != 1][
-                self.target_feature.column_name
+            self.df_target[self.df_x[self.feature.df_column_name] != 1][
+                self.target_feature.df_column_name
             ].mean(),
             2,
         )
@@ -431,7 +432,7 @@ class FeatureField:
             [
                 HTML(
                     '<center><span style="font-weight:bold"> Average '
-                    + self.target_feature.column_name
+                    + self.target_feature.df_column_name
                     + " with attribute"
                     + '</span><br><span style="color: Red; font-size:16px; '
                     'text-align: center">'
@@ -450,7 +451,7 @@ class FeatureField:
                 HTML(
                     '<center><span style="font-weight:bold; text-align: center"> '
                     "Average "
-                    + self.target_feature.column_name
+                    + self.target_feature.df_column_name
                     + " without attribute"
                     + '</span><br><span style="color: Green; font-size:16px; '
                     'text-align: center">'

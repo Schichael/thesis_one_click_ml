@@ -10,20 +10,27 @@ from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.configuration.configurations import DatePickerConfig
 from one_click_analysis.configuration.configurations import TransitionConfig
 from one_click_analysis.configuration.configurator import Configurator
-from one_click_analysis.feature_processing import attributes
+from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
 from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
+from one_click_analysis.feature_processing.attributes_new.attribute_utils import (
+    get_attribute_types,
+)
 from one_click_analysis.feature_processing.attributes_new.feature import Feature
-from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.feature_processor_process_model import (
+    FeatureProcessor,
+)
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.expert_screen import ExpertScreen
 from one_click_analysis.gui.overview_screen import OverviewScreenDecisionRules
-from one_click_analysis.gui.statistical_analysis_screen import StatisticalAnalysisScreen
+from one_click_analysis.gui.statistical_analysis_screen_new import (
+    StatisticalAnalysisScreen,
+)
 
 
 class AttributeSelectionRoutingDecision(AttributeSelection):
     def __init__(
         self,
-        selected_attributes: List[attributes.MinorAttribute],
+        selected_attributes: List[Attribute],
         selected_activity_table_cols: List[str],
         selected_case_table_cols: List[str],
         statistical_analysis_screen: StatisticalAnalysisScreen,
@@ -42,21 +49,25 @@ class AttributeSelectionRoutingDecision(AttributeSelection):
 
     def update(self):
         self.updated_features = []
+        selected_Attribute_types = get_attribute_types(self.selected_attributes)
         for f in self.features:
-            if f.attribute in self.selected_attributes:
+            if type(f.attribute) in selected_Attribute_types:
                 if f.attribute.attribute_type == AttributeType.OTHER:
                     self.updated_features.append(f)
                 elif f.attribute.attribute_type in [
                     AttributeType.ACTIVITY_COL_NUMERICAL,
                     AttributeType.ACTIVITY_COL_CATEGORICAL,
                 ]:
-                    if f.column_name in self.selected_activity_table_cols:
+                    if f.df_column_name in self.selected_activity_table_cols:
                         self.updated_features.append(f)
                 elif f.attribute.attribute_type in [
                     AttributeType.CASE_COL_CATEGORICAL,
                     AttributeType.CASE_COL_NUMERICAL,
                 ]:
-                    if f.column_name in self.selected_activity_table_cols:
+                    x = f.attribute.column_name in self.selected_case_table_cols
+                    print(f"{f.attribute.column_name} in selected columns: {x}")
+                    if f.attribute.column_name in self.selected_case_table_cols:
+
                         self.updated_features.append(f)
 
         self.statistical_analysis_screen.update_attr_selection(self.updated_features)
@@ -86,6 +97,7 @@ class AnalysisRoutingDecision:
         self.stat_analysis_screen = None
         self.dec_rule_screen = None
         self.expert_screen = None
+        self.attr_selection = None
         self.tabs = None
         self.tab_names = [
             "Configurations",
@@ -135,25 +147,28 @@ class AnalysisRoutingDecision:
             print("Fetching data and preprocessing...")
 
         # Get configurations
-        start_date = self.configurator.applied_configs.get("start_date")
-        end_date = self.configurator.applied_configs.get("end_date")
+        start_date = self.configurator.applied_configs.get("date_start")
+        end_date = self.configurator.applied_configs.get("date_end")
         start_activity = self.configurator.applied_configs.get("source_activity")
         end_activities = self.configurator.applied_configs.get("target_activities")
         print(f"source_activities: {start_activity}")
         print(f"end_activities: {end_activities}")
 
-        self.fp.run_decision_point_PQL(
-            start_activity=start_activity,
-            end_activities=end_activities,
+        self.fp.run_decision_point_new(
+            source_activity=start_activity,
+            target_activities=end_activities,
             time_unit="DAYS",
             start_date=start_date,
             end_date=end_date,
+            invalid_target_replacement="OTHER",
         )
         with out:
             print("Done")
 
         # assign the attributes and columns
-        self.selected_attributes = self.fp.minor_attrs
+        self.selected_attributes = (
+            self.fp.static_attributes + self.fp.dynamic_attributes
+        )
         self.selected_activity_table_cols = (
             self.fp.dynamic_categorical_cols + self.fp.dynamic_numerical_cols
         )
@@ -170,45 +185,58 @@ class AnalysisRoutingDecision:
 
         # Ceate statistical analysis tab
         self.overview_screen = OverviewScreenDecisionRules(
-            fp=self.fp,
-            source_activity="Status Change",
-            target_activities=[
-                "Assignment",
-                "Caused By CI",
-                "Operator Update",
-                "Update",
-            ],
+            self.fp.df_x,
+            self.fp.df_target,
+            self.fp.features,
+            self.fp.target_features,
+            self.fp.df_timestamp_column,
+            source_activity=start_activity,
+            case_duration_col_name="Case duration",
         )
 
         self.stat_analysis_screen = StatisticalAnalysisScreen(
-            self.fp,
-            self.th,
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
+            self.fp.df_x,
+            self.fp.df_target,
+            self.fp.features,
+            self.fp.target_features,
+            self.fp.df_timestamp_column,
+            datapoint_str="Transitions",
+            th=self.th,
         )
         self.stat_analysis_screen.create_statistical_screen()
 
         # Create decision rule miner box
+        df_combined = self.fp.df_x
+        df_combined[self.fp.df_target.columns.tolist()] = self.fp.df_target
         self.dec_rule_screen = DecisionRulesScreen(
-            self.fp,
-            self.selected_attributes,
-            self.selected_activity_table_cols,
-            self.selected_case_table_cols,
+            df_combined,
+            features=self.fp.features,
+            target_features=self.fp.target_features,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 
         # Create AttributeSelection object
-        attr_selection_case_duration = AttributeSelectionRoutingDecision(
+        self.attr_selection = AttributeSelectionRoutingDecision(
             self.selected_attributes,
             self.selected_activity_table_cols,
             self.selected_case_table_cols,
             self.stat_analysis_screen,
             self.dec_rule_screen,
+            features=self.fp.features,
         )
 
         # Create expert box
-        self.expert_screen = ExpertScreen(self.fp, attr_selection_case_duration)
+        attributes = self.fp.static_attributes + self.fp.dynamic_attributes
+
+        self.expert_screen = ExpertScreen(
+            attributes=attributes,
+            categorical_activity_table_cols=self.fp.dynamic_categorical_cols,
+            numerical_activity_table_cols=self.fp.dynamic_numerical_cols,
+            categorical_case_table_cols=self.fp.static_categorical_cols,
+            numerical_case_table_cols=self.fp.static_numerical_cols,
+            features=self.fp.features,
+            attr_selection=self.attr_selection,
+        )
         self.expert_screen.create_expert_box()
 
         # Create tabs
