@@ -58,7 +58,7 @@ class AttributeSelectionRoutingDecision(AttributeSelection):
                     AttributeType.ACTIVITY_COL_NUMERICAL,
                     AttributeType.ACTIVITY_COL_CATEGORICAL,
                 ]:
-                    if f.df_column_name in self.selected_activity_table_cols:
+                    if f.attribute.column_name in self.selected_activity_table_cols:
                         self.updated_features.append(f)
                 elif f.attribute.attribute_type in [
                     AttributeType.CASE_COL_CATEGORICAL,
