@@ -8,7 +8,9 @@ from ipywidgets import VBox
 
 from one_click_analysis import utils
 from one_click_analysis.configuration.configurations import Configuration
-from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.feature_processor_process_model import (
+    FeatureProcessor,
+)
 
 
 class Configurator:

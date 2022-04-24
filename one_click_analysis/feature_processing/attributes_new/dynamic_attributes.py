@@ -73,6 +73,47 @@ class NextActivityAttribute(DynamicAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+class PreviousNumericalActivityColumnAttribute(DynamicAttribute):
+    """Previous value of column in the Activity table"""
+
+    display_name = "Previous numerical activity column value"
+
+    def __init__(
+        self,
+        process_model: ProcessModel,
+        column_name: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+    ):
+        self.process_model = process_model
+        self.column_name = column_name
+        self.attribute_name = (
+            f"{self.process_model.activity_table_str}."
+            f"{column_name} ("
+            f"previous, dynamic)"
+        )
+        pql_query = self._gen_query()
+
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.NUMERICAL,
+            process_model=self.process_model,
+            attribute_type=AttributeType.ACTIVITY_COL_NUMERICAL,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            column_name=column_name,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            f'ACTIVITY_LAG("{self.process_model.activity_table_str}".'
+            f""
+            f'"{self.column_name}", 1)'
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
 class CurrentNumericalActivityColumnAttribute(DynamicAttribute):
     """Current value of column in the Activity table"""
 
@@ -88,7 +129,9 @@ class CurrentNumericalActivityColumnAttribute(DynamicAttribute):
         self.process_model = process_model
         self.column_name = column_name
         self.attribute_name = (
-            f"{self.process_model.activity_table_str}." f"{column_name} (dynamic)"
+            f"{self.process_model.activity_table_str}."
+            f"{column_name} ("
+            f"current, dynamic)"
         )
         pql_query = self._gen_query()
 
@@ -108,6 +151,47 @@ class CurrentNumericalActivityColumnAttribute(DynamicAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+class PreviousCategoricalActivityColumnAttribute(DynamicAttribute):
+    """Previous value of column in the Activity table"""
+
+    display_name = "Previous categorical activity column value"
+
+    def __init__(
+        self,
+        process_model: ProcessModel,
+        column_name: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+    ):
+        self.process_model = process_model
+        self.column_name = column_name
+        self.attribute_name = (
+            f"{self.process_model.activity_table_str}."
+            f"{column_name} ("
+            f"previous, dynamic)"
+        )
+        pql_query = self._gen_query()
+
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            process_model=self.process_model,
+            attribute_type=AttributeType.ACTIVITY_COL_CATEGORICAL,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            column_name=column_name,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            f'ACTIVITY_LAG("{self.process_model.activity_table_str}".'
+            f""
+            f'"{self.column_name}", 1)'
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
 class CurrentCategoricalActivityColumnAttribute(DynamicAttribute):
     """Current value of column in the Activity table"""
 
@@ -123,7 +207,9 @@ class CurrentCategoricalActivityColumnAttribute(DynamicAttribute):
         self.process_model = process_model
         self.column_name = column_name
         self.attribute_name = (
-            f"{self.process_model.activity_table_str}." f"{column_name} (dynamic)"
+            f"{self.process_model.activity_table_str}."
+            f"{column_name} ("
+            f"current, dynamic)"
         )
         pql_query = self._gen_query()
 
@@ -203,7 +289,7 @@ class ActivityDurationAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
-            unit=unit,
+            unit=self.unit.lower(),
         )
 
     def _gen_query(self) -> pql.PQLColumn:

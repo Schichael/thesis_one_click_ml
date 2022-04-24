@@ -14,7 +14,9 @@ from pycelonis.celonis_api.pql.pql import PQLFilter
 
 from one_click_analysis import utils
 from one_click_analysis.errors import ConfiguratorNotSetError
-from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.feature_processor_process_model import (
+    FeatureProcessor,
+)
 
 
 class Configuration(abc.ABC):
@@ -189,7 +191,7 @@ class DatePickerConfig(Configuration):
         self.config_box = box_config
 
 
-class TransitionConfig(Configuration):
+class DecisionConfig(Configuration):
     """Configuration for defining a source activity and target activities"""
 
     def __init__(self, fp: FeatureProcessor, **kwargs):
@@ -298,6 +300,102 @@ class TransitionConfig(Configuration):
         caption_HTML = HTML(html_caption_str)
         hbox_activity_selection = HBox(
             children=[vbox_source_activity_selection, vbox_target_activities]
+        )
+        box_config = VBox(children=[caption_HTML, hbox_activity_selection])
+        self.config_box = box_config
+
+
+class TransitionConfig(Configuration):
+    """Configuration for defining a source activity and target activities"""
+
+    def __init__(self, fp: FeatureProcessor, **kwargs):
+        """
+        :param fp: FeatureProcessor before features were processes
+        """
+        super().__init__(**kwargs)
+
+        self.fp = fp
+        self._config = {}
+        self._config_box = Box()
+        self.selected_source_activity = None
+        self.selected_target_activity = None
+        self.create_config_box()
+
+    @property
+    def requirement_met(self):
+        if not self.required:
+            return True
+        if self.selected_source_activity is not None and self.selected_target_activity:
+            return True
+        else:
+            return False
+
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def config_box(self):
+        return self._config_box
+
+    @config_box.setter
+    def config_box(self, value):
+        self._config_box = value
+
+    def create_config_box(self):
+        """Create ipywidgets Box object for configuration visualization."""
+        html_descr_source_activity = HTML(
+            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
+            'font-size: 14px;">Pick a source activity</div>'
+        )
+        html_descr_target_activity = HTML(
+            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
+            'font-size: 14px;">Pick a target activity</div>'
+        )
+        # TODO: Can get activities from the process_model directly
+        activities = self.fp.get_activities()["activity"].values
+        # Sort activities
+        activities = sorted(activities)
+
+        def on_source_activity_clicked(b):
+            self.selected_source_activity = b.new
+            self.config["source_activity"] = self.selected_source_activity
+
+        # Source Activity
+        source_activity_selection = Select(
+            options=activities,
+            value=None,
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+        )
+        source_activity_selection.observe(on_source_activity_clicked, "value")
+        vbox_source_activity_selection = VBox(
+            children=[html_descr_source_activity, source_activity_selection]
+        )
+
+        def on_target_activity_clicked(b):
+            self.selected_target_activity = b.new
+            self.config["target_activity"] = self.selected_target_activity
+
+        # Source Activity
+        target_activity_selection = Select(
+            options=activities,
+            value=None,
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+        )
+        target_activity_selection.observe(on_target_activity_clicked, "value")
+        vbox_target_activity_selection = VBox(
+            children=[html_descr_target_activity, target_activity_selection]
+        )
+
+        html_caption_str = (
+            f'<span style="font-weight:'
+            f"{self.get_html_str_caption_bold()}; font-size"
+            f':{self.caption_size}px">Pick transition activities for analysis '
+            f"({self.optional_or_required_str})</span>"
+        )
+        caption_HTML = HTML(html_caption_str)
+        hbox_activity_selection = HBox(
+            children=[vbox_source_activity_selection, vbox_target_activity_selection]
         )
         box_config = VBox(children=[caption_HTML, hbox_activity_selection])
         self.config_box = box_config

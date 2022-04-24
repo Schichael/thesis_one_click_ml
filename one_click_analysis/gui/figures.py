@@ -257,8 +257,8 @@ class DistributionFigure(Figure):
         min_val = qs_label_val[min_percentile]
         max_val = qs_label_val[max_percentile]
 
-        lower_end = qs_label_val[lower_percentile]
-        upper_end = qs_label_val[upper_percentile]
+        lower_end = round(qs_label_val[lower_percentile])
+        upper_end = round(qs_label_val[upper_percentile])
 
         bin_width = int(np.ceil((upper_end - lower_end) / (num_bins - 2)))
         if (max_val - min_val + 1) / bin_width < num_bins and bin_width > 1:

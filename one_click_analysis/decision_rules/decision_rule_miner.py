@@ -280,7 +280,7 @@ class DecisionRuleMiner:
         """
         attr_dict = {}
         for attr in self.attribute_labels:
-            changed_str = attr.replace(",", "^").replace("'", "")
+            changed_str = attr.replace("'", "")
             attr_dict[changed_str] = attr
         return attr_dict
 

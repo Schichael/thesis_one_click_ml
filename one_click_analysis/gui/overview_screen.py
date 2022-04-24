@@ -254,3 +254,104 @@ class OverviewScreenDecisionRules(OverviewScreen):
                 [fig_transition_development.figure],
             ]
         )
+
+
+class OverviewScreenTransitionTime(OverviewScreen):
+    def __init__(
+        self,
+        df_x: pd.DataFrame,
+        df_target: pd.DataFrame,
+        features: List[Feature],
+        target_features: List[Feature],
+        timestamp_column: str,
+        source_activity: str,
+        target_activity: str,
+    ):
+        self.df_x = df_x
+        self.df_target = df_target
+        self.features = features
+        self.target_features = target_features
+        self.timestamp_column = timestamp_column
+        self.source_activity = source_activity
+        self.target_activity = target_activity
+        self._overview_box = self._create_overview_screen()
+
+    @property
+    def overview_box(self):
+        return self._overview_box
+
+    def _create_overview_screen(self):
+        """Create and get the overview screen
+
+        :return:
+        """
+        target_column_name = self.target_features[0].df_column_name
+        avg_transition_duration = round(self.df_target[target_column_name].mean(), 2)
+        unit = self.target_features[0].unit
+        # Case duration
+        title = "Average transition duration"
+        avg_tansition_duration_box = SingleValueBox(
+            title=title,
+            val=avg_transition_duration,
+            unit=unit,
+            title_color="Black",
+            val_color="Blue",
+        )
+
+        num_transitions = len(self.df_target.index)
+        title = f"Transitions from '{self.source_activity}' to '{self.target_activity}'"
+        num_transitions_box = SingleValueBox(
+            title=title,
+            val=num_transitions,
+            title_color="Black",
+            val_color="Blue",
+        )
+
+        num_cases = len(self.df_target.index.get_level_values(0))
+        title = "Number of selected cases"
+        num_cases_box = SingleValueBox(
+            title=title,
+            val=num_cases,
+            unit=None,
+            title_color="Black",
+            val_color="Blue",
+        )
+
+        metrics_box = HBox(
+            children=[
+                avg_tansition_duration_box.box,
+                num_transitions_box.box,
+                num_cases_box.box,
+            ],
+            layout=Layout(margin="0px 30px 0px 0px"),
+        )
+
+        # development of transition duration
+        df_target_with_transition_time = self.df_target
+        df_target_with_transition_time[self.timestamp_column] = self.df_x[
+            self.timestamp_column
+        ]
+
+        fig_transition_duration_development = AttributeDevelopmentFigure(
+            df=df_target_with_transition_time,
+            time_col=self.timestamp_column,
+            attribute_cols=self.target_features[0].df_column_name,
+            fill=True,
+            title="Transition duration development",
+        )
+
+        # case duration distribution
+        fig_distribution = DistributionFigure(
+            df=self.df_target,
+            attribute_col=self.target_features[0].df_column_name,
+            attribute_name="Transition time",
+            num_bins=10,
+        )
+
+        return self.create_box(
+            [
+                [metrics_box],
+                [fig_transition_duration_development.figure],
+                [fig_distribution.figure],
+            ]
+        )
