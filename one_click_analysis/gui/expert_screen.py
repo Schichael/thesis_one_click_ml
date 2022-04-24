@@ -5,8 +5,13 @@ from typing import List
 import ipywidgets as widgets
 
 from one_click_analysis.attribute_selection import AttributeSelection
-from one_click_analysis.feature_processing import attributes
-from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.attributes_new.attribute import (
+    Attribute,
+)
+from one_click_analysis.feature_processing.attributes_new.attribute_utils import (
+    remove_duplicates,
+)
+from one_click_analysis.feature_processing.attributes_new.feature import Feature
 
 
 class ExpertScreen:
@@ -14,7 +19,12 @@ class ExpertScreen:
 
     def __init__(
         self,
-        fp: FeatureProcessor,
+        attributes: List[Attribute],
+        categorical_activity_table_cols: List[str],
+        numerical_activity_table_cols: List[str],
+        categorical_case_table_cols: List[str],
+        numerical_case_table_cols: List[str],
+        features: List[Feature],
         attr_selection: AttributeSelection,
     ):
         """
@@ -22,19 +32,24 @@ class ExpertScreen:
         :param attr_selection: AttributeSelection object
 
         """
-        self.fp = fp
+        self.attributes = remove_duplicates(attributes)
+        self.categorical_activity_table_cols = categorical_activity_table_cols
+        self.numerical_activity_table_cols = numerical_activity_table_cols
+        self.categorical_case_table_cols = categorical_case_table_cols
+        self.numerical_case_table_cols = numerical_case_table_cols
+        self.features = features
         self.attr_selection = attr_selection
         self.expert_box = None
 
         # variables to store the local selected attributes and columns. Right now
         # take all from the FeatureProcessor
-        self.local_selected_attributes = fp.minor_attrs.copy()
+        self.local_selected_attributes = self.attributes.copy()
 
-        self.local_selected_activity_cat_cols = fp.dynamic_categorical_cols.copy()
-        self.local_selected_activity_num_cols = fp.dynamic_numerical_cols.copy()
+        self.local_selected_activity_cat_cols = categorical_activity_table_cols.copy()
+        self.local_selected_activity_num_cols = numerical_activity_table_cols.copy()
 
-        self.local_selected_case_cat_cols = fp.static_categorical_cols.copy()
-        self.local_selected_case_num_cols = fp.static_numerical_cols.copy()
+        self.local_selected_case_cat_cols = categorical_case_table_cols.copy()
+        self.local_selected_case_num_cols = numerical_case_table_cols.copy()
 
     def create_expert_box(self):
         """Create the box which contains checkboxes for all attributes including the
@@ -43,12 +58,10 @@ class ExpertScreen:
 
         :return: box with the attribute selection
         """
-        # dict that maps MinorAttribute attribute_name to the attribute object
-        minor_attrs_dict = {i.attribute_name: i for i in self.fp.minor_attrs}
+        # dict that maps Attribute display_name to the attribute object
+        attrs_dict = {i.display_name: i for i in self.attributes}
 
         cbs = []
-        cbs_activity_table = None
-        cbs_case_table = None
 
         def on_checkbox_clicked(b):
             """Define behaviour when checkbox of a "normal" attribute (not activity
@@ -58,36 +71,31 @@ class ExpertScreen:
             :return:
             """
             if b.new is False:
-                self.local_selected_attributes.remove(
-                    minor_attrs_dict[b.owner.description]
-                )
+                self.local_selected_attributes.remove(attrs_dict[b.owner.description])
             else:
-                self.local_selected_attributes.append(
-                    minor_attrs_dict[b.owner.description]
-                )
+                self.local_selected_attributes.append(attrs_dict[b.owner.description])
 
-        for attr in self.fp.minor_attrs:
+        for attr in self.attributes:
             # if the attribute is the label,
-            if not isinstance(
-                attr, attributes.ActivityTableColumnMinorAttribute
-            ) and not isinstance(attr, attributes.CaseTableColumnMinorAttribute):
-                cb = widgets.Checkbox(
-                    value=True, description=attr.attribute_name, indent=False
-                )
-                cb.observe(on_checkbox_clicked, "value")
-                cbs.append(cb)
-            elif isinstance(attr, attributes.ActivityTableColumnMinorAttribute):
-                (cbs_activity_table) = self.create_cbs_activity_case(
-                    "activity",
-                    cat_columns=self.fp.dynamic_categorical_cols,
-                    num_columns=self.fp.dynamic_numerical_cols,
-                )
-            elif isinstance(attr, attributes.CaseTableColumnMinorAttribute):
-                cbs_case_table = self.create_cbs_activity_case(
-                    "case",
-                    cat_columns=self.fp.static_categorical_cols,
-                    num_columns=self.fp.static_numerical_cols,
-                )
+            if not attr.is_feature:
+                continue
+            cb = widgets.Checkbox(
+                value=True, description=attr.display_name, indent=False
+            )
+            cb.observe(on_checkbox_clicked, "value")
+            cbs.append(cb)
+
+        cbs_activity_table = self.create_cbs_activity_case(
+            "activity",
+            cat_columns=self.categorical_activity_table_cols,
+            num_columns=self.numerical_activity_table_cols,
+        )
+
+        cbs_case_table = self.create_cbs_activity_case(
+            "case",
+            cat_columns=self.categorical_case_table_cols,
+            num_columns=self.numerical_case_table_cols,
+        )
 
         cbs_activity_case_table = [cbs_activity_table, cbs_case_table]
         # remove None
@@ -141,11 +149,11 @@ class ExpertScreen:
         """
         # Configs based on table value
         if table == "activity":
-            title = "Activity table attributes"
+            title = "Selection of Activity table columns to be usable by attributes:"
             selected_cat_cols = self.local_selected_activity_cat_cols
             selected_num_cols = self.local_selected_activity_num_cols
         elif table == "case":
-            title = "Case table attributes"
+            title = "Selection of Case table columns to be usable by attributes:"
             selected_cat_cols = self.local_selected_case_cat_cols
             selected_num_cols = self.local_selected_case_num_cols
         else:

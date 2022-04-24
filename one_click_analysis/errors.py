@@ -1,3 +1,8 @@
+from one_click_analysis.feature_processing.attributes_new.attribute import (
+    AttributeDataType,
+)
+
+
 class MinimumValueReachedError(Exception):
     """Raised when a minimum value is already reached and cannot be decreased"""
 
@@ -38,5 +43,14 @@ class ConfiguratorNotSetError(Exception):
             f"A configuration must have a configurator initialized. This is done "
             f"by initializing a Configurator object with this Configuration "
             f"instance"
+        )
+        super().__init__(message)
+
+
+class WrongFeatureTypeError(Exception):
+    def __init__(self, feature_col_name: str, datatype: AttributeDataType):
+        message = (
+            f"Feature type mus be either categorical or numerical but type of "
+            f"feature '{feature_col_name}' is: {datatype}"
         )
         super().__init__(message)

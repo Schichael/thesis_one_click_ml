@@ -252,7 +252,7 @@ class TransitionConfig(Configuration):
         source_activity_selection = Select(
             options=activities,
             value=None,
-            layout=Layout(overflow_y="auto", height="auto", max_height="400px"),
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
         )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(
@@ -282,7 +282,7 @@ class TransitionConfig(Configuration):
 
         vbox_target_activities_cbs = VBox(
             children=checkboxes,
-            layout=Layout(overflow_y="auto", max_height="400px"),
+            layout=Layout(overflow="auto", max_height="400px"),
         )
 
         vbox_target_activities = VBox(

@@ -78,7 +78,7 @@ class DecisionRuleMiner:
         # >= threshold
         self.threshold = threshold
         # threshold
-        self.label_df = self.gen_label_df()
+        self.train_df = self._gen_train_df()
         self.rules = None
         self.attr_dict = (
             self._create_attribute_dict()
@@ -100,16 +100,15 @@ class DecisionRuleMiner:
         self.max_rules = self.configs[self.config_index]["max_rules"]
         self.config_index = self.config_index
 
-    def gen_label_df(self) -> pd.DataFrame:
+    def _gen_label_df(self) -> pd.DataFrame:
         """Generate the DataFrame with a column with the positive(1) and negative(0)
         classes of the dependent variable from the label column in self.df.
 
         :return: DataFrame with column of the positive and negative classes
         """
-        label_df = pd.DataFrame()
+        label_df = pd.DataFrame(index=self.df.index)
         # create new label column if original is numerical
         if is_numeric_dtype(self.df[self.class_label]) and self.threshold is not None:
-
             label_df[self.preprocessed_label_col] = np.where(
                 self.df[self.class_label] >= self.threshold, 1, 0
             )
@@ -118,6 +117,13 @@ class DecisionRuleMiner:
         else:
             label_df[self.preprocessed_label_col] = self.df[self.class_label]
         return label_df
+
+    def _gen_train_df(self):
+        """create DataFrame used for training"""
+        label_df = self._gen_label_df()
+        df_train = self.df[self.attribute_labels]
+        df_train[self.preprocessed_label_col] = label_df[self.preprocessed_label_col]
+        return df_train
 
     def run_pipeline(self):
         """Run the pipeline that fits the ripper model and computes metrics."""
@@ -161,8 +167,9 @@ class DecisionRuleMiner:
             random_state=self.random_state,
             max_rules=self.max_rules,
         )
+
         self.clf.fit(
-            pd.concat([self.df[self.attribute_labels], self.label_df], axis=1),
+            self.train_df,
             class_feat=self.preprocessed_label_col,
             pos_class=self.pos_class,
         )
@@ -173,7 +180,7 @@ class DecisionRuleMiner:
 
         :return:array with the predicted classes
         """
-        pred = self.clf.predict(self.df[self.attribute_labels])
+        pred = self.clf.predict(self.train_df[self.attribute_labels])
         return np.array(pred)
 
     def _get_confusion_matrix(
@@ -193,7 +200,7 @@ class DecisionRuleMiner:
         :param pred: array with predictions
         :return: Tuple with the metrics
         """
-        true_labels = self.label_df[self.preprocessed_label_col].values
+        true_labels = self.train_df[self.preprocessed_label_col].values
         # remove nan rows
         idxs_nan = np.argwhere(np.isnan(true_labels))
         mask = np.full(len(true_labels), True)

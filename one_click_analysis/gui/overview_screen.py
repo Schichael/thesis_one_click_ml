@@ -2,13 +2,14 @@ import abc
 from typing import List
 
 import numpy as np
+import pandas as pd
 from ipywidgets import HBox
 from ipywidgets import Layout
 from ipywidgets import VBox
 from ipywidgets import Widget
 from plotly.graph_objs import FigureWidget
 
-from one_click_analysis.feature_processing.feature_processor import FeatureProcessor
+from one_click_analysis.feature_processing.attributes_new.feature import Feature
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 from one_click_analysis.gui.figures import BarWithLines
 from one_click_analysis.gui.figures import DistributionFigure
@@ -41,9 +42,19 @@ class OverviewScreen:
 
 
 class OverviewScreenCaseDuration(OverviewScreen):
-    def __init__(self, fp: FeatureProcessor):
-        self.fp = fp
-
+    def __init__(
+        self,
+        df_x: pd.DataFrame,
+        df_target: pd.DataFrame,
+        features: List[Feature],
+        target_features: List[Feature],
+        timestamp_column: str,
+    ):
+        self.df_x = df_x
+        self.df_target = df_target
+        self.features = features
+        self.target_features = target_features
+        self.timestamp_column = timestamp_column
         self._overview_box = self._create_overview_screen()
 
     @property
@@ -55,9 +66,9 @@ class OverviewScreenCaseDuration(OverviewScreen):
 
         :return:
         """
-        label_column_name = self.fp.labels[0].df_attribute_name
-        avg_case_duration = round(self.fp.df[label_column_name].mean(), 2)
-        unit = self.fp.labels[0].unit
+        target_column_name = self.target_features[0].df_column_name
+        avg_case_duration = round(self.df_target[target_column_name].mean(), 2)
+        unit = self.target_features[0].unit
         # Case duration
         title = "Average case duration"
         avg_case_duration_box = SingleValueBox(
@@ -73,18 +84,23 @@ class OverviewScreenCaseDuration(OverviewScreen):
         )
 
         # development of case duration
+        df_target_with_case_time = self.df_target
+        df_target_with_case_time[self.timestamp_column] = self.df_x[
+            self.timestamp_column
+        ]
+
         fig_case_duration_development = AttributeDevelopmentFigure(
-            df=self.fp.df,
-            time_col="Case start time",
-            attribute_cols=self.fp.labels[0].df_attribute_name,
+            df=df_target_with_case_time,
+            time_col=self.timestamp_column,
+            attribute_cols=self.target_features[0].df_column_name,
             fill=True,
             title="Case duration development",
         )
 
         # case duration distribution
         fig_distribution = DistributionFigure(
-            df=self.fp.df,
-            attribute_col=self.fp.labels[0].df_attribute_name,
+            df=self.df_target,
+            attribute_col=self.target_features[0].df_column_name,
             attribute_name="Case duration",
             num_bins=10,
         )
@@ -99,15 +115,35 @@ class OverviewScreenCaseDuration(OverviewScreen):
 
 
 class OverviewScreenDecisionRules(OverviewScreen):
-    def __init__(self, fp, source_activity: str, target_activities: List[str]):
-        self.fp = fp
+    def __init__(
+        self,
+        df_x: pd.DataFrame,
+        df_target: pd.DataFrame,
+        features: List[Feature],
+        target_features: List[Feature],
+        timestamp_column: str,
+        source_activity: str,
+        case_duration_col_name: str,
+    ):
+        self.df_x = df_x
+        self.df_target = df_target
+        self.features = features
+        self.target_features = target_features
+        self.timestamp_column = timestamp_column
         self.source_activity = source_activity
-        self.target_activities = target_activities
+        self.case_duration_col_name = case_duration_col_name
+        self.target_activities = self._get_target_activities()
         self._overview_box = self._create_overview_screen()
 
     @property
     def overview_box(self):
         return self._overview_box
+
+    def _get_target_activities(self):
+        target_activities = []
+        for tf in self.target_features:
+            target_activities.append(tf.attribute_value)
+        return target_activities
 
     def _create_overview_screen(self):
         """Create and get the overview screen
@@ -115,43 +151,42 @@ class OverviewScreenDecisionRules(OverviewScreen):
         :return:
         """
 
-        cases_with_source_activity = len(self.fp.df.index)
-        title = "Cases with activity " + self.source_activity
+        transitions_with_source_activity = len(self.df_target.index)
+        title = f"Transitions from activity '{self.source_activity}'"
         cases_with_activity_box = SingleValueBox(
             title=title,
-            val=cases_with_source_activity,
+            val=transitions_with_source_activity,
             title_color="Black",
             val_color="Blue",
         )
 
-        label_column_names = [x.df_attribute_name for x in self.fp.labels]
+        target_column_names = [x.df_column_name for x in self.target_features]
         # Get average case durations
         avg_case_durations = []
-        for col_name in label_column_names:
-            if len(self.fp.df[self.fp.df[col_name] == 1].index) == 0:
+        for col_name in target_column_names:
+            if len(self.df_target[self.df_target[col_name] == 1].index) == 0:
                 avg_case_durations.append(0)
             else:
+                # self.activity_case_key
+                df_with_target = self.df_x[self.df_target[col_name] == 1]
+                df_grouped = df_with_target.groupby(level=0).first()
                 avg_case_durations.append(
                     round(
-                        self.fp.df[self.fp.df[col_name] == 1][
-                            "case " "duration"
-                        ].mean(),
+                        df_grouped[self.case_duration_col_name].mean(),
                         2,
                     )
                 )
 
-        num_cases_with_label = []
-        for col_name in label_column_names:
+        num_datapoints_with_target = []
+        for tf in self.target_features:
 
-            num_cases_with_label.append(
-                len(self.fp.df[self.fp.df[col_name] == 1].index)
-            )
+            num_datapoints_with_target.append(tf.metrics["case_count"])
 
         # barplot with cases with target activities and metric line plot
 
         barplot_args = {
             "x": self.target_activities,
-            "y": num_cases_with_label,
+            "y": num_datapoints_with_target,
             "name": "Cases with transition",
         }
         line_plot_args = {
@@ -173,13 +208,16 @@ class OverviewScreenDecisionRules(OverviewScreen):
         title_transition_development = (
             "Cases with transitions from "
             + self.source_activity
-            + " to selected target "
-            "activities"
+            + " to selected target activities"
         )
+        df_target_with_case_time = self.df_target
+        df_target_with_case_time[self.timestamp_column] = self.df_x[
+            self.timestamp_column
+        ]
         fig_transition_development = AttributeDevelopmentFigure(
-            df=self.fp.df,
-            time_col="Case start time",
-            attribute_cols=label_column_names,
+            df=df_target_with_case_time,
+            time_col=self.timestamp_column,
+            attribute_cols=target_column_names,
             attribute_names=self.target_activities,
             fill=False,
             title=title_transition_development,
