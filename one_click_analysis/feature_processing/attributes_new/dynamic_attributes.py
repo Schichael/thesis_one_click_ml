@@ -174,3 +174,38 @@ class ActivityCountAttribute(DynamicAttribute):
     def _gen_query(self) -> pql.PQLColumn:
         q = self.dyn_feature.query
         return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
+class ActivityDurationAttribute(DynamicAttribute):
+    """Duration of the current activity"""
+
+    display_name = "Activity duration"
+
+    def __init__(
+        self,
+        process_model: ProcessModel,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        unit: str = "DAYS",
+    ):
+        self.process_model = process_model
+        # Use implementation from prediction_builder
+        self.unit = unit
+        self.dyn_feature = dynamic_features.ActivityDuration(process_model, unit=unit)
+        self.attribute_name = f"Activity duration"
+
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.OTHER,
+            process_model=self.process_model,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            unit=unit,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = self.dyn_feature.query
+        return pql.PQLColumn(query=q, name=self.attribute_name)
