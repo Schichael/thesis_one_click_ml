@@ -603,7 +603,6 @@ class DecisionRulesScreen:
             ],
             layout=Layout(
                 border="3px double CornflowerBlue",
-                color="CornflowerBlue",
                 margin="0px 0px 0px 10px",
             ),
         )

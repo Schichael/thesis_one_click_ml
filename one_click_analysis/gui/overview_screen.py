@@ -78,8 +78,19 @@ class OverviewScreenCaseDuration(OverviewScreen):
             title_color="Black",
             val_color="Blue",
         )
+
+        num_cases = len(self.df_target.index.get_level_values(0))
+        title = "Number of selected cases"
+        num_cases_box = SingleValueBox(
+            title=title,
+            val=num_cases,
+            unit=None,
+            title_color="Black",
+            val_color="Blue",
+        )
+
         metrics_box = HBox(
-            children=[avg_case_duration_box.box],
+            children=[avg_case_duration_box.box, num_cases_box.box],
             layout=Layout(margin="0px 30px 0px 0px"),
         )
 
@@ -160,6 +171,19 @@ class OverviewScreenDecisionRules(OverviewScreen):
             val_color="Blue",
         )
 
+        num_cases = len(self.df_target.index.get_level_values(0))
+        title = "Number of selected cases"
+        num_cases_box = SingleValueBox(
+            title=title,
+            val=num_cases,
+            unit=None,
+            title_color="Black",
+            val_color="Blue",
+        )
+        metrics_box = HBox(
+            children=[cases_with_activity_box.box, num_cases_box.box],
+            layout=Layout(margin="0px 30px 0px 0px"),
+        )
         target_column_names = [x.df_column_name for x in self.target_features]
         # Get average case durations
         avg_case_durations = []
@@ -225,7 +249,7 @@ class OverviewScreenDecisionRules(OverviewScreen):
         )
         return self.create_box(
             [
-                [cases_with_activity_box.box],
+                [metrics_box],
                 [barplot.figure],
                 [fig_transition_development.figure],
             ]

@@ -111,7 +111,7 @@ class AnalysisCaseDuration:
         out = widgets.Output(layout={"border": "1px solid black"})
         display(out)
         # 1. Connect to Celonis and get dm
-        out.append_stdout("\nConnecting to Celonis...")
+        out.append_stdout("Connecting to Celonis...")
 
         self.dm = utils.get_dm(self.datamodel, celonis_login=self.celonis_login)
         out.append_stdout("\nDone!")
