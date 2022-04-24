@@ -43,7 +43,7 @@ class ExpertScreen:
 
         # variables to store the local selected attributes and columns. Right now
         # take all from the FeatureProcessor
-        self.local_selected_attributes = attributes.copy()
+        self.local_selected_attributes = self.attributes.copy()
 
         self.local_selected_activity_cat_cols = categorical_activity_table_cols.copy()
         self.local_selected_activity_num_cols = numerical_activity_table_cols.copy()

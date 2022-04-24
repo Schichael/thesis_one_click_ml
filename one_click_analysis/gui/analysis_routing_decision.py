@@ -64,8 +64,6 @@ class AttributeSelectionRoutingDecision(AttributeSelection):
                     AttributeType.CASE_COL_CATEGORICAL,
                     AttributeType.CASE_COL_NUMERICAL,
                 ]:
-                    x = f.attribute.column_name in self.selected_case_table_cols
-                    print(f"{f.attribute.column_name} in selected columns: {x}")
                     if f.attribute.column_name in self.selected_case_table_cols:
 
                         self.updated_features.append(f)
@@ -115,11 +113,13 @@ class AnalysisRoutingDecision:
         out = widgets.Output(layout={"border": "1px solid black"})
         display(out)
         # 1. Connect to Celonis and get dm
-        with out:
-            print("Connecting to Celonis...")
+        out.append_stdout("Connecting to Celonis...")
+        # with out:
+        #    display("Connecting to Celonis...")
         self.dm = utils.get_dm(self.datamodel, celonis_login=self.celonis_login)
-        with out:
-            print("Done")
+        out.append_stdout("\nDone!")
+        # with out:
+        #    display("Done")
         # 2. Create FeatureProcessor and Configurator
 
         self.fp = FeatureProcessor(self.dm)
@@ -142,17 +142,13 @@ class AnalysisRoutingDecision:
     def run_analysis(self, out: widgets.Output):
         # Reset fp from a previous run
         self.fp.reset_fp()
-
-        with out:
-            print("Fetching data and preprocessing...")
+        out.append_stdout("\nFetching data and preprocessing...")
 
         # Get configurations
         start_date = self.configurator.applied_configs.get("date_start")
         end_date = self.configurator.applied_configs.get("date_end")
         start_activity = self.configurator.applied_configs.get("source_activity")
         end_activities = self.configurator.applied_configs.get("target_activities")
-        print(f"source_activities: {start_activity}")
-        print(f"end_activities: {end_activities}")
 
         self.fp.run_decision_point_new(
             source_activity=start_activity,
@@ -162,8 +158,7 @@ class AnalysisRoutingDecision:
             end_date=end_date,
             invalid_target_replacement="OTHER",
         )
-        with out:
-            print("Done")
+        out.append_stdout("\nDone!")
 
         # assign the attributes and columns
         self.selected_attributes = (
@@ -177,8 +172,7 @@ class AnalysisRoutingDecision:
         )
 
         # 3. Create the GUI
-        with out:
-            print("Creatng GUI...")
+        out.append_stdout("\nCreatng GUI...")
         # Create overview box
         # self.overview_screen = OverviewScreen(self.fp)
         # self.overview_screen.create_overview_screen()

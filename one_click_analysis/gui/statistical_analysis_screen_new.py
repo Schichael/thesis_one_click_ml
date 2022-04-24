@@ -81,7 +81,6 @@ class StatisticalAnalysisScreen:
         title_attributes_html = HTML(title_attributes_html_str)
 
         def drop_down_on_change(change):
-            print(change)
             if change.new != change.old:
                 self.attributes_box.children = self.attributes_box_contents[change.new]
 
@@ -146,7 +145,7 @@ class StatisticalAnalysisScreen:
         :return: VBox with the attributes box
         """
         attributes_box_layout = Layout(
-            overflow_y="scroll",
+            overflow="scroll",
             max_height="400px",
             border="3px solid grey",
             padding="3px 3px 3px 3px",

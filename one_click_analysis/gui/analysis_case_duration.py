@@ -63,10 +63,11 @@ class AttributeSelectionCaseDuration(AttributeSelection):
                     AttributeType.CASE_COL_CATEGORICAL,
                     AttributeType.CASE_COL_NUMERICAL,
                 ]:
-                    x = f.attribute.column_name in self.selected_case_table_cols
-                    print(f"{f.attribute.column_name} in selected columns: {x}")
                     if f.attribute.column_name in self.selected_case_table_cols:
                         self.updated_features.append(f)
+
+        self.statistical_analysis_screen.update_attr_selection(self.updated_features)
+        self.decision_rules_screen.update_features(self.updated_features)
 
 
 class AnalysisCaseDuration:
@@ -92,6 +93,7 @@ class AnalysisCaseDuration:
         self.stat_analysis_screen = None
         self.dec_rule_screen = None
         self.expert_screen = None
+        self.attr_selection = None
         self.tabs = None
         self.tab_names = [
             "Configurations",
@@ -109,11 +111,11 @@ class AnalysisCaseDuration:
         out = widgets.Output(layout={"border": "1px solid black"})
         display(out)
         # 1. Connect to Celonis and get dm
-        with out:
-            print("Connecting to Celonis...")
+        out.append_stdout("\nConnecting to Celonis...")
+
         self.dm = utils.get_dm(self.datamodel, celonis_login=self.celonis_login)
-        with out:
-            print("Done")
+        out.append_stdout("\nDone!")
+
         # 2. Create FeatureProcessor and Configurator
 
         self.fp = FeatureProcessor(self.dm)
@@ -133,9 +135,7 @@ class AnalysisCaseDuration:
     def run_analysis(self, out: widgets.Output):
         # Reset fp from a previous run
         self.fp.reset_fp()
-
-        with out:
-            print("Fetching data and preprocessing...")
+        out.append_stdout("\nFetching data and preprocessing...")
 
         # Get configurations
         start_date = self.configurator.applied_configs.get("date_start")
@@ -144,8 +144,7 @@ class AnalysisCaseDuration:
         self.fp.run_total_time_PQL(
             time_unit="DAYS", start_date=start_date, end_date=end_date
         )
-        with out:
-            print("Done")
+        out.append_stdout("\nDone")
 
         # assign the attributes and columns
         self.selected_attributes = (
@@ -159,8 +158,8 @@ class AnalysisCaseDuration:
         )
 
         # 3. Create the GUI
-        with out:
-            print("Creatng GUI...")
+        out.append_stdout("\nCreatng GUI...")
+
         # Create overview box
         self.overview_screen = OverviewScreenCaseDuration(
             self.fp.df_x,
@@ -193,7 +192,7 @@ class AnalysisCaseDuration:
         self.dec_rule_screen.create_decision_rule_screen()
 
         # Create AttributeSelection object
-        attr_selection_case_duration = AttributeSelectionCaseDuration(
+        self.attr_selection = AttributeSelectionCaseDuration(
             self.selected_attributes,
             self.selected_activity_table_cols,
             self.selected_case_table_cols,
@@ -212,7 +211,7 @@ class AnalysisCaseDuration:
             categorical_case_table_cols=self.fp.static_categorical_cols,
             numerical_case_table_cols=self.fp.static_numerical_cols,
             features=self.fp.features,
-            attr_selection=attr_selection_case_duration,
+            attr_selection=self.attr_selection,
         )
         self.expert_screen.create_expert_box()
 

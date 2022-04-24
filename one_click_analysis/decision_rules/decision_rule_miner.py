@@ -180,7 +180,7 @@ class DecisionRuleMiner:
 
         :return:array with the predicted classes
         """
-        pred = self.clf.predict(self.df[self.attribute_labels])
+        pred = self.clf.predict(self.train_df[self.attribute_labels])
         return np.array(pred)
 
     def _get_confusion_matrix(

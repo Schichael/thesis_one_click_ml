@@ -326,8 +326,7 @@ class FeatureProcessor:
 
         df_val_counts = self.get_df_with_filters(query)
         cols = df_val_counts.columns.tolist()
-        print(df_val_counts)
-        print(cols)
+
         valid_vals_dict = {}
         for col in cols:
             if not col.endswith("_values"):
@@ -339,7 +338,6 @@ class FeatureProcessor:
                 (df_val_counts[count_col_name] >= min_vals)
                 & (df_val_counts[count_col_name] <= max_vals)
             ][col].values.tolist()
-        print(valid_vals_dict)
         return valid_vals_dict
 
     def one_hot_encoding_PQL(
@@ -834,11 +832,9 @@ class FeatureProcessor:
 
         # First see which activities happen often enough to be used. Then create the
         # attributes for those.
-        print("_gen_static_activity_occurence_attributes")
         activity_occ_attributes = self._gen_static_activity_occurence_attributes(
-            is_feature=True
+            is_feature=True, min_vals=self.min_attr_count, max_vals=self.max_attr_count
         )
-        print("_gen_static_numeric_activity_table_attributes")
         numeric_activity_column_attributes = (
             self._gen_static_numeric_activity_table_attributes(
                 columns=self.dynamic_numerical_cols,
@@ -847,7 +843,6 @@ class FeatureProcessor:
                 is_class_feature=False,
             )
         )
-        print("_gen_categorical_case_column_attributes")
         categorical_case_table_column_attrs = (
             self._gen_categorical_case_column_attributes(
                 columns=self.static_categorical_cols,
@@ -855,7 +850,6 @@ class FeatureProcessor:
                 is_class_feature=False,
             )
         )
-        print("_gen_numeric_case_column_attributes")
         numeric_case_table_column_attrs = self._gen_numeric_case_column_attributes(
             columns=self.static_numerical_cols,
             is_feature=True,
@@ -891,7 +885,6 @@ class FeatureProcessor:
         target_variable = target_attribute.pql_query
 
         # Get DataFrames
-        print("extract dfs")
         self.df_x, self.df_target = self.extract_dfs(
             static_attributes=static_attributes,
             dynamic_attributes=dynamic_attributes,
@@ -899,8 +892,6 @@ class FeatureProcessor:
             target_variable=target_variable,
         )
 
-        print("finish extracting")
-        print("start postprocessing")
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
@@ -922,7 +913,6 @@ class FeatureProcessor:
         )
         statistics_computer.compute_all_statistics()
 
-        print("finish postprocessing")
         # return df_x, df_y, target_features, features
 
     def transition_occurence_PQL(
@@ -1029,7 +1019,6 @@ class FeatureProcessor:
         # First see which activities happen often enough to be used. Then create the
         # attributes for those.
 
-        print("_gen_categorical_case_column_attributes")
         categorical_case_table_column_attrs = (
             self._gen_categorical_case_column_attributes(
                 columns=self.static_categorical_cols,
@@ -1037,7 +1026,6 @@ class FeatureProcessor:
                 is_class_feature=False,
             )
         )
-        print("_gen_numeric_case_column_attributes")
         numeric_case_table_column_attrs = self._gen_numeric_case_column_attributes(
             columns=self.static_numerical_cols,
             is_feature=True,
@@ -1077,7 +1065,6 @@ class FeatureProcessor:
         target_variable = target_attribute.pql_query
 
         # Get DataFrames
-        print("extract dfs")
         self.df_x, self.df_target = self.extract_dfs(
             static_attributes=static_attributes,
             dynamic_attributes=dynamic_attributes,
@@ -1085,8 +1072,6 @@ class FeatureProcessor:
             target_variable=target_variable,
         )
 
-        print("finish extracting")
-        print("start postprocessing")
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
@@ -1108,7 +1093,6 @@ class FeatureProcessor:
         )
         statistics_computer.compute_all_statistics()
 
-        print("finish postprocessing")
         # return df_x, df_y, target_features, features
 
     def run_decision_point_PQL(
