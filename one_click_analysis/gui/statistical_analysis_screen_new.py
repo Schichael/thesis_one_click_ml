@@ -13,10 +13,10 @@ from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
 
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
-from one_click_analysis.feature_processing.attributes_new.feature import Feature
+from one_click_analysis.feature_processing.attributes.feature import Feature
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 
 

@@ -1,4 +1,4 @@
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
 

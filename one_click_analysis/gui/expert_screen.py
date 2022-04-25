@@ -5,13 +5,13 @@ from typing import List
 import ipywidgets as widgets
 
 from one_click_analysis.attribute_selection import AttributeSelection
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes.attribute import (
     Attribute,
 )
-from one_click_analysis.feature_processing.attributes_new.attribute_utils import (
+from one_click_analysis.feature_processing.attributes.attribute_utils import (
     remove_duplicates,
 )
-from one_click_analysis.feature_processing.attributes_new.feature import Feature
+from one_click_analysis.feature_processing.attributes.feature import Feature
 
 
 class ExpertScreen:

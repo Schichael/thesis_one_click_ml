@@ -14,7 +14,7 @@ from pycelonis.celonis_api.pql.pql import PQLFilter
 
 from one_click_analysis import utils
 from one_click_analysis.errors import ConfiguratorNotSetError
-from one_click_analysis.feature_processing.feature_processor_process_model import (
+from one_click_analysis.feature_processing.feature_processor import (
     FeatureProcessor,
 )
 

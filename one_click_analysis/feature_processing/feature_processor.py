@@ -13,58 +13,58 @@ from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
 from pycelonis.celonis_api.pql.pql import PQLFilter
 
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     ActivityDurationAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     CurrentCategoricalActivityColumnAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     CurrentNumericalActivityColumnAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     DynamicAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     NextActivityAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     PreviousCategoricalActivityColumnAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.dynamic_attributes import (
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     PreviousNumericalActivityColumnAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     ActivityOccurenceAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     CaseDurationAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     CaseTableColumnCategoricalAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     CaseTableColumnNumericAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     EndActivityAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     EndActivityTimeAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     NumericActivityTableColumnAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     StartActivityAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     StartActivityTimeAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     StaticAttribute,
 )
-from one_click_analysis.feature_processing.attributes_new.static_attributes import (
+from one_click_analysis.feature_processing.attributes.static_attributes import (
     WorkInProgressAttribute,
 )
 from one_click_analysis.feature_processing.post_processing import PostProcessor

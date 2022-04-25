@@ -4,12 +4,12 @@ from typing import Optional
 from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
-from one_click_analysis.feature_processing.attributes_new import attribute_utils
-from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes import attribute_utils
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
-from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
+from one_click_analysis.feature_processing.attributes.attribute import AttributeType
 
 
 class StaticAttribute(Attribute, abc.ABC):

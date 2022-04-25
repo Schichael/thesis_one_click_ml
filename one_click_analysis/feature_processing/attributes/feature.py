@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
 
-from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
 

@@ -8,11 +8,11 @@ from pandas.api.types import is_numeric_dtype
 from pandas.core.dtypes.common import is_string_dtype
 
 from one_click_analysis.errors import WrongFeatureTypeError
-from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
-from one_click_analysis.feature_processing.attributes_new.feature import Feature
+from one_click_analysis.feature_processing.attributes.feature import Feature
 
 
 class PostProcessor:

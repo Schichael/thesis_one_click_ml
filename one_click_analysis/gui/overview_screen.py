@@ -9,7 +9,7 @@ from ipywidgets import VBox
 from ipywidgets import Widget
 from plotly.graph_objs import FigureWidget
 
-from one_click_analysis.feature_processing.attributes_new.feature import Feature
+from one_click_analysis.feature_processing.attributes.feature import Feature
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 from one_click_analysis.gui.figures import BarWithLines
 from one_click_analysis.gui.figures import DistributionFigure

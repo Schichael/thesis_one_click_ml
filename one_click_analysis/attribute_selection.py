@@ -1,8 +1,8 @@
 import abc
 from typing import List
 
-from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
-from one_click_analysis.feature_processing.attributes_new.feature import Feature
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.feature import Feature
 
 
 class AttributeSelection(abc.ABC):

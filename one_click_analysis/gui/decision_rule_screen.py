@@ -20,10 +20,10 @@ from one_click_analysis.decision_rules.decision_rule_miner import DecisionRuleMi
 from one_click_analysis.errors import DecisionRuleNotValidLabelTypesError
 from one_click_analysis.errors import MaximumValueReachedError
 from one_click_analysis.errors import MinimumValueReachedError
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
-from one_click_analysis.feature_processing.attributes_new.feature import Feature
+from one_click_analysis.feature_processing.attributes.feature import Feature
 
 
 class DecisionRulesScreen:

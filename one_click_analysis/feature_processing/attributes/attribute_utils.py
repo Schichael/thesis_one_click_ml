@@ -1,7 +1,7 @@
 from typing import List
 from typing import Type
 
-from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
 
 
 def get_aggregation_df_name(agg: str):

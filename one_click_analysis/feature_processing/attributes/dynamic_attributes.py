@@ -5,11 +5,11 @@ from prediction_builder.data_extraction import dynamic_features
 from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
-from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
-from one_click_analysis.feature_processing.attributes_new.attribute import (
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
-from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
+from one_click_analysis.feature_processing.attributes.attribute import AttributeType
 
 
 class DynamicAttribute(Attribute, abc.ABC):

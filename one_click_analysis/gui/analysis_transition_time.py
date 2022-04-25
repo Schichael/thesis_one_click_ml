@@ -10,13 +10,13 @@ from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.configuration.configurations import DatePickerConfig
 from one_click_analysis.configuration.configurations import TransitionConfig
 from one_click_analysis.configuration.configurator import Configurator
-from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
-from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
-from one_click_analysis.feature_processing.attributes_new.attribute_utils import (
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import AttributeType
+from one_click_analysis.feature_processing.attributes.attribute_utils import (
     get_attribute_types,
 )
-from one_click_analysis.feature_processing.attributes_new.feature import Feature
-from one_click_analysis.feature_processing.feature_processor_process_model import (
+from one_click_analysis.feature_processing.attributes.feature import Feature
+from one_click_analysis.feature_processing.feature_processor import (
     FeatureProcessor,
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
