@@ -5,8 +5,6 @@ from typing import Optional
 from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
-from one_click_analysis.feature_processing.attributes import AttributeDataType
-
 
 class AttributeType(Enum):
     """Enum to check whether the attribute is a categorical or numerical activity or
@@ -17,6 +15,15 @@ class AttributeType(Enum):
     CASE_COL_NUMERICAL = "CASE_COL_NUMERICAL"
     CASE_COL_CATEGORICAL = "CASE_COL_CATEGORICAL"
     OTHER = "OTHER"
+
+
+class AttributeDataType(Enum):
+    NUMERICAL = "numerical"
+    CATEGORICAL = "categorical"
+    DATETIME = "datetime"
+
+    def __lt__(self, other):
+        return self.value <= other.value
 
 
 class Attribute(abc.ABC):
@@ -55,12 +62,3 @@ class Attribute(abc.ABC):
     @abc.abstractmethod
     def _gen_query(self):
         pass
-
-
-class AttributeDataType(Enum):
-    NUMERICAL = "numerical"
-    CATEGORICAL = "categorical"
-    DATETIME = "datetime"
-
-    def __lt__(self, other):
-        return self.value <= other.value

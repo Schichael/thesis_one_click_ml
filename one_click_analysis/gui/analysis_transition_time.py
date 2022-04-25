@@ -8,7 +8,7 @@ from ipywidgets import widgets
 from one_click_analysis import utils
 from one_click_analysis.attribute_selection import AttributeSelection
 from one_click_analysis.configuration.configurations import DatePickerConfig
-from one_click_analysis.configuration.configurations import DecisionConfig
+from one_click_analysis.configuration.configurations import TransitionConfig
 from one_click_analysis.configuration.configurator import Configurator
 from one_click_analysis.feature_processing.attributes_new.attribute import Attribute
 from one_click_analysis.feature_processing.attributes_new.attribute import AttributeType
@@ -21,13 +21,13 @@ from one_click_analysis.feature_processing.feature_processor_process_model impor
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.expert_screen import ExpertScreen
-from one_click_analysis.gui.overview_screen import OverviewScreenDecisionRules
+from one_click_analysis.gui.overview_screen import OverviewScreenTransitionTime
 from one_click_analysis.gui.statistical_analysis_screen_new import (
     StatisticalAnalysisScreen,
 )
 
 
-class AttributeSelectionRoutingDecision(AttributeSelection):
+class AttributeSelectionTransitionTime(AttributeSelection):
     def __init__(
         self,
         selected_attributes: List[Attribute],
@@ -72,18 +72,16 @@ class AttributeSelectionRoutingDecision(AttributeSelection):
         self.decision_rules_screen.update_features(self.updated_features)
 
 
-class AnalysisRoutingDecision:
+class AnalysisTransitionTime:
     """Analysis of potential effects on case duration."""
 
     def __init__(
         self, datamodel: str, celonis_login: Optional[dict] = None, th: float = 0.3
     ):
         """
-
         :param datamodel: datamodel name or id
         :param celonis_login: dict with login information
         """
-
         self.datamodel = datamodel
         self.celonis_login = celonis_login
         self.th = th
@@ -124,7 +122,7 @@ class AnalysisRoutingDecision:
 
         self.fp = FeatureProcessor(self.dm)
         dp_config = DatePickerConfig(self.fp)
-        tr_config = DecisionConfig(fp=self.fp, required=True)
+        tr_config = TransitionConfig(fp=self.fp, required=True)
         self.configurator = Configurator(
             self.fp, [dp_config, tr_config], self.run_analysis, out
         )
@@ -147,16 +145,15 @@ class AnalysisRoutingDecision:
         # Get configurations
         start_date = self.configurator.applied_configs.get("date_start")
         end_date = self.configurator.applied_configs.get("date_end")
-        start_activity = self.configurator.applied_configs.get("source_activity")
-        end_activities = self.configurator.applied_configs.get("target_activities")
+        source_activity = self.configurator.applied_configs.get("source_activity")
+        target_activity = self.configurator.applied_configs.get("target_activity")
 
-        self.fp.run_decision_point_new(
-            source_activity=start_activity,
-            target_activities=end_activities,
+        self.fp.run_transition_time(
+            source_activity=source_activity,
+            target_activity=target_activity,
             time_unit="DAYS",
             start_date=start_date,
             end_date=end_date,
-            invalid_target_replacement="OTHER",
         )
         out.append_stdout("\nDone!")
 
@@ -178,14 +175,14 @@ class AnalysisRoutingDecision:
         # self.overview_screen.create_overview_screen()
 
         # Ceate statistical analysis tab
-        self.overview_screen = OverviewScreenDecisionRules(
+        self.overview_screen = OverviewScreenTransitionTime(
             self.fp.df_x,
             self.fp.df_target,
             self.fp.features,
             self.fp.target_features,
             self.fp.df_timestamp_column,
-            source_activity=start_activity,
-            case_duration_col_name="Case duration",
+            source_activity=source_activity,
+            target_activity=target_activity,
         )
 
         self.stat_analysis_screen = StatisticalAnalysisScreen(
@@ -210,7 +207,7 @@ class AnalysisRoutingDecision:
         self.dec_rule_screen.create_decision_rule_screen()
 
         # Create AttributeSelection object
-        self.attr_selection = AttributeSelectionRoutingDecision(
+        self.attr_selection = AttributeSelectionTransitionTime(
             self.selected_attributes,
             self.selected_activity_table_cols,
             self.selected_case_table_cols,
