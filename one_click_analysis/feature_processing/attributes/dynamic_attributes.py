@@ -229,6 +229,39 @@ class CurrentCategoricalActivityColumnAttribute(DynamicAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+class PreviousActivityOccurrenceAttribute(DynamicAttribute):
+    """Number of times activity occurred in process before current row"""
+
+    display_name = "Previous occurrence of activity"
+
+    def __init__(
+        self,
+        process_model: ProcessModel,
+        activity: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+    ):
+        self.process_model = process_model
+        self.activity = activity
+        # Use implementation from prediction_builder
+        self.dyn_act_count = dynamic_features.ActivityCount(process_model, activity)
+        self.attribute_name = f"Previous occurrence of activity {activity}"
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
+            process_model=self.process_model,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = f"CASE WHEN {self.dyn_act_count.query} >= 1 THEN 1 ELSE 0 END"
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
 class ActivityCountAttribute(DynamicAttribute):
     """Number of times activity occurred in process before current row"""
 

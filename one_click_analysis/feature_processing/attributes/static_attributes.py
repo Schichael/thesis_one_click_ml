@@ -94,7 +94,7 @@ class CaseDurationAttribute(StaticAttribute):
 class WorkInProgressAttribute(StaticAttribute):
     """Work in Progress for whole case"""
 
-    display_name = "Work in Progress dring case"
+    display_name = "Work in Progress during case"
 
     def __init__(
         self,
