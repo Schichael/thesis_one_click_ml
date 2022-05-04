@@ -130,6 +130,7 @@ class PostProcessor:
 
     def process_target_attribute(self):
         """One-hot-encode the target feature"""
+        # TODO: Also validate min and max values from already ohe'd columns
         target_col_name = self.target_attribute.attribute_name
         # Check whether the target attributes are numerical or categorical
         self.validate_attr_datatype(self.target_attribute)
