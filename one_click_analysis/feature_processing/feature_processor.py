@@ -29,6 +29,9 @@ from one_click_analysis.feature_processing.attributes.dynamic_attributes import 
     NextActivityAttribute,
 )
 from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
+    PreviousActivityOccurrenceAttribute,
+)
+from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     PreviousCategoricalActivityColumnAttribute,
 )
 from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
@@ -69,6 +72,7 @@ from one_click_analysis.feature_processing.attributes.static_attributes import (
 )
 from one_click_analysis.feature_processing.post_processing import PostProcessor
 from one_click_analysis.feature_processing.statistics_computer import StatisticsComputer
+from one_click_analysis.feature_processing.util_queries import extract_transitions
 
 pd.options.mode.chained_assignment = None
 
@@ -156,7 +160,7 @@ class FeatureProcessor:
     def reset_fp(self):
         """Reset the feature_processor to its initial values."""
         self.__init__(
-            self.dm, self.chunksize, self.min_attr_count_perc, self.max_attr_count
+            self.dm, self.chunksize, self.min_attr_count_perc, self.max_attr_count_perc
         )
 
     def _init_datamodel(self, dm):
@@ -353,6 +357,37 @@ class FeatureProcessor:
             filter_start = PQLFilter(filter_str)
             self.filters.append(filter_start)
 
+    def _gen_dynamic_activity_occurence_attributes(
+        self,
+        activities: List[str] = None,
+        min_vals: int = 0,
+        max_vals: int = np.inf,
+        is_feature: bool = True,
+        is_class_feature: bool = False,
+    ) -> List[PreviousActivityOccurrenceAttribute]:
+        """Generates the static ActivitiyOccurenceAttributes. If no activities are
+        given, all activities are used and it's checked for min and max values. If
+        activities are given, it is not checked for min and max occurences."""
+        if activities is None:
+            activities = self.get_valid_vals(
+                table_name=self.process_model.activity_table_str,
+                column_names=[self.process_model.activity_column_str],
+                min_vals=min_vals,
+                max_vals=max_vals,
+            )[self.process_model.activity_column_str]
+
+        activity_occ_attributes = []
+        for activity in activities:
+            attr = PreviousActivityOccurrenceAttribute(
+                process_model=self.process_model,
+                activity=activity,
+                is_feature=is_feature,
+                is_class_feature=is_class_feature,
+            )
+            activity_occ_attributes.append(attr)
+
+        return activity_occ_attributes
+
     def _gen_static_activity_occurence_attributes(
         self,
         activities: List[str] = None,
@@ -524,6 +559,16 @@ class FeatureProcessor:
         """
         # Add filters for start and end date
         self.date_filter_PQL(start_date, end_date)
+        # Define closed case (currently define that every case is a closed case)
+        is_closed_indicator = self._all_cases_closed_query()
+
+        self.process_model.global_filters = self.filters
+
+        self.transitions_df = extract_transitions(
+            process_model=self.process_model,
+            dm=self.dm,
+            is_closed_indicator=is_closed_indicator,
+        )
 
         static_attributes = [
             WorkInProgressAttribute(
@@ -598,8 +643,6 @@ class FeatureProcessor:
             is_class_feature=True,
         )
 
-        # Define closed case (currently define that every case is a closed case)
-        is_closed_indicator = self._all_cases_closed_query()
         # Define a default target variable
         target_variable = target_attribute.pql_query
 
@@ -707,9 +750,9 @@ class FeatureProcessor:
                 time_aggregation=time_unit,
                 is_feature=False,
                 is_class_feature=False,
-            )
+            ),
             # ActivityOccurenceAttribute(process_model=self.process_model,
-            #    aggregation="AVG", is_feature=True, is_class_feature=False,
+            #   aggregation="AVG", is_feature=True, is_class_feature=False,
             # )
         ]
 
@@ -740,8 +783,13 @@ class FeatureProcessor:
         dynamic_attributes = []
         num_act_cols = self._get_current_numerical_activity_col_attributes()
         cat_act_cols = self._get_current_categorical_activity_col_attributes()
+        activity_occ_attributes = self._gen_dynamic_activity_occurence_attributes(
+            is_feature=True, min_vals=self.min_attr_count, max_vals=self.max_attr_count
+        )
 
-        dynamic_attributes = dynamic_attributes + num_act_cols + cat_act_cols
+        dynamic_attributes = (
+            dynamic_attributes + num_act_cols + cat_act_cols + activity_occ_attributes
+        )
 
         self.dynamic_attributes = dynamic_attributes
 
