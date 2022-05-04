@@ -313,7 +313,7 @@ class FeatureField:
 
         title_layout = Layout(margin="15px 0px 0px 0px")
         title_html = (
-            '<span style="font-weight:bold;  font-size:16px"> Feature details:</span>'
+            '<span style="font-weight:bold;  font-size:16px"> Attribute details:</span>'
         )
         title_label = HTML(title_html, layout=title_layout)
 
@@ -433,7 +433,7 @@ class FeatureField:
                     '<center><span style="font-weight:bold"> Average '
                     + self.target_feature.df_column_name
                     + " with attribute"
-                    + '</span><br><span style="color: Red; font-size:16px; '
+                    + '</span><br><span style="color: Blue; font-size:16px; '
                     'text-align: center">'
                     + str(avg_with_attr)
                     + "\xa0"
@@ -452,7 +452,7 @@ class FeatureField:
                     "Average "
                     + self.target_feature.df_column_name
                     + " without attribute"
-                    + '</span><br><span style="color: Green; font-size:16px; '
+                    + '</span><br><span style="color: Blue; font-size:16px; '
                     'text-align: center">'
                     + str(avg_without_attr)
                     + "\xa0"
