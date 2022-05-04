@@ -79,7 +79,7 @@ class OverviewScreenCaseDuration(OverviewScreen):
             val_color="Blue",
         )
 
-        num_cases = len(self.df_target.index.get_level_values(0))
+        num_cases = len(set(self.df_target.index.get_level_values(0)))
         title = "Number of selected cases"
         num_cases_box = SingleValueBox(
             title=title,
@@ -171,7 +171,7 @@ class OverviewScreenDecisionRules(OverviewScreen):
             val_color="Blue",
         )
 
-        num_cases = len(self.df_target.index.get_level_values(0))
+        num_cases = len(set(self.df_target.index.get_level_values(0)))
         title = "Number of selected cases"
         num_cases_box = SingleValueBox(
             title=title,
@@ -307,7 +307,7 @@ class OverviewScreenTransitionTime(OverviewScreen):
             val_color="Blue",
         )
 
-        num_cases = len(self.df_target.index.get_level_values(0))
+        num_cases = len(set(self.df_target.index.get_level_values(0)))
         title = "Number of selected cases"
         num_cases_box = SingleValueBox(
             title=title,
