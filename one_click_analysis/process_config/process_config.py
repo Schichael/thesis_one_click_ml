@@ -70,6 +70,11 @@ class ProcessConfig:
         # Get
 
     def _set_tables(self, activity_table_str):
+        """Set the table member variables
+
+        :param activity_table_str: name of the primary activity table
+        :return:
+        """
         # Set activity and case table
         (
             self.primary_activity_table,
@@ -77,6 +82,7 @@ class ProcessConfig:
         ) = self._set_activity_case_table(
             activity_table_str, is_primary_activity_table=True
         )
+        self.activity_tables.append(self.primary_activity_table)
         if self.primary_case_table is not None:
             self.case_tables.append(self.primary_case_table)
 
