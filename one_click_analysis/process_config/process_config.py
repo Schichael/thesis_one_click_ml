@@ -21,39 +21,53 @@ class TableColumnType(Enum):
     TIME = "TIME"
     DATE = "DATE"
 
+    @classmethod
+    def categorical_types(cls):
+        """Get categorical datatypes"""
+        return [cls.STRING, cls.BOOLEAN]
+
+    @classmethod
+    def numeric_types(cls):
+        """Get numeric datatypes"""
+        return [cls.INTEGER, cls.FLOAT]
+
+
+# Define categorical and numerical column datatypes
+categoric_datatypes = []
+
 
 @dataclass
 class TableColumn:
-    column_name: str
+    name: str
     datatype: TableColumnType
 
 
 @dataclass
-class ActivityTable:
+class BaseTable:
     table_str: str
+    id: str
+    columns: List[TableColumn]
+
+
+@dataclass
+class ActivityTable(BaseTable):
     caseid_col_str: str
     activity_col_str: str
     eventtime_col_str: str
-    id: str
+    sort_col_str: Optional[str] = None
     case_table_str: Optional[str] = None
-    columns: List[TableColumn] = field(default_factory=list)
     activities: List[str] = field(default_factory=list)
 
 
 @dataclass
-class CaseTable:
-    table_str: str
+class CaseTable(BaseTable):
     caseid_col_str: Optional[str]  # Not sure if needed
     activity_tables_str: List[str]
-    id: str
-    columns: List[TableColumn] = field(default_factory=list)
 
 
 @dataclass
-class OtherTable:
-    table_str: str
-    id: str
-    columns: List[TableColumn] = field(default_factory=list)
+class OtherTable(BaseTable):
+    pass
 
 
 class ProcessConfig:
@@ -155,6 +169,7 @@ class ProcessConfig:
         activity_table_eventtime_column = activity_table_process_config[
             "timestampColumn"
         ]
+        activity_table_sort_column = activity_table_process_config["sortingColumn"]
         activity_table_columns = self._create_columns(activity_table)
         if is_primary_activity_table:
             activity_table_activities = self._get_activities(
@@ -188,6 +203,7 @@ class ProcessConfig:
             activity_col_str=activity_table_activity_column,
             eventtime_col_str=activity_table_eventtime_column,
             id=activity_table_id,
+            sort_col_str=activity_table_sort_column,
             case_table_str=case_table_str,
             columns=activity_table_columns,
             activities=activity_table_activities,
@@ -303,3 +319,45 @@ class ProcessConfig:
         df = self.dm.get_data_frame(q)
         activities = df["Activity"].values.tolist()
         return activities
+
+    def get_categorical_numerical_columns(
+        self, table_str: str
+    ) -> Tuple[List[str], List[str]]:
+        """Get the numerical and categorical columns of a table.
+
+        :param table_str: name of the considered table
+        :return: Tuple[categorical_columns, numerical_columns]
+        """
+        # Get the table with table_str
+        table = [
+            t
+            for t in self.activity_tables + self.case_tables + self.other_tables
+            if t.table_str == table_str
+        ][0]
+
+        categorical_cols = [
+            c.name
+            for c in table.columns
+            if c.datatype in TableColumnType.categorical_types()
+        ]
+
+        numeric_cols = [
+            c.name
+            for c in table.columns
+            if c.datatype in TableColumnType.numeric_types()
+        ]
+
+        # If the table is an activity table, need to remove some columns: Activity
+        # column, sorting column
+        if isinstance(table, ActivityTable):
+            if table.activity_col_str in categorical_cols:
+                categorical_cols.remove(table.activity_col_str)
+            if table.activity_col_str in numeric_cols:
+                numeric_cols.remove(table.activity_col_str)
+
+            if table.sort_col_str in categorical_cols:
+                categorical_cols.remove(table.sort_col_str)
+            if table.sort_col_str in numeric_cols:
+                numeric_cols.remove(table.sort_col_str)
+
+        return categorical_cols, numeric_cols
