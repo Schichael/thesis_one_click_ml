@@ -5,9 +5,11 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from prediction_builder.data_extraction import ProcessModelFactory
 from pycelonis.celonis_api.event_collection.data_model import Datamodel
 from pycelonis.celonis_api.event_collection.data_model import DatamodelTable
+from pycelonis.celonis_api.pql import pql
+
+# from prediction_builder.data_extraction import ProcessModelFactory
 
 
 class TableColumnType(Enum):
@@ -41,7 +43,7 @@ class ActivityTable:
 @dataclass
 class CaseTable:
     table_str: str
-    caseid_col_str: str
+    caseid_col_str: Optional[str]  # Not sure if needed
     activity_tables_str: List[str]
     id: str
     columns: List[TableColumn] = field(default_factory=list)
@@ -55,19 +57,33 @@ class OtherTable:
 
 
 class ProcessConfig:
-    def __init__(self, datamodel: Datamodel, activity_table_str: str):
+    """Holds general configurations of a process model."""
+
+    def __init__(
+        self,
+        datamodel: Datamodel,
+        activity_table_str: str,
+        global_filters: Optional[List[pql.PQLFilter]] = None,
+    ):
+        """Initialize ProcessConfig class
+
+        :param datamodel: Datamodel
+        :param activity_table_str: name of activity table
+        :param global_filters: List of PQL filters that are used to get the
+        activities.
+        """
         # create ProcessModel object
-        self.process_model = ProcessModelFactory.create(
-            datamodel=datamodel, activity_table=activity_table_str
-        )
+        # self.process_model = ProcessModelFactory.create(
+        #    datamodel=datamodel, activity_table=activity_table_str
+        # )
         self.dm = datamodel
+        self.global_filters = global_filters
         self.primary_activity_table = None
         self.activity_tables = []
         self.primary_case_table = None
         self.case_tables = []
         self.other_tables = []
         self._set_tables(activity_table_str)
-        # Get
 
     def _set_tables(self, activity_table_str):
         """Set the table member variables
@@ -99,6 +115,7 @@ class ProcessConfig:
             activity_table, case_table = self._set_activity_case_table(
                 activity_table_str
             )
+            self.activity_tables.append(activity_table)
             if case_table is not None:
                 self.case_tables.append(case_table)
 
@@ -140,7 +157,9 @@ class ProcessConfig:
         ]
         activity_table_columns = self._create_columns(activity_table)
         if is_primary_activity_table:
-            activity_table_activities = self.process_model.activities
+            activity_table_activities = self._get_activities(
+                activity_table_str, activity_table_activity_column
+            )
         else:
             activity_table_activities = []
 
@@ -209,7 +228,13 @@ class ProcessConfig:
             ),
             None,
         )
-        case_case_id = foreign_key_case_id["columns"][0]["sourceColumnName"]
+        # It can be that the activity table and the associated case table are not
+        # connected via a foreign key. Therefore, it can happen that
+        # foreign_key_case_id is None.
+        if foreign_key_case_id is not None:
+            case_case_id = foreign_key_case_id["columns"][0]["sourceColumnName"]
+        else:
+            case_case_id = None
         case_table_columns = self._create_columns(case_table)
         case_table_obj = CaseTable(
             table_str=case_table_str,
@@ -233,13 +258,6 @@ class ProcessConfig:
             table_str=table_str, id=table_id, columns=table_columns
         )
         return other_table
-
-    """
-    class OtherTable:
-    table_str: str
-    id: str
-    columns: List[TableColumn] = field(default_factory=list)
-    """
 
     def _create_columns(self, table: DatamodelTable) -> List[TableColumn]:
         """Create list of the columns of the input table as TableColumn objects
@@ -270,3 +288,18 @@ class ProcessConfig:
             "DATE": TableColumnType.DATE,
         }
         return datatype_mapping[datatype_str]
+
+    def _get_activities(
+        self,
+        activity_table_str: str,
+        activity_column_str: str,
+    ):
+        q = pql.PQL()
+        q += pql.PQLColumn(
+            name="Activity",
+            query=f""" DISTINCT "{activity_table_str}"."{activity_column_str}" """,
+        )
+        q += self.global_filters
+        df = self.dm.get_data_frame(q)
+        activities = df["Activity"].values.tolist()
+        return activities
