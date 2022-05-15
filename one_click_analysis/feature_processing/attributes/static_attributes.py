@@ -4,7 +4,7 @@ from typing import Optional
 from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
-from one_click_analysis.feature_processing.attributes import attribute_utils
+from one_click_analysis import utils
 from one_click_analysis.feature_processing.attributes.attribute import Attribute
 from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
@@ -105,7 +105,7 @@ class WorkInProgressAttribute(StaticAttribute):
     ):
         self.process_model = process_model
         self.aggregation = aggregation
-        aggregation_df_name = attribute_utils.get_aggregation_df_name(aggregation)
+        aggregation_df_name = utils.get_aggregation_df_name(aggregation)
         self.attribute_name = "Case Work in progress" + " (" + aggregation_df_name + ")"
         pql_query = self._gen_query()
         super().__init__(
@@ -421,13 +421,13 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
         self.attribute_name = (
             f"{self.process_model.activity_table_str}."
             f"{self.column_name} ("
-            f"{attribute_utils.get_aggregation_df_name(aggregation)})"
+            f"{utils.get_aggregation_df_name(aggregation)})"
         )
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
-            attribute_type=AttributeType.ACTIVITY_COL_NUMERICAL,
+            attribute_type=AttributeType.ACTIVITY_COL,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -447,62 +447,29 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
-class CaseTableColumnNumericAttribute(StaticAttribute):
+class CaseTableColumnAttribute(StaticAttribute):
     """Any case table column."""
-
-    display_name = "Numeric case table column"
 
     def __init__(
         self,
         process_model: ProcessModel,
+        table_name: str,
         column_name: str,
+        attribute_datatype: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
         self.process_model = process_model
+        self.table_name = table_name
         self.column_name = column_name
-        self.attribute_name = (
-            f"{self.process_model.case_table_str}." f"{self.column_name}"
-        )
+        self.attribute_name = f"{table_name}." f"{self.column_name}"
+        self.display_name = f"{table_name} column"
         pql_query = self._gen_query()
+        attribute_type = AttributeType.CASE_COL
         super().__init__(
             pql_query=pql_query,
-            data_type=AttributeDataType.NUMERICAL,
-            attribute_type=AttributeType.CASE_COL_NUMERICAL,
-            process_model=self.process_model,
-            attribute_name=self.attribute_name,
-            is_feature=is_feature,
-            is_class_feature=is_class_feature,
-            column_name=column_name,
-        )
-
-    def _gen_query(self) -> pql.PQLColumn:
-        q = f'"{self.process_model.case_table_str}"."{self.column_name}"'
-        return pql.PQLColumn(query=q, name=self.attribute_name)
-
-
-class CaseTableColumnCategoricalAttribute(StaticAttribute):
-    """Any case table column."""
-
-    display_name = "Categorical case table column"
-
-    def __init__(
-        self,
-        process_model: ProcessModel,
-        column_name: str,
-        is_feature: bool = False,
-        is_class_feature: bool = False,
-    ):
-        self.process_model = process_model
-        self.column_name = column_name
-        self.attribute_name = (
-            f"{self.process_model.case_table_str}." f"{self.column_name}"
-        )
-        pql_query = self._gen_query()
-        super().__init__(
-            pql_query=pql_query,
-            data_type=AttributeDataType.CATEGORICAL,
-            attribute_type=AttributeType.CASE_COL_CATEGORICAL,
+            data_type=attribute_datatype,
+            attribute_type=attribute_type,
             process_model=self.process_model,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -525,7 +492,7 @@ class CaseTableColumnCategoricalAttribute(StaticAttribute):
         """
         q = (
             f'CASE WHEN "{self.process_model.case_table_str}"."{self.column_name}" = '
-            f"'value' THEN 1 ELSE 0 END"
+            f"'{value}' THEN 1 ELSE 0 END"
         )
 
         return pql.PQLColumn(name=f"{self.attribute_name} = {value}", query=q)

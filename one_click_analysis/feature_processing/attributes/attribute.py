@@ -10,10 +10,8 @@ class AttributeType(Enum):
     """Enum to check whether the attribute is a categorical or numerical activity or
     case attribute or none of the two"""
 
-    ACTIVITY_COL_NUMERICAL = "ACTIVITY_NUMERICAL"
-    ACTIVITY_COL_CATEGORICAL = "ACTIVITY_COL_CATEGORICAL"
-    CASE_COL_NUMERICAL = "CASE_COL_NUMERICAL"
-    CASE_COL_CATEGORICAL = "CASE_COL_CATEGORICAL"
+    ACTIVITY_COL = "ACTIVITY_COLL"
+    CASE_COL = "CASE_COL"
     OTHER = "OTHER"
 
 
