@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from dataclasses import field
 from enum import Enum
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -8,8 +8,6 @@ from typing import Tuple
 from pycelonis.celonis_api.event_collection.data_model import Datamodel
 from pycelonis.celonis_api.event_collection.data_model import DatamodelTable
 from pycelonis.celonis_api.pql import pql
-
-# from prediction_builder.data_extraction import ProcessModelFactory
 
 
 class TableColumnType(Enum):
@@ -32,10 +30,6 @@ class TableColumnType(Enum):
         return [cls.INTEGER, cls.FLOAT]
 
 
-# Define categorical and numerical column datatypes
-categoric_datatypes = []
-
-
 @dataclass
 class TableColumn:
     name: str
@@ -56,7 +50,6 @@ class ActivityTable(BaseTable):
     eventtime_col_str: str
     sort_col_str: Optional[str] = None
     case_table_str: Optional[str] = None
-    activities: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -92,12 +85,20 @@ class ProcessConfig:
         # )
         self.dm = datamodel
         self.global_filters = global_filters
-        self.primary_activity_table = None
         self.activity_tables = []
-        self.primary_case_table = None
         self.case_tables = []
         self.other_tables = []
         self._set_tables(activity_table_str)
+        # Dictionary mapping table names to table objects
+        self.table_dict = self._create_table_dict()
+
+    def _create_table_dict(self) -> Dict[str, BaseTable]:
+        """Create dictionary from table name to Table object. This
+        method is intended to be called after al activity tables have been
+        initialized"""
+        tables = self.activity_tables + self.case_tables + self.other_tables
+        table_dict = {t.table_str: t for t in tables}
+        return table_dict
 
     def _set_tables(self, activity_table_str):
         """Set the table member variables
@@ -105,16 +106,6 @@ class ProcessConfig:
         :param activity_table_str: name of the primary activity table
         :return:
         """
-        # Set activity and case table
-        (
-            self.primary_activity_table,
-            self.primary_case_table,
-        ) = self._set_activity_case_table(
-            activity_table_str, is_primary_activity_table=True
-        )
-        self.activity_tables.append(self.primary_activity_table)
-        if self.primary_case_table is not None:
-            self.case_tables.append(self.primary_case_table)
 
         # Set other activity and case tables
         activity_table_ids = [
@@ -122,8 +113,6 @@ class ProcessConfig:
             for i in range(len(self.dm.data["processConfigurations"]))
         ]
         for activity_table_id in activity_table_ids:
-            if self.primary_activity_table.id == activity_table_id:
-                continue
             activity_table = self.dm.tables.find(activity_table_id)
             activity_table_str = activity_table.name
             activity_table, case_table = self._set_activity_case_table(
@@ -146,13 +135,11 @@ class ProcessConfig:
                 self.other_tables.append(other_table)
 
     def _set_activity_case_table(
-        self, activity_table_str: str, is_primary_activity_table: bool = False
+        self, activity_table_str: str
     ) -> Tuple[ActivityTable, CaseTable]:
         """Set the selected activity table and its associated case table
 
         :param activity_table_str: name of the activity table
-        :param is_primary_activity_table: whether it's the primary activity table. If
-        true, activities are set, else not.
         :return: ActivityTable object and CaseTable object
         """
         activity_table = self.dm.tables.find(activity_table_str)
@@ -171,12 +158,6 @@ class ProcessConfig:
         ]
         activity_table_sort_column = activity_table_process_config["sortingColumn"]
         activity_table_columns = self._create_columns(activity_table)
-        if is_primary_activity_table:
-            activity_table_activities = self._get_activities(
-                activity_table_str, activity_table_activity_column
-            )
-        else:
-            activity_table_activities = []
 
         if case_table_id:
             # Check if case table object already exists
@@ -206,7 +187,6 @@ class ProcessConfig:
             sort_col_str=activity_table_sort_column,
             case_table_str=case_table_str,
             columns=activity_table_columns,
-            activities=activity_table_activities,
         )
 
         return activity_table_obj, case_table_obj
@@ -305,15 +285,17 @@ class ProcessConfig:
         }
         return datatype_mapping[datatype_str]
 
-    def _get_activities(
-        self,
-        activity_table_str: str,
-        activity_column_str: str,
-    ):
+    def get_activities(self, activity_table_str: str) -> List[str]:
+        """Get all activities from an activity table. This is done usong a PQL query.
+        :param activity_table_str: name of the activity table
+        :return: List with the activities
+        """
+        activity_table = self.table_dict[activity_table_str]
         q = pql.PQL()
         q += pql.PQLColumn(
             name="Activity",
-            query=f""" DISTINCT "{activity_table_str}"."{activity_column_str}" """,
+            query=f""" DISTINCT "{activity_table_str}"."
+            {activity_table.activity_col_str}" """,
         )
         q += self.global_filters
         df = self.dm.get_data_frame(q)
