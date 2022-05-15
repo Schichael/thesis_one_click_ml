@@ -2,8 +2,9 @@ import abc
 from enum import Enum
 from typing import Optional
 
-from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
+
+from one_click_analysis.process_config.process_config import ProcessConfig
 
 
 class AttributeType(Enum):
@@ -31,7 +32,7 @@ class Attribute(abc.ABC):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
         attribute_name: str,
         pql_query: pql.PQLColumn,
         data_type: AttributeDataType,
@@ -41,7 +42,7 @@ class Attribute(abc.ABC):
         unit: str = "",
         column_name: Optional[str] = None,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
         self.attribute_name = attribute_name
         self.pql_query = pql_query
         self.data_type = data_type

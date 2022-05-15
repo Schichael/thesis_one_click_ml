@@ -1,7 +1,6 @@
 import abc
 from typing import Optional
 
-from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
 from one_click_analysis import utils
@@ -10,6 +9,7 @@ from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
 from one_click_analysis.feature_processing.attributes.attribute import AttributeType
+from one_click_analysis.process_config.process_config import ProcessConfig
 
 
 class StaticAttribute(Attribute, abc.ABC):
@@ -17,7 +17,7 @@ class StaticAttribute(Attribute, abc.ABC):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
         attribute_name: str,
         pql_query: pql.PQLColumn,
         data_type: AttributeDataType,
@@ -28,7 +28,7 @@ class StaticAttribute(Attribute, abc.ABC):
         column_name: Optional[str] = None,
     ):
         super().__init__(
-            process_model=process_model,
+            process_config=process_config,
             attribute_name=attribute_name,
             pql_query=pql_query,
             data_type=data_type,
@@ -58,17 +58,19 @@ class CaseDurationAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         time_aggregation: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
         self.time_aggregation = time_aggregation
         self.attribute_name = "Case duration"
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         pql_query = self._gen_query()
         super().__init__(
-            process_model=process_model,
+            process_config=process_config,
             attribute_name=self.attribute_name,
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
@@ -82,9 +84,9 @@ class CaseDurationAttribute(StaticAttribute):
         q = (
             "(CALC_THROUGHPUT(ALL_OCCURRENCE['Process Start'] TO ALL_OCCURRENCE["
             "'Process End'], REMAP_TIMESTAMPS(\""
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.timestamp_column_str
+            + self.activity_table.eventtime_col_str
             + '", '
             "" + self.time_aggregation + ")))"
         )
@@ -98,18 +100,20 @@ class WorkInProgressAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         aggregation: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.aggregation = aggregation
         aggregation_df_name = utils.get_aggregation_df_name(aggregation)
         self.attribute_name = "Case Work in progress" + " (" + aggregation_df_name + ")"
         pql_query = self._gen_query()
         super().__init__(
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
@@ -123,24 +127,24 @@ class WorkInProgressAttribute(StaticAttribute):
             "PU_"
             + self.aggregation
             + ' ( "'
-            + self.process_model.case_table_str
+            + self.activity_table.case_table_str
             + '", '
             "RUNNING_SUM( "
             "CASE WHEN "
             'INDEX_ACTIVITY_ORDER ( "'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.activity_column_str
+            + self.activity_table.activity_col_str
             + '" ) = 1 THEN 1'
             " WHEN "
             'INDEX_ACTIVITY_ORDER_REVERSE ( "'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.activity_column_str
+            + self.activity_table.activity_col_str
             + '" ) = 1 THEN -1 ELSE 0 END, ORDER BY ( "'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.timestamp_column_str
+            + self.activity_table.eventtime_col_str
             + '" ) ) )'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
@@ -153,15 +157,17 @@ class EventCountAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = "Case Event count"
         pql_query = self._gen_query()
         super().__init__(
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
@@ -172,11 +178,11 @@ class EventCountAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            'PU_COUNT("' + self.process_model.case_table_str + '", '
+            'PU_COUNT("' + self.activity_table.case_table_str + '", '
             '"'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.activity_column_str
+            + self.activity_table.activity_col_str
             + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
@@ -189,19 +195,21 @@ class ActivityOccurenceAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.activity = activity
         self.attribute_name = f"Activity = {self.activity} (occurence)"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
@@ -210,9 +218,9 @@ class ActivityOccurenceAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            f'CASE WHEN PU_SUM("{self.process_model.case_table_str}", CASE WHEN "'
-            f'{self.process_model.activity_table_str}"."'
-            f"{self.process_model.activity_column_str}\" = '{self.activity}' THEN 1 "
+            f'CASE WHEN PU_SUM("{self.activity_table.case_table_str}", CASE WHEN "'
+            f'{self.activity_table.table_str}"."'
+            f"{self.activity_table.activity_col_str}\" = '{self.activity}' THEN 1 "
             f"ELSE 0"
             f" END) >= 1 THEN 1 ELSE 0 END"
         )
@@ -226,18 +234,20 @@ class ReworkCountAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
         self.attribute_name = f"Case Rework count (all activities)"
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -245,10 +255,11 @@ class ReworkCountAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = f"""
-            PU_SUM("{self.process_model.case_table_str}",
+            PU_SUM("{self.activity_table.case_table_str}",
                 CASE
                     WHEN INDEX_ACTIVITY_TYPE (
-                        {self.process_model.activity_column.query}) > 1
+                        "{self.activity_table.table_str}".
+                        "{self.activity_table.activity_col_str}") > 1
                     THEN 1
                     ELSE 0
                 END)
@@ -263,18 +274,20 @@ class ReworkOccurrenceAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = f"Case Rework occurence (any activity)"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -283,10 +296,11 @@ class ReworkOccurrenceAttribute(StaticAttribute):
     def _gen_query(self) -> pql.PQLColumn:
         q = f"""
             CASE
-            WHEN PU_SUM("{self.process_model.case_table_str}",
+            WHEN PU_SUM("{self.activity_table.case_table_str}",
                 CASE
                     WHEN INDEX_ACTIVITY_TYPE (
-                        {self.process_model.activity_column.query}) > 1
+                        "{self.activity_table.table_str}".
+                        "{self.activity_table.activity_col_str}") > 1
                     THEN 1
                     ELSE 0
                 END) >=1 THEN 1 ELSE 0 END
@@ -301,18 +315,20 @@ class StartActivityAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = f"Start activity"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -320,11 +336,11 @@ class StartActivityAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            'PU_FIRST("' + self.process_model.case_table_str + '", '
+            'PU_FIRST("' + self.activity_table.case_table_str + '", '
             '"'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.activity_column_str
+            + self.activity_table.activity_col_str
             + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
@@ -339,9 +355,9 @@ class StartActivityAttribute(StaticAttribute):
         :return: the PQL query
         """
         q = (
-            f'CASE WHEN  PU_FIRST("{self.process_model.case_table_str}", '
-            + f'"{self.process_model.activity_table_str}"."'
-            f"{self.process_model.activity_column_str}\" = '{value}') THEN 1 ELSE "
+            f'CASE WHEN  PU_FIRST("{self.activity_table.case_table_str}", '
+            + f'"{self.activity_table.table_str}"."'
+            f"{self.activity_table.activity_col_str}\" = '{value}') THEN 1 ELSE "
             f"0 END"
         )
 
@@ -355,18 +371,20 @@ class EndActivityAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = f"End activity"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -374,11 +392,11 @@ class EndActivityAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            'PU_LAST("' + self.process_model.case_table_str + '", '
+            'PU_LAST("' + self.activity_table.case_table_str + '", '
             '"'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.activity_column_str
+            + self.activity_table.activity_col_str
             + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
@@ -393,9 +411,9 @@ class EndActivityAttribute(StaticAttribute):
         :return: the PQL query
         """
         q = (
-            f'CASE WHEN  PU_LAST("{self.process_model.case_table_str}", '
-            + f'"{self.process_model.activity_table_str}"."'
-            f"{self.process_model.activity_column_str}\" = '{value}') THEN 1 ELSE "
+            f'CASE WHEN  PU_LAST("{self.activity_table.case_table_str}", '
+            + f'"{self.activity_table.table_str}"."'
+            f"{self.activity_table.activity_col_str}\" = '{value}') THEN 1 ELSE "
             f"0 END"
         )
 
@@ -409,17 +427,19 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         column_name: str,
         aggregation: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.column_name = column_name
         self.aggregation = aggregation  # aggregation for PU function
         self.attribute_name = (
-            f"{self.process_model.activity_table_str}."
+            f"{self.activity_table.table_str}."
             f"{self.column_name} ("
             f"{utils.get_aggregation_df_name(aggregation)})"
         )
@@ -428,7 +448,7 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
             attribute_type=AttributeType.ACTIVITY_COL,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -437,12 +457,8 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            "PU_" + self.aggregation + '("' + self.process_model.case_table_str + '", '
-            '"'
-            + self.process_model.activity_table_str
-            + '"."'
-            + self.column_name
-            + '")'
+            "PU_" + self.aggregation + '("' + self.activity_table.case_table_str + '", '
+            '"' + self.activity_table.table_str + '"."' + self.column_name + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
@@ -452,14 +468,14 @@ class CaseTableColumnAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
         table_name: str,
         column_name: str,
         attribute_datatype: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
         self.table_name = table_name
         self.column_name = column_name
         self.attribute_name = f"{table_name}." f"{self.column_name}"
@@ -470,7 +486,7 @@ class CaseTableColumnAttribute(StaticAttribute):
             pql_query=pql_query,
             data_type=attribute_datatype,
             attribute_type=attribute_type,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -478,7 +494,7 @@ class CaseTableColumnAttribute(StaticAttribute):
         )
 
     def _gen_query(self) -> pql.PQLColumn:
-        q = f'"{self.process_model.case_table_str}"."{self.column_name}"'
+        q = f'"{self.table_name}"."{self.column_name}"'
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
     def get_query_with_value(self, value: Optional[str] = None):
@@ -491,7 +507,7 @@ class CaseTableColumnAttribute(StaticAttribute):
         :return: the PQL query
         """
         q = (
-            f'CASE WHEN "{self.process_model.case_table_str}"."{self.column_name}" = '
+            f'CASE WHEN "{self.table_name}"."{self.column_name}" = '
             f"'{value}' THEN 1 ELSE 0 END"
         )
 
@@ -505,13 +521,15 @@ class TransitionOccurenceAttribute(StaticAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         transition_start: str,
         transition_end: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.transition_start = transition_start
         self.transition_end = transition_end
         self.attribute_name = (
@@ -522,7 +540,7 @@ class TransitionOccurenceAttribute(StaticAttribute):
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -530,7 +548,9 @@ class TransitionOccurenceAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            f"CASE WHEN PROCESS EQUALS '{self.transition_start}' TO "
+            f'CASE WHEN PROCESS ON "{self.activity_table.table_str}"."'
+            f'{self.activity_table.activity_col_str}" EQUALS '
+            f"'{self.transition_start}' TO "
             f"'{self.transition_end}' THEN 1 ELSE 0 END"
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
@@ -541,15 +561,20 @@ class StartActivityTimeAttribute(StaticAttribute):
 
     display_name = "Start activity time"
 
-    def __init__(self, process_model: ProcessModel):
-        self.process_model = process_model
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+    ):
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = f"Start activity Time"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.DATETIME,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=False,
             is_class_feature=False,
@@ -557,11 +582,11 @@ class StartActivityTimeAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            'PU_FIRST("' + self.process_model.case_table_str + '", '
+            'PU_FIRST("' + self.activity_table.case_table_str + '", '
             '"'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.timestamp_column_str
+            + self.activity_table.eventtime_col_str
             + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
@@ -572,15 +597,16 @@ class EndActivityTimeAttribute(StaticAttribute):
 
     display_name = "End activity time"
 
-    def __init__(self, process_model: ProcessModel):
-        self.process_model = process_model
+    def __init__(self, process_config: ProcessConfig, activity_table_str: str):
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = f"End activity Time"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.DATETIME,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=False,
             is_class_feature=False,
@@ -588,11 +614,11 @@ class EndActivityTimeAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            'PU_Last("' + self.process_model.case_table_str + '", '
+            'PU_Last("' + self.activity_table.case_table_str + '", '
             '"'
-            + self.process_model.activity_table_str
+            + self.activity_table.table_str
             + '"."'
-            + self.process_model.timestamp_column_str
+            + self.activity_table.eventtime_col_str
             + '")'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
