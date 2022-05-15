@@ -1,8 +1,6 @@
 import abc
 from typing import Optional
 
-from prediction_builder.data_extraction import dynamic_features
-from prediction_builder.data_extraction import ProcessModel
 from pycelonis.celonis_api.pql import pql
 
 from one_click_analysis.feature_processing.attributes.attribute import Attribute
@@ -10,6 +8,7 @@ from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
 from one_click_analysis.feature_processing.attributes.attribute import AttributeType
+from one_click_analysis.process_config.process_config import ProcessConfig
 
 
 class DynamicAttribute(Attribute, abc.ABC):
@@ -17,7 +16,7 @@ class DynamicAttribute(Attribute, abc.ABC):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
         attribute_name: str,
         pql_query: pql.PQLColumn,
         data_type: AttributeDataType,
@@ -28,7 +27,7 @@ class DynamicAttribute(Attribute, abc.ABC):
         column_name: Optional[str] = None,
     ):
         super().__init__(
-            process_model=process_model,
+            process_config=process_config,
             attribute_name=attribute_name,
             pql_query=pql_query,
             data_type=data_type,
@@ -47,19 +46,21 @@ class NextActivityAttribute(DynamicAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
         attribute_name: str = "Next activity",
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = attribute_name
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -67,8 +68,8 @@ class NextActivityAttribute(DynamicAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            f'ACTIVITY_LEAD("{self.process_model.activity_table_str}".'
-            f'"{self.process_model.activity_column_str}", 1)'
+            f'ACTIVITY_LEAD("{self.activity_table.table_str}".'
+            f'"{self.activity_table.activity_col_str}", 1)'
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
@@ -80,25 +81,25 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         column_name: str,
         attribute_datatype: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.column_name = column_name
         self.attribute_name = (
-            f"{self.process_model.activity_table_str}."
-            f"{column_name} ("
-            f"previous, dynamic)"
+            f"{self.activity_table.table_str}." f"{column_name} (" f"previous, dynamic)"
         )
         pql_query = self._gen_query()
 
         super().__init__(
             pql_query=pql_query,
             data_type=attribute_datatype,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_type=AttributeType.ACTIVITY_COL,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -108,7 +109,7 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            f'ACTIVITY_LAG("{self.process_model.activity_table_str}".'
+            f'ACTIVITY_LAG("{self.activity_table.table_str}".'
             f""
             f'"{self.column_name}", 1)'
         )
@@ -122,25 +123,25 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         column_name: str,
         attribute_datatype: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.column_name = column_name
         self.attribute_name = (
-            f"{self.process_model.activity_table_str}."
-            f"{column_name} ("
-            f"current, dynamic)"
+            f"{self.activity_table.table_str}." f"{column_name} (" f"current, dynamic)"
         )
         pql_query = self._gen_query()
 
         super().__init__(
             pql_query=pql_query,
             data_type=attribute_datatype,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_type=AttributeType.ACTIVITY_COL,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
@@ -149,7 +150,7 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
         )
 
     def _gen_query(self) -> pql.PQLColumn:
-        q = f'"{self.process_model.activity_table_str}".' f'"{self.column_name}"'
+        q = f'"{self.activity_table.table_str}".' f'"{self.column_name}"'
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
@@ -160,30 +161,51 @@ class PreviousActivityOccurrenceAttribute(DynamicAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.activity = activity
         # Use implementation from prediction_builder
-        self.dyn_act_count = dynamic_features.ActivityCount(process_model, activity)
         self.attribute_name = f"Previous occurrence of activity {activity}"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.CATEGORICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
-        q = f"CASE WHEN {self.dyn_act_count.query} >= 1 THEN 1 ELSE 0 END"
+        q = (
+            f"CASE WHEN {self._get_query_string_without_case_table} >= 1 THEN 1 ELSE "
+            f"0 END"
+        )
         return pql.PQLColumn(query=q, name=self.attribute_name)
+
+    def _get_query_string_without_case_table(self):
+        return f"""
+            COALESCE(
+                RUNNING_SUM(
+                    CASE
+                        WHEN "{self.activity_table.table_str}"."
+                        {self.activity_table.activity_col_str}" =
+                            '{self.activity}'
+                        THEN 1
+                        ELSE 0
+                    END,
+                    PARTITION BY ("
+                    {self.activity_table.table_str}".
+                    "{self.activity_table.caseid_col_str}") ),
+            0)
+        """
 
 
 class ActivityCountAttribute(DynamicAttribute):
@@ -193,29 +215,44 @@ class ActivityCountAttribute(DynamicAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
     ):
-        self.process_model = process_model
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.activity = activity
         # Use implementation from prediction_builder
-        self.dyn_feature = dynamic_features.ActivityCount(process_model, activity)
         self.attribute_name = f"Count of activity {activity}"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
-        q = self.dyn_feature.query
+        q = f"""
+            COALESCE(
+                RUNNING_SUM(
+                    CASE
+                        WHEN "{self.activity_table.table_str}"."
+                        {self.activity_table.activity_col_str}" =
+                            '{self.activity}'
+                        THEN 1
+                        ELSE 0
+                    END,
+                    PARTITION BY ("
+                    {self.activity_table.table_str}".
+                    "{self.activity_table.caseid_col_str}") ),
+            0)
+        """
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
@@ -226,15 +263,15 @@ class ActivityDurationAttribute(DynamicAttribute):
 
     def __init__(
         self,
-        process_model: ProcessModel,
+        process_config: ProcessConfig,
+        activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "DAYS",
     ):
-        self.process_model = process_model
-        # Use implementation from prediction_builder
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
         self.unit = unit
-        self.dyn_feature = dynamic_features.ActivityDuration(process_model, unit=unit)
         self.attribute_name = f"Activity duration"
 
         pql_query = self._gen_query()
@@ -242,7 +279,7 @@ class ActivityDurationAttribute(DynamicAttribute):
             pql_query=pql_query,
             data_type=AttributeDataType.NUMERICAL,
             attribute_type=AttributeType.OTHER,
-            process_model=self.process_model,
+            process_config=self.process_config,
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
@@ -250,7 +287,16 @@ class ActivityDurationAttribute(DynamicAttribute):
         )
 
     def _gen_query(self) -> pql.PQLColumn:
-        q = self.dyn_feature.query
+        q = f"""
+            COALESCE(
+                {self.unit}_BETWEEN(
+                    ACTIVITY_LAG("{self.activity_table.table_str}"."
+                    {self.activity_table.eventtime_col_str}", 1),
+                    "{self.activity_table.table_str}"."
+                    {self.activity_table.eventtime_col_str}"
+                ), 0.0
+            )
+        """
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
