@@ -5,6 +5,8 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+from prediction_builder.data_extraction import ProcessModel
+from prediction_builder.data_extraction import ProcessModelFactory
 from pycelonis.celonis_api.event_collection.data_model import Datamodel
 from pycelonis.celonis_api.event_collection.data_model import DatamodelTable
 from pycelonis.celonis_api.pql import pql
@@ -48,6 +50,7 @@ class ActivityTable(BaseTable):
     caseid_col_str: str
     activity_col_str: str
     eventtime_col_str: str
+    process_model: ProcessModel
     sort_col_str: Optional[str] = None
     case_table_str: Optional[str] = None
 
@@ -69,7 +72,6 @@ class ProcessConfig:
     def __init__(
         self,
         datamodel: Datamodel,
-        activity_table_str: str,
         global_filters: Optional[List[pql.PQLFilter]] = None,
     ):
         """Initialize ProcessConfig class
@@ -80,15 +82,12 @@ class ProcessConfig:
         activities.
         """
         # create ProcessModel object
-        # self.process_model = ProcessModelFactory.create(
-        #    datamodel=datamodel, activity_table=activity_table_str
-        # )
         self.dm = datamodel
         self.global_filters = global_filters
         self.activity_tables = []
         self.case_tables = []
         self.other_tables = []
-        self._set_tables(activity_table_str)
+        self._set_tables()
         # Dictionary mapping table names to table objects
         self.table_dict = self._create_table_dict()
 
@@ -100,10 +99,8 @@ class ProcessConfig:
         table_dict = {t.table_str: t for t in tables}
         return table_dict
 
-    def _set_tables(self, activity_table_str):
+    def _set_tables(self):
         """Set the table member variables
-
-        :param activity_table_str: name of the primary activity table
         :return:
         """
 
@@ -158,6 +155,9 @@ class ProcessConfig:
         ]
         activity_table_sort_column = activity_table_process_config["sortingColumn"]
         activity_table_columns = self._create_columns(activity_table)
+        activity_table_process_model = ProcessModelFactory.create(
+            datamodel=self.dm, activity_table=activity_table_str
+        )
 
         if case_table_id:
             # Check if case table object already exists
@@ -184,6 +184,7 @@ class ProcessConfig:
             activity_col_str=activity_table_activity_column,
             eventtime_col_str=activity_table_eventtime_column,
             id=activity_table_id,
+            process_model=activity_table_process_model,
             sort_col_str=activity_table_sort_column,
             case_table_str=case_table_str,
             columns=activity_table_columns,
