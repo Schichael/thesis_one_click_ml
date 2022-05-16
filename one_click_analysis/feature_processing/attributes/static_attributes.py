@@ -438,10 +438,14 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
         self.activity_table = self.process_config.table_dict[activity_table_str]
         self.column_name = column_name
         self.aggregation = aggregation  # aggregation for PU function
+        aggregation_pretty_name = utils.get_aggregation_df_name(aggregation)
         self.attribute_name = (
             f"{self.activity_table.table_str}."
             f"{self.column_name} ("
-            f"{utils.get_aggregation_df_name(aggregation)})"
+            f"{aggregation_pretty_name})"
+        )
+        self.display_name = (
+            f"Numeric activity table column (aggregation={aggregation_pretty_name})"
         )
         pql_query = self._gen_query()
         super().__init__(
