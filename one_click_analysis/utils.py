@@ -80,3 +80,34 @@ def convert_date_to_str(d: datetime.date) -> str:
     day = str(d.day) if d.day >= 10 else "0" + str(d.day)
     date_str = f"{year}-{month}-{day}"
     return date_str
+
+
+def get_aggregation_df_name(agg: str):
+    """Generate the name of the aggregation to display to the user from the
+    aggregation String that is used for a PQL query
+
+    :param agg: original aggregation name as used for
+    :return: aggregation string to display
+    """
+    if agg == "MIN":
+        return "minimum"
+    elif agg == "MAX":
+        return "maximum"
+    elif agg == "AVG":
+        return "mean"
+    elif agg == "MEDIAN":
+        return "median"
+    elif agg == "FIRST":
+        return "first"
+    elif agg == "LAST":
+        return "last"
+
+
+def list_intersection(list_a: List[Any], list_b: List[Any]):
+    """Intersection of two lists. Result will be unordered.
+
+    :param list_a: First list
+    :param list_b: Second list
+    :return: List of the intersection of list_a and list_b
+    """
+    return list(set(list_a) & set(list_b))
