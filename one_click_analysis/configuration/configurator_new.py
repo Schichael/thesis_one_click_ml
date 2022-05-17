@@ -5,21 +5,8 @@ from ipywidgets import Button
 from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
-from pycelonis.celonis_api.pql import pql
 
-from one_click_analysis.configuration.configurations import Configuration
-
-
-class Configurator:
-    """Class that holds the configurations"""
-
-    def __init__(self):
-        # Dictionary that holds configurations. It is structured as follows:
-        # {"configuration_identifier_str": "some_config_key": config_value}
-        self.config_dict: Dict[str : Dict[str:Any]] = {}
-        # Dictionary that holds filters. It is structured as follows:
-        # {"configuration_identifier_str": [PQLFilter1, PQLFilter2, ...]
-        self.filter_dict: Dict[str : List[pql.PQLFilter]] = {}
+from one_click_analysis.configuration.configurations_new import Configuration
 
 
 class ConfiguratorView:
@@ -28,12 +15,8 @@ class ConfiguratorView:
     first reset to its initial values
     """
 
-    def __init__(
-        self,
-        configurations: List[Configuration],
-        run_analysis: Callable,
-        *run_analysis_args
-    ):
+    def __init__(self, configurations: List[Configuration], run_analysis: Callable,
+            *run_analysis_args):
         """
 
         :param configurations: List with configuration objects
@@ -41,7 +24,6 @@ class ConfiguratorView:
         :param run_analysis_args: arguments for the run_analysis function
         """
         self.configurations = configurations
-        self._init_configurations_with_configurator()
         self.run_analysis = run_analysis
         self.run_analysis_args = run_analysis_args
         self.children_config_box_layouts = Layout(margin="20px 0px 0px 0px")
@@ -50,17 +32,19 @@ class ConfiguratorView:
         self.filters = {}
         self.apply_button = None
         self._set_layouts_configs()
+        self._init_configurations()
         self.configurator_box = self.create_box()
         self.applied_configs = {}  # Configs at the time the apply button was clicked
         self.button_was_clicked = False
 
-    def _init_configurations_with_configurator(self):
-        for config in self.configurations:
-            config.configurator = self
-
     def _set_layouts_configs(self):
         for config in self.configurations:
             config.config_box.layout = self.children_config_box_layouts
+
+    def _init_configurations(self):
+        """Give the view's update function to the configurations"""
+        for config in self.configurations:
+            config.set_configurator_view_update_fct(self.update_view)
 
     def on_apply_clicked(self, b):
         """Define what happens when apply button is clicked"""
@@ -76,18 +60,21 @@ class ConfiguratorView:
         self.button_was_clicked = True
         self.apply_button.disabled = False
 
+    def update_view(self):
+        html_title = HTML(
+            '<span style="font-weight:bold;  font-size:16px">Configurations</span')
+        self.configurator_box.children = (
+                [html_title] + [config.config_box for config in self.configurations] + [
+            self.apply_button])
+
     def create_box(self) -> VBox:
         """Create ipywidgets box with the configuration selections"""
         html_title = HTML(
-            '<span style="font-weight:bold;  font-size:16px">Configurations</span'
-        )
-        self.apply_button = Button(
-            description="Run Analysis", layout=self.children_config_box_layouts
-        )
+            '<span style="font-weight:bold;  font-size:16px">Configurations</span')
+        self.apply_button = Button(description="Run Analysis",
+            layout=self.children_config_box_layouts)
         self.apply_button.on_click(self.on_apply_clicked)
         vbox_children = (
-            [html_title]
-            + [config.config_box for config in self.configurations]
-            + [self.apply_button]
-        )
+                [html_title] + [config.config_box for config in self.configurations] + [
+            self.apply_button])
         return VBox(children=vbox_children)
