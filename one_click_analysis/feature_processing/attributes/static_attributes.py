@@ -55,6 +55,7 @@ class CaseDurationAttribute(StaticAttribute):
     """Duration of the whle case"""
 
     display_name = "Case duration"
+    description = "The time delta between the first and last event of a case"
 
     def __init__(
         self,
@@ -97,6 +98,12 @@ class WorkInProgressAttribute(StaticAttribute):
     """Work in Progress for whole case"""
 
     display_name = "Work in Progress during case"
+    # TODO Change the definition and implementation such that it is not aggregated
+    #  over events but over time.
+    description = (
+        "The mean number of different cases per event that happen within "
+        "the duration of a case."
+    )
 
     def __init__(
         self,
@@ -154,6 +161,7 @@ class EventCountAttribute(StaticAttribute):
     """Event Count for a whole case"""
 
     display_name = "Case Event count"
+    description = "The number of events in a case"
 
     def __init__(
         self,
@@ -192,6 +200,10 @@ class ActivityOccurenceAttribute(StaticAttribute):
     """Rework occurence for a whole case"""
 
     display_name = "Activity occurence in case"
+    description = (
+        "Whether or not an activity happened in a case (evaluates to 1 if "
+        "yes and to 0 if no)"
+    )
 
     def __init__(
         self,
@@ -231,6 +243,9 @@ class ReworkCountAttribute(StaticAttribute):
     """Count of reworked activities"""
 
     display_name = "Rework count in case"
+    description = (
+        "The number of events with an activity that was executed before in " "the case"
+    )
 
     def __init__(
         self,
@@ -271,6 +286,10 @@ class ReworkOccurrenceAttribute(StaticAttribute):
     """Whether any activity was done more than once"""
 
     display_name = "Rework occurence in case"
+    description = (
+        "Whether any activity in the case has occurred twice or more in a "
+        "case (evaluates to 1 if yes and to 0 if no)"
+    )
 
     def __init__(
         self,
@@ -312,6 +331,7 @@ class StartActivityAttribute(StaticAttribute):
     """Start activity"""
 
     display_name = "Start activity"
+    description = "The first activity in a case"
 
     def __init__(
         self,
@@ -368,6 +388,7 @@ class EndActivityAttribute(StaticAttribute):
     """End activity"""
 
     display_name = "End activity"
+    description = "The last activity in a case"
 
     def __init__(
         self,
@@ -424,6 +445,10 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
     """Any numeric activity table column."""
 
     display_name = "Numeric activity table column aggregation"
+    description = (
+        "Aggregation(e.g. mean or median) of the values of a numeric "
+        "activity table column"
+    )
 
     def __init__(
         self,
@@ -469,6 +494,9 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
 
 class CaseTableColumnAttribute(StaticAttribute):
     """Any case table column."""
+
+    display_name = "Case table column"
+    description = "the value of a colum in a case-level table"
 
     def __init__(
         self,
@@ -522,6 +550,10 @@ class TransitionOccurenceAttribute(StaticAttribute):
     """Whether a transition happens in a case"""
 
     display_name = "Transition occurence in case"
+    description = (
+        "Whether a certain directly-follows transition happens in a case ("
+        "evaluates to 1 if yes and to 0 if no)"
+    )
 
     def __init__(
         self,
@@ -564,6 +596,7 @@ class StartActivityTimeAttribute(StaticAttribute):
     """Start activity time"""
 
     display_name = "Start activity time"
+    description = "The date / time of the first event of a case"
 
     def __init__(
         self,
@@ -600,6 +633,7 @@ class EndActivityTimeAttribute(StaticAttribute):
     """End activity time"""
 
     display_name = "End activity time"
+    description = "The date / time of the last event of a case"
 
     def __init__(self, process_config: ProcessConfig, activity_table_str: str):
         self.process_config = process_config
