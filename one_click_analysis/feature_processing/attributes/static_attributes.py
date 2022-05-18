@@ -201,7 +201,7 @@ class ActivityOccurenceAttribute(StaticAttribute):
 
     display_name = "Activity occurence in case"
     description = (
-        "Whether or not an activity happened in a case (evaluates to 1 if "
+        "Whether or not a specific activity happened in a case (evaluates to 1 if "
         "yes and to 0 if no)"
     )
 

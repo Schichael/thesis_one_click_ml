@@ -1,5 +1,7 @@
 import abc
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 from typing import Optional
 
 from pycelonis.celonis_api.pql import pql
@@ -61,3 +63,13 @@ class Attribute(abc.ABC):
     @abc.abstractmethod
     def _gen_query(self):
         pass
+
+
+@dataclass
+class AttributeDescriptor:
+    """Class with a basic description of an attribute. This is mainly used for
+    Processor and the configuration of an analysis."""
+
+    attribute_type: Any
+    display_name: str
+    description: str
