@@ -43,6 +43,7 @@ class NextActivityAttribute(DynamicAttribute):
     """The next activity"""
 
     display_name = "Next activity"
+    description = "The activity that follows the current activity"
 
     def __init__(
         self,
@@ -78,6 +79,10 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
     """Previous value of column in the Activity table"""
 
     display_name = "Previous categorical activity column value"
+    description = (
+        "The value of the specified activity table column at the event "
+        "preceding the current event."
+    )
 
     def __init__(
         self,
@@ -120,6 +125,9 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
     """Current value of column in the Activity table"""
 
     display_name = "Current categorical activity column value"
+    description = (
+        "The value of the specified activity table column at the current " "event"
+    )
 
     def __init__(
         self,
@@ -158,6 +166,10 @@ class PreviousActivityOccurrenceAttribute(DynamicAttribute):
     """Number of times activity occurred in process before current row"""
 
     display_name = "Previous occurrence of activity"
+    description = (
+        "Checks whether or not an activity has occured before the current "
+        "event (evaluates to 1 if yes and to 0 if no)"
+    )
 
     def __init__(
         self,
@@ -212,6 +224,10 @@ class ActivityCountAttribute(DynamicAttribute):
     """Number of times activity occurred in process before current row"""
 
     display_name = "Activity count until current event"
+    description = (
+        "the number of times an activity has occured in the process before "
+        "the current event"
+    )
 
     def __init__(
         self,
@@ -260,6 +276,10 @@ class ActivityDurationAttribute(DynamicAttribute):
     """Duration of the current activity"""
 
     display_name = "Activity duration"
+    description = (
+        "The duration of the current activity. This is the difference in "
+        "time between the previous and the current activity"
+    )
 
     def __init__(
         self,
