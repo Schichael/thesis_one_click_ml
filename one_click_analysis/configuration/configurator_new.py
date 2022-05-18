@@ -15,8 +15,12 @@ class ConfiguratorView:
     first reset to its initial values
     """
 
-    def __init__(self, configurations: List[Configuration], run_analysis: Callable,
-            *run_analysis_args):
+    def __init__(
+        self,
+        configurations: List[Configuration],
+        run_analysis: Callable,
+        *run_analysis_args
+    ):
         """
 
         :param configurations: List with configuration objects
@@ -31,7 +35,7 @@ class ConfiguratorView:
         # the values a list of PQL Filter queries
         self.filters = {}
         self.apply_button = None
-        self._set_layouts_configs()
+        # self._set_layouts_configs()
         self._init_configurations()
         self.configurator_box = self.create_box()
         self.applied_configs = {}  # Configs at the time the apply button was clicked
@@ -62,19 +66,28 @@ class ConfiguratorView:
 
     def update_view(self):
         html_title = HTML(
-            '<span style="font-weight:bold;  font-size:16px">Configurations</span')
+            '<span style="font-weight:bold;  font-size:16px">Configurations</span'
+        )
+        self._set_layouts_configs()
         self.configurator_box.children = (
-                [html_title] + [config.config_box for config in self.configurations] + [
-            self.apply_button])
+            [html_title]
+            + [config.config_box for config in self.configurations]
+            + [self.apply_button]
+        )
 
     def create_box(self) -> VBox:
         """Create ipywidgets box with the configuration selections"""
+        self._set_layouts_configs()
         html_title = HTML(
-            '<span style="font-weight:bold;  font-size:16px">Configurations</span')
-        self.apply_button = Button(description="Run Analysis",
-            layout=self.children_config_box_layouts)
+            '<span style="font-weight:bold;  font-size:16px">Configurations</span'
+        )
+        self.apply_button = Button(
+            description="Run Analysis", layout=self.children_config_box_layouts
+        )
         self.apply_button.on_click(self.on_apply_clicked)
         vbox_children = (
-                [html_title] + [config.config_box for config in self.configurations] + [
-            self.apply_button])
+            [html_title]
+            + [config.config_box for config in self.configurations]
+            + [self.apply_button]
+        )
         return VBox(children=vbox_children)

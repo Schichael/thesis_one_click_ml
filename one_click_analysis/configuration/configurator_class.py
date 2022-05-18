@@ -9,10 +9,10 @@ class Configurator:
     def __init__(self):
         # Dictionary that holds configurations. It is structured as follows:
         # {"configuration_identifier_str": "some_config_key": config_value}
-        self.config_dict: Dict[str: Dict[str:Any]] = {}
+        self.config_dict: Dict[str : Dict[str:Any]] = {}
         # Dictionary that holds filters. It is structured as follows:
         # {"configuration_identifier_str": [PQLFilter1, PQLFilter2, ...]
-        self.filter_dict: Dict[str: List[pql.PQLFilter]] = {}
+        self.filter_dict: Dict[str : List[pql.PQLFilter]] = {}
 
     def get_all_filters(self) -> List[pql.PQLFilter]:
         """Get all filters stored in filter_dict as a list"""

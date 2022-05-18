@@ -17,7 +17,9 @@ from pycelonis.celonis_api.pql.pql import PQLFilter
 from one_click_analysis import utils
 from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.errors import ConfiguratorNotSetError
-from one_click_analysis.feature_processing.feature_processor import (FeatureProcessor, )
+from one_click_analysis.feature_processing.feature_processor import (
+    FeatureProcessor,
+)
 from one_click_analysis.process_config import process_config_utils
 from one_click_analysis.process_config.process_config import ProcessConfig
 
@@ -25,9 +27,15 @@ from one_click_analysis.process_config.process_config import ProcessConfig
 class Configuration(abc.ABC):
     """Abstract class for a configuration"""
 
-    def __init__(self, configurator: Configurator, config_identifier: str, title: str,
-            required: bool = False, caption_size: int = 14,
-            caption_bold: bool = True, ):
+    def __init__(
+        self,
+        configurator: Configurator,
+        config_identifier: str,
+        title: str,
+        required: bool = False,
+        caption_size: int = 14,
+        caption_bold: bool = True,
+    ):
         self.configurator = configurator
 
         self.config_identifier = config_identifier
@@ -49,10 +57,12 @@ class Configuration(abc.ABC):
         self.configurator_view_update_fct = fct
 
     def set_html_title_str(self, title):
-        html_caption_str = (f'<span style="font-weight:'
-                            f"{self.get_html_str_caption_bold()}; font-size"
-                            f':{self.caption_size}px">{title} ('
-                            f"{self.optional_or_required_str})</span>")
+        html_caption_str = (
+            f'<span style="font-weight:'
+            f"{self.get_html_str_caption_bold()}; font-size"
+            f':{self.caption_size}px">{title} ('
+            f"{self.optional_or_required_str})</span>"
+        )
         return html_caption_str
 
     def reset(self):
@@ -87,16 +97,20 @@ class Configuration(abc.ABC):
         4. Update the subsequent configurations
         """
         # Reset all subsequent configurations
+        self.reset_local()
+        self.reset()
+        self._create_config_box()
+
         for sub_config in self.subsequent_configurations:
             sub_config.reset_local()
             sub_config.reset()
+            sub_config._create_config_box()
 
         # Create box
         self._create_config_box()
 
         # Apply config in case there is a default configuration
         # self.apply()
-
 
     def _create_config_box(self):
         """Create config box. If the prerequisites are met, the true config box is
@@ -200,9 +214,14 @@ class Configuration(abc.ABC):
 class DatePickerConfig(Configuration):
     """Configuration for defining a start and end date"""
 
-    def __init__(self, configurator: Configurator, datamodel_identifier: str,
-            activity_table_identifier: str, config_identifier: str = "datepicker",
-            **kwargs, ):
+    def __init__(
+        self,
+        configurator: Configurator,
+        datamodel_identifier: str,
+        activity_table_identifier: str,
+        config_identifier: str = "datepicker",
+        **kwargs,
+    ):
         """
         :param configurator: Configurator object
         :param datamodel_identifier: identifier of the datamodel in the configurator
@@ -210,12 +229,16 @@ class DatePickerConfig(Configuration):
         :param config_identifier: Identifier of the datepicker config to be used in
         the configurator variables.
         """
-        if 'title' in kwargs:
-            title = kwargs['title']
+        if "title" in kwargs:
+            title = kwargs["title"]
         else:
             title = f"Pick date interval for analysis"
-        super().__init__(configurator=configurator, config_identifier=config_identifier,
-            title=title, **kwargs)
+        super().__init__(
+            configurator=configurator,
+            config_identifier=config_identifier,
+            title=title,
+            **kwargs,
+        )
         self.datamodel_identifier = datamodel_identifier
         self.activity_table_identifier = activity_table_identifier
         self.datepicker_start = None
@@ -235,38 +258,46 @@ class DatePickerConfig(Configuration):
     def validate_prerequisites(self) -> bool:
 
         process_config_set = (
-                self.datamodel_identifier in self.configurator.config_dict and
-                self.configurator.config_dict[
-                    self.datamodel_identifier] is not None)
+            self.datamodel_identifier in self.configurator.config_dict
+            and self.configurator.config_dict[self.datamodel_identifier] is not None
+        )
         activity_table_set = (
-                self.activity_table_identifier in self.configurator.config_dict and
-                self.configurator.config_dict[
-                    self.activity_table_identifier] is not None)
+            self.activity_table_identifier in self.configurator.config_dict
+            and self.configurator.config_dict[self.activity_table_identifier]
+            is not None
+        )
 
         return process_config_set and activity_table_set
-
 
     def create_filter_queries(self):
         filter_start = filter_end = None
         process_config = self.configurator.config_dict[self.datamodel_identifier][
-            'process_config']
+            "process_config"
+        ]
         activity_table_str = self.configurator.config_dict[
-            self.activity_table_identifier]['activity_table_str']
+            self.activity_table_identifier
+        ]["activity_table_str"]
         activity_table = process_config.table_dict[activity_table_str]
 
         if "date_start" in self.config and self.config["date_start"] is not None:
             date_str_pql = (
-                f"{{d'{utils.convert_date_to_str(self.config['date_start'])}'}}")
-            filter_str = (f'PU_FIRST("{activity_table.case_table_str}", '
-                          f'"{activity_table.table_str}"."'
-                          f'{activity_table.eventtime_col_str}") >= {date_str_pql}')
+                f"{{d'{utils.convert_date_to_str(self.config['date_start'])}'}}"
+            )
+            filter_str = (
+                f'PU_FIRST("{activity_table.case_table_str}", '
+                f'"{activity_table.table_str}"."'
+                f'{activity_table.eventtime_col_str}") >= {date_str_pql}'
+            )
             filter_start = PQLFilter(filter_str)
         if "date_end" in self.config and self.config["date_end"] is not None:
             date_str_pql = (
-                f"{{d'{utils.convert_date_to_str(self.config['date_end'])}'}}")
-            filter_str = (f'PU_FIRST("{activity_table.case_table_str}", '
-                          f'"{activity_table.table_str}"."'
-                          f'{activity_table.eventtime_col_str}") <= {date_str_pql}')
+                f"{{d'{utils.convert_date_to_str(self.config['date_end'])}'}}"
+            )
+            filter_str = (
+                f'PU_FIRST("{activity_table.case_table_str}", '
+                f'"{activity_table.table_str}"."'
+                f'{activity_table.eventtime_col_str}") <= {date_str_pql}'
+            )
             filter_end = PQLFilter(filter_str)
 
         filters = []
@@ -280,10 +311,12 @@ class DatePickerConfig(Configuration):
         """Create ipywidgets Box object for configuration visualization."""
         html_descr_datepicker_start = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Earliest Start Date</div>')
+            'font-size: 14px;">Earliest Start Date</div>'
+        )
         html_descr_datepicker_end = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Latest End Date</div>')
+            'font-size: 14px;">Latest End Date</div>'
+        )
         self.datepicker_start = DatePicker(disabled=False)
         self.datepicker_end = DatePicker(disabled=False)
 
@@ -300,10 +333,12 @@ class DatePickerConfig(Configuration):
         self.datepicker_start.observe(bind_datepicker_start, "value")
         self.datepicker_end.observe(bind_datepicker_end, "value")
         vbox_datepicker_start = VBox(
-            children=[html_descr_datepicker_start, self.datepicker_start])
+            children=[html_descr_datepicker_start, self.datepicker_start]
+        )
         vbox_datepicker_end = VBox(
             children=[html_descr_datepicker_end, self.datepicker_end],
-            layout=Layout(margin="0px 0px 0px 10px"), )
+            layout=Layout(margin="0px 0px 0px 10px"),
+        )
 
         caption_HTML = HTML(self.html_caption_str)
         hbox_datepickers = HBox(children=[vbox_datepicker_start, vbox_datepicker_end])
@@ -315,16 +350,25 @@ class DatamodelConfig(Configuration):
     """Configuration for selecting the datamodel. The datamodel is stored in config[
     'datamodel']. The process_config object is stored in config['process_config']"""
 
-    def __init__(self, configurator: Configurator, config_identifier: str = "datamodel",
-            celonis_login: Optional[Dict[str, str]] = None, **kwargs, ):
-        if 'title' in kwargs:
-            title = kwargs['title']
-            kwargs.pop('title')
+    def __init__(
+        self,
+        configurator: Configurator,
+        config_identifier: str = "datamodel",
+        celonis_login: Optional[Dict[str, str]] = None,
+        **kwargs,
+    ):
+        if "title" in kwargs:
+            title = kwargs["title"]
+            kwargs.pop("title")
         else:
             title = f"Select a datamodel"
 
-        super().__init__(configurator=configurator, config_identifier=config_identifier,
-                         title=title, **kwargs)
+        super().__init__(
+            configurator=configurator,
+            config_identifier=config_identifier,
+            title=title,
+            **kwargs,
+        )
         self.celonis_login = celonis_login
         self.celonis = self._get_celonis()
         # Initialize config box
@@ -345,16 +389,18 @@ class DatamodelConfig(Configuration):
         return datamodel_name_list, datamodel_id_list
 
     def _create_true_config_box(self):
-        text_field = widgets.Text(placeholder="Insert Datamodel ID",
-                                  description="Datamodel ID:")
+        text_field = widgets.Text(
+            placeholder="Insert Datamodel ID", description="Datamodel ID:"
+        )
 
         apply_button = widgets.Button(description="Apply")
+
         def on_apply_clicked(b):
             text_str = text_field.value
             try:
                 dm = self.celonis.datamodels.find(text_str)
-                self.config['datamodel'] = dm
-                self.config['process_config'] = ProcessConfig(datamodel=dm)
+                self.config["datamodel"] = dm
+                self.config["process_config"] = ProcessConfig(datamodel=dm)
                 self.apply()
             except PyCelonisNotFoundError:
                 return
@@ -368,15 +414,16 @@ class DatamodelConfig(Configuration):
     @property
     def requirement_met(self) -> bool:
         try:
-            if self.configurator.config_dict[self.config_identifier]['datamodel'] is not \
-                    None:
+            if (
+                self.configurator.config_dict[self.config_identifier]["datamodel"]
+                is not None
+            ):
                 return True
             else:
                 return False
         except KeyError:
             # Entry in configurator not set yet
             return False
-
 
     def validate_prerequisites(self) -> bool:
         # Does not need any prerequisites
@@ -388,16 +435,25 @@ class ActivityTableConfig(Configuration):
     table is stored in config['activity_table_str']
     """
 
-    def __init__(self, configurator: Configurator, datamodel_identifier: str,
-                 config_identifier: str = "activity_table", **kwargs, ):
-        if 'title' in kwargs:
-            title = kwargs['title']
-            kwargs.pop('title')
+    def __init__(
+        self,
+        configurator: Configurator,
+        datamodel_identifier: str,
+        config_identifier: str = "activity_table",
+        **kwargs,
+    ):
+        if "title" in kwargs:
+            title = kwargs["title"]
+            kwargs.pop("title")
         else:
             title = f"Select an activity table"
 
-        super().__init__(configurator=configurator, config_identifier=config_identifier,
-                         title=title, **kwargs)
+        super().__init__(
+            configurator=configurator,
+            config_identifier=config_identifier,
+            title=title,
+            **kwargs,
+        )
 
         self.datamodel_identifier = datamodel_identifier
 
@@ -406,17 +462,21 @@ class ActivityTableConfig(Configuration):
 
     def _create_true_config_box(self):
         process_config = self.configurator.config_dict[self.datamodel_identifier][
-            'process_config']
-        activity_table_str_list = [table.table_str for table in
-                               process_config.activity_tables]
-        dropdown = widgets.Dropdown(options=activity_table_str_list,
-                                    description="Select activity table:")
+            "process_config"
+        ]
+        activity_table_str_list = [
+            table.table_str for table in process_config.activity_tables
+        ]
+        dropdown = widgets.Dropdown(
+            options=activity_table_str_list, description="Select activity table:"
+        )
 
         apply_button = widgets.Button(description="Apply")
+
         def on_apply_clicked(b):
             if dropdown.value is None:
                 return
-            self.config['activity_table_str'] = dropdown.value
+            self.config["activity_table_str"] = dropdown.value
             self.apply()
 
         apply_button.on_click(on_apply_clicked)
@@ -428,9 +488,12 @@ class ActivityTableConfig(Configuration):
     @property
     def requirement_met(self) -> bool:
         try:
-            if self.configurator.config_dict[self.config_identifier][
-                'activity_table_str'] is not \
-                    None:
+            if (
+                self.configurator.config_dict[self.config_identifier][
+                    "activity_table_str"
+                ]
+                is not None
+            ):
                 return True
             else:
                 return False
@@ -438,11 +501,11 @@ class ActivityTableConfig(Configuration):
             # Entry in configurator not set yet
             return False
 
-
     def validate_prerequisites(self) -> bool:
         process_config_set = (
-                self.datamodel_identifier in self.configurator.config_dict and
-                self.configurator.config_dict[self.datamodel_identifier] is not None)
+            self.datamodel_identifier in self.configurator.config_dict
+            and self.configurator.config_dict[self.datamodel_identifier] is not None
+        )
         return process_config_set
 
 
@@ -467,7 +530,9 @@ class DecisionConfig(Configuration):
         if not self.required:
             return True
         if (
-                self.selected_source_activity is not None and self.selected_target_activities):
+            self.selected_source_activity is not None
+            and self.selected_target_activities
+        ):
             return True
         else:
             return False
@@ -488,10 +553,12 @@ class DecisionConfig(Configuration):
         """Create ipywidgets Box object for configuration visualization."""
         html_descr_source_activity = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick a source activity</div>')
+            'font-size: 14px;">Pick a source activity</div>'
+        )
         html_descr_target_activities = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick target activities</div>')
+            'font-size: 14px;">Pick target activities</div>'
+        )
 
         activities = self.fp.get_activities()["activity"].values
         # Sort activities
@@ -502,11 +569,15 @@ class DecisionConfig(Configuration):
             self.config["source_activity"] = self.selected_source_activity
 
         # Source Activity
-        source_activity_selection = Select(options=activities, value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"), )
+        source_activity_selection = Select(
+            options=activities,
+            value=None,
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+        )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(
-            children=[html_descr_source_activity, source_activity_selection])
+            children=[html_descr_source_activity, source_activity_selection]
+        )
 
         # Target Activities
         def on_checkbox_clicked(b):
@@ -529,20 +600,26 @@ class DecisionConfig(Configuration):
             cb.observe(on_checkbox_clicked, "value")
             checkboxes.append(cb)
 
-        vbox_target_activities_cbs = VBox(children=checkboxes,
-            layout=Layout(overflow="auto", max_height="400px"), )
+        vbox_target_activities_cbs = VBox(
+            children=checkboxes,
+            layout=Layout(overflow="auto", max_height="400px"),
+        )
 
         vbox_target_activities = VBox(
-            children=[html_descr_target_activities, vbox_target_activities_cbs])
+            children=[html_descr_target_activities, vbox_target_activities_cbs]
+        )
 
-        html_caption_str = (f'<span style="font-weight:'
-                            f"{self.get_html_str_caption_bold()}; font-size"
-                            f':{self.caption_size}px">Pick transition activities for '
-                            f"analysis "
-                            f"({self.optional_or_required_str})</span>")
+        html_caption_str = (
+            f'<span style="font-weight:'
+            f"{self.get_html_str_caption_bold()}; font-size"
+            f':{self.caption_size}px">Pick transition activities for '
+            f"analysis "
+            f"({self.optional_or_required_str})</span>"
+        )
         caption_HTML = HTML(html_caption_str)
         hbox_activity_selection = HBox(
-            children=[vbox_source_activity_selection, vbox_target_activities])
+            children=[vbox_source_activity_selection, vbox_target_activities]
+        )
         box_config = VBox(children=[caption_HTML, hbox_activity_selection])
         self.config_box = box_config
 
@@ -588,10 +665,12 @@ class TransitionConfig(Configuration):
         """Create ipywidgets Box object for configuration visualization."""
         html_descr_source_activity = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick a source activity</div>')
+            'font-size: 14px;">Pick a source activity</div>'
+        )
         html_descr_target_activity = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick a target activity</div>')
+            'font-size: 14px;">Pick a target activity</div>'
+        )
         # TODO: Can get activities from the process_model directly
         activities = self.fp.get_activities()["activity"].values
         # Sort activities
@@ -602,30 +681,41 @@ class TransitionConfig(Configuration):
             self.config["source_activity"] = self.selected_source_activity
 
         # Source Activity
-        source_activity_selection = Select(options=activities, value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"), )
+        source_activity_selection = Select(
+            options=activities,
+            value=None,
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+        )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(
-            children=[html_descr_source_activity, source_activity_selection])
+            children=[html_descr_source_activity, source_activity_selection]
+        )
 
         def on_target_activity_clicked(b):
             self.selected_target_activity = b.new
             self.config["target_activity"] = self.selected_target_activity
 
         # Source Activity
-        target_activity_selection = Select(options=activities, value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"), )
+        target_activity_selection = Select(
+            options=activities,
+            value=None,
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+        )
         target_activity_selection.observe(on_target_activity_clicked, "value")
         vbox_target_activity_selection = VBox(
-            children=[html_descr_target_activity, target_activity_selection])
+            children=[html_descr_target_activity, target_activity_selection]
+        )
 
-        html_caption_str = (f'<span style="font-weight:'
-                            f"{self.get_html_str_caption_bold()}; font-size"
-                            f':{self.caption_size}px">Pick transition activities for '
-                            f"analysis "
-                            f"({self.optional_or_required_str})</span>")
+        html_caption_str = (
+            f'<span style="font-weight:'
+            f"{self.get_html_str_caption_bold()}; font-size"
+            f':{self.caption_size}px">Pick transition activities for '
+            f"analysis "
+            f"({self.optional_or_required_str})</span>"
+        )
         caption_HTML = HTML(html_caption_str)
         hbox_activity_selection = HBox(
-            children=[vbox_source_activity_selection, vbox_target_activity_selection])
+            children=[vbox_source_activity_selection, vbox_target_activity_selection]
+        )
         box_config = VBox(children=[caption_HTML, hbox_activity_selection])
         self.config_box = box_config
