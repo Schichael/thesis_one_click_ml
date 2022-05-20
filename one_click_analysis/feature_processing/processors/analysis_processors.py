@@ -199,6 +199,7 @@ class CaseDurationProcessor(UseCaseProcessor):
         statistics_computer.compute_all_statistics()
 
     def _gen_static_attr_list(self, min_attr_count: int, max_attr_count: int):
+        """Gen list of used static attributes."""
         static_attributes_list = []
         # Add attributes that always need to be added for processing
         static_attributes_list.append(
@@ -265,6 +266,24 @@ class CaseDurationProcessor(UseCaseProcessor):
                     max_vals=max_attr_count,
                 )
             )
-            static_attributes_list.append(activity_occ_attributes)
+            static_attributes_list = static_attributes_list + activity_occ_attributes
+
+        if (
+            self.numeric_activity_table_col_attr_descriptor
+            in self.used_static_attribute_descriptors
+        ):
+            numeric_activity_attirbutes = (
+                feature_processor_new.gen_static_numeric_activity_table_attributes(
+                    process_config=self.process_config,
+                    activity_table_str=self.activity_table_str,
+                    columns=self.considered_activity_table_cols,
+                    aggregation="AVG",
+                    is_feature=True,
+                    is_class_feature=False,
+                )
+            )
+            static_attributes_list = (
+                static_attributes_list + numeric_activity_attirbutes
+            )
 
         return static_attributes_list
