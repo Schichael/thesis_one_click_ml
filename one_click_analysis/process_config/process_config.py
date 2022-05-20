@@ -303,10 +303,10 @@ class ProcessConfig:
         activities = df["Activity"].values.tolist()
         return activities
 
-    def get_categorical_numerical_columns(
+    def get_categorical_numerical_column_names(
         self, table_str: str
     ) -> Tuple[List[str], List[str]]:
-        """Get the numerical and categorical columns of a table.
+        """Get the strings of the numerical and categorical columns of a table.
 
         :param table_str: name of the considered table
         :return: Tuple[categorical_columns, numerical_columns]
@@ -344,3 +344,79 @@ class ProcessConfig:
                 numeric_cols.remove(table.sort_col_str)
 
         return categorical_cols, numeric_cols
+
+    def get_categorical_numerical_columns(
+        self, table_str: str
+    ) -> Tuple[List[str], List[str]]:
+        """Get the strings of the numerical and categorical columns of a table.
+
+        :param table_str: name of the considered table
+        :return: Tuple[categorical_columns, numerical_columns]
+        """
+        # Get the table with table_str
+        table = [
+            t
+            for t in self.activity_tables + self.case_tables + self.other_tables
+            if t.table_str == table_str
+        ][0]
+
+        categorical_col_names = [
+            c.name
+            for c in table.columns
+            if c.datatype in TableColumnType.categorical_types()
+        ]
+
+        categorical_cols = [
+            c
+            for c in table.columns
+            if c.datatype in TableColumnType.categorical_types()
+        ]
+
+        numeric_col_names = [
+            c.name
+            for c in table.columns
+            if c.datatype in TableColumnType.numeric_types()
+        ]
+
+        numeric_cols = [
+            c for c in table.columns if c.datatype in TableColumnType.numeric_types()
+        ]
+
+        # If the table is an activity table, need to remove some columns: Activity
+        # column, sorting column
+        if isinstance(table, ActivityTable):
+            if table.activity_col_str in categorical_col_names:
+                col_to_remove = [
+                    col
+                    for col in categorical_cols
+                    if col.name == table.activity_col_str
+                ][0]
+                categorical_cols.remove(col_to_remove)
+            if table.activity_col_str in numeric_col_names:
+                col_to_remove = [
+                    col for col in numeric_cols if col.name == table.activity_col_str
+                ][0]
+                numeric_cols.remove(col_to_remove)
+
+            if table.sort_col_str in categorical_col_names:
+                col_to_remove = [
+                    col for col in categorical_cols if col.name == table.sort_col_str
+                ][0]
+                categorical_cols.remove(col_to_remove)
+            if table.sort_col_str in numeric_col_names:
+                col_to_remove = [
+                    col for col in numeric_cols if col.name == table.sort_col_str
+                ][0]
+                numeric_cols.remove(col_to_remove)
+
+        return categorical_cols, numeric_cols
+
+    def get_case_level_tables(self, activity_table_str: str):
+        """Get tables that are on the case level based on the selected activity table.
+        TODO: Make this dependent on the activity level. Currently, I just return all
+        tables
+
+        :param activity_table_str: name of the selected activity table
+        :return:
+        """
+        return self.case_tables
