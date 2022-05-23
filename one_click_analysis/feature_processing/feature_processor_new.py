@@ -112,6 +112,8 @@ def date_filter_PQL(
 
 
 def get_df_with_filters(dm, filters, query: PQL, chunksize):
+    if filters is None:
+        filters = []
     for f in filters:
         query.add(f)
     return dm.get_data_frame(query, chunksize=chunksize)
@@ -173,6 +175,7 @@ def gen_static_activity_occurence_attributes(
     max_vals: int = np.inf,
     is_feature: bool = True,
     is_class_feature: bool = False,
+    filters=None,
 ) -> List[ActivityOccurenceAttribute]:
     """Generates the static ActivitiyOccurenceAttributes. If no activities are
     given, all activities are used and it's checked for min and max values. If
@@ -187,6 +190,7 @@ def gen_static_activity_occurence_attributes(
             process_config=process_config,
             min_vals=min_vals,
             max_vals=max_vals,
+            filters=filters,
         )[activity_table.activity_col_str]
 
     activity_occ_attributes = []
