@@ -51,7 +51,6 @@ class AnalysisCaseDuration:
             "Overview",
             "Statistical Analysis",
             "Decision Rules",
-            "Expert Tab",
         ]
 
         self.selected_attributes = []

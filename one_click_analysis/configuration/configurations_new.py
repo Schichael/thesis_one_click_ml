@@ -422,6 +422,7 @@ class DatamodelConfig(Configuration):
             placeholder="Insert Datamodel ID", description="Datamodel ID:"
         )
 
+        # Create Apply button
         apply_button = widgets.Button(description="Apply")
 
         def on_apply_clicked(b):
@@ -883,6 +884,141 @@ class AttributeSelectionConfig(Configuration):
         )
 
 
+class TransitionConfig(Configuration):
+    """Configuration for defining a source activity and a target activity. The name
+    of the source activity is stored in config['source_activity']. The name
+    of the target activity is stored in config['target_activity']
+    """
+
+    def __init__(
+        self,
+        configurator: Configurator,
+        datamodel_identifier: str,
+        activitytable_identifier: str,
+        config_identifier: str = "transition",
+        additional_prerequsit_config_ids: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        if "title" in kwargs:
+            title = kwargs["title"]
+            kwargs.pop("title")
+        else:
+            title = f"Pick transition activities for analysis"
+
+        super().__init__(
+            configurator=configurator,
+            config_identifier=config_identifier,
+            additional_prerequsit_config_ids=additional_prerequsit_config_ids,
+            title=title,
+            **kwargs,
+        )
+
+        self.datamodel_identifier = datamodel_identifier
+        self.activitytable_identifier = activitytable_identifier
+
+        # Initialize config box
+        self._create_config_box()
+
+    def _create_true_config_box(self):
+        process_config = self.configurator.config_dict[self.datamodel_identifier][
+            "process_config"
+        ]
+        activity_table_str = self.configurator.config_dict[
+            self.activitytable_identifier
+        ]["activity_table_str"]
+        # Create ipywidgets Box object for configuration visualization
+        html_descr_source_activity = HTML(
+            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
+            'font-size: 14px;">Pick a source activity</div>'
+        )
+        html_descr_target_activity = HTML(
+            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
+            'font-size: 14px;">Pick a target activity</div>'
+        )
+        activity_table = process_config.table_dict[activity_table_str]
+        activities = activity_table.process_model.activities
+        # Sort activities
+        activities = sorted(activities)
+
+        def on_source_activity_clicked(b):
+            self.selected_source_activity = b.new
+            self.config["source_activity"] = self.selected_source_activity
+
+        # Source Activity
+        source_activity_selection = Select(
+            options=activities,
+            value=None,
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+        )
+        source_activity_selection.observe(on_source_activity_clicked, "value")
+        vbox_source_activity_selection = VBox(
+            children=[html_descr_source_activity, source_activity_selection]
+        )
+
+        def on_target_activity_clicked(b):
+            self.selected_target_activity = b.new
+            self.config["target_activity"] = self.selected_target_activity
+
+        # Source Activity
+        target_activity_selection = Select(
+            options=activities,
+            value=None,
+            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+        )
+        target_activity_selection.observe(on_target_activity_clicked, "value")
+        vbox_target_activity_selection = VBox(
+            children=[html_descr_target_activity, target_activity_selection]
+        )
+
+        # Create Apply button
+        apply_button = widgets.Button(description="Apply")
+
+        def on_apply_clicked(b):
+            if (
+                self.config.get("source_activity") is not None
+                and self.config.get("target_activity") is not None
+            ):
+                self.apply()
+
+        apply_button.on_click(on_apply_clicked)
+
+        # html_caption_str = (f'<span style="font-weight:'
+        #                    f"{self.get_html_str_caption_bold()}; font-size"
+        #                    f':{self.caption_size}px">Pick transition activities for '
+        #                    f"analysis "
+        #                    f"({self.optional_or_required_str})</span>")
+        caption_HTML = HTML(self.html_caption_str)
+        hbox_activity_selection = HBox(
+            children=[vbox_source_activity_selection, vbox_target_activity_selection]
+        )
+        box_config = VBox(
+            children=[caption_HTML, hbox_activity_selection, apply_button]
+        )
+        self.config_box = box_config
+
+    @property
+    def requirement_met(self) -> bool:
+        if not self.required:
+            return True
+        if self.configurator.config_dict.get(self.config_identifier) is not None:
+            return True
+        else:
+            return False
+
+    def validate_prerequisites(self) -> bool:
+        process_config_set = (
+            self.configurator.config_dict.get(self.datamodel_identifier) is not None
+        )
+        activity_table_set = (
+            self.configurator.config_dict.get(self.activitytable_identifier) is not None
+        )
+        return (
+            process_config_set
+            and activity_table_set
+            and self._validate_additional_prerequisites()
+        )
+
+
 class DecisionConfig(Configuration):
     """Configuration for defining a source activity and target activities"""
 
@@ -993,103 +1129,6 @@ class DecisionConfig(Configuration):
         caption_HTML = HTML(html_caption_str)
         hbox_activity_selection = HBox(
             children=[vbox_source_activity_selection, vbox_target_activities]
-        )
-        box_config = VBox(children=[caption_HTML, hbox_activity_selection])
-        self.config_box = box_config
-
-
-class TransitionConfig(Configuration):
-    """Configuration for defining a source activity and target activities"""
-
-    def __init__(self, fp: FeatureProcessor, **kwargs):
-        """
-        :param fp: FeatureProcessor before features were processes
-        """
-        super().__init__(**kwargs)
-
-        self.fp = fp
-        self._config = {}
-        self._config_box = Box()
-        self.selected_source_activity = None
-        self.selected_target_activity = None
-        self.create_config_box()
-
-    @property
-    def requirement_met(self):
-        if not self.required:
-            return True
-        if self.selected_source_activity is not None and self.selected_target_activity:
-            return True
-        else:
-            return False
-
-    @property
-    def config(self):
-        return self._config
-
-    @property
-    def config_box(self):
-        return self._config_box
-
-    @config_box.setter
-    def config_box(self, value):
-        self._config_box = value
-
-    def create_config_box(self):
-        """Create ipywidgets Box object for configuration visualization."""
-        html_descr_source_activity = HTML(
-            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick a source activity</div>'
-        )
-        html_descr_target_activity = HTML(
-            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick a target activity</div>'
-        )
-        # TODO: Can get activities from the process_model directly
-        activities = self.fp.get_activities()["activity"].values
-        # Sort activities
-        activities = sorted(activities)
-
-        def on_source_activity_clicked(b):
-            self.selected_source_activity = b.new
-            self.config["source_activity"] = self.selected_source_activity
-
-        # Source Activity
-        source_activity_selection = Select(
-            options=activities,
-            value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"),
-        )
-        source_activity_selection.observe(on_source_activity_clicked, "value")
-        vbox_source_activity_selection = VBox(
-            children=[html_descr_source_activity, source_activity_selection]
-        )
-
-        def on_target_activity_clicked(b):
-            self.selected_target_activity = b.new
-            self.config["target_activity"] = self.selected_target_activity
-
-        # Source Activity
-        target_activity_selection = Select(
-            options=activities,
-            value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"),
-        )
-        target_activity_selection.observe(on_target_activity_clicked, "value")
-        vbox_target_activity_selection = VBox(
-            children=[html_descr_target_activity, target_activity_selection]
-        )
-
-        html_caption_str = (
-            f'<span style="font-weight:'
-            f"{self.get_html_str_caption_bold()}; font-size"
-            f':{self.caption_size}px">Pick transition activities for '
-            f"analysis "
-            f"({self.optional_or_required_str})</span>"
-        )
-        caption_HTML = HTML(html_caption_str)
-        hbox_activity_selection = HBox(
-            children=[vbox_source_activity_selection, vbox_target_activity_selection]
         )
         box_config = VBox(children=[caption_HTML, hbox_activity_selection])
         self.config_box = box_config

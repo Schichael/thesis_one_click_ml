@@ -41,6 +41,10 @@ class UseCaseProcessor(abc.ABC):
         self.filters = []
         self.df_timestamp_column = None
 
+    @abc.abstractmethod
+    def process(self):
+        pass
+
 
 class CaseDurationProcessor(UseCaseProcessor):
     """Feature Processor for the case duration use case."""
