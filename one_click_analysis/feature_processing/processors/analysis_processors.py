@@ -39,6 +39,7 @@ class UseCaseProcessor(abc.ABC):
         self.target_features = None
         self.features = None
         self.filters = []
+        self.df_timestamp_column = None
 
 
 class CaseDurationProcessor(UseCaseProcessor):
@@ -131,7 +132,7 @@ class CaseDurationProcessor(UseCaseProcessor):
             start_date=self.start_date,
             end_date=self.end_date,
         )
-        self.filters.append(date_filters)
+        self.filters = self.filters + date_filters
 
         is_closed_indicator = feature_processor_new.all_cases_closed_query(
             process_config=self.process_config,
@@ -154,6 +155,8 @@ class CaseDurationProcessor(UseCaseProcessor):
         used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
+
+        self.df_timestamp_column = "Start activity Time"
 
         target_attribute = static_attributes.CaseDurationAttribute(
             process_config=self.process_config,

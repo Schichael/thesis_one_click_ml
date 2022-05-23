@@ -187,7 +187,9 @@ class PostProcessor:
         # Set new columns
         df[new_cols_df.columns] = new_cols_df
 
-    def _create_features(self, df: pd.DataFrame, attr: Attribute, prefix: str = None):
+    def _create_features(
+        self, df: pd.DataFrame, attr: Attribute, prefix: str = None
+    ) -> List:
         """
 
         :param df:

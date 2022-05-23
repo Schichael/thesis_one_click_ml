@@ -40,6 +40,7 @@ class TableColumn:
 
 @dataclass
 class BaseTable:
+    dm: Datamodel
     table_str: str
     id: str
     columns: List[TableColumn]
@@ -50,9 +51,19 @@ class ActivityTable(BaseTable):
     caseid_col_str: str
     activity_col_str: str
     eventtime_col_str: str
-    process_model: ProcessModel
     sort_col_str: Optional[str] = None
     case_table_str: Optional[str] = None
+    _process_model: Optional[ProcessModel] = None
+
+    @property
+    def process_model(self):
+        if self._process_model is not None:
+            return self._process_model
+        # _process_model not initialized yet.
+        self._process_model = ProcessModelFactory.create(
+            datamodel=self.dm, activity_table=self.table_str
+        )
+        return self._process_model
 
 
 @dataclass
@@ -77,7 +88,6 @@ class ProcessConfig:
         """Initialize ProcessConfig class
 
         :param datamodel: Datamodel
-        :param activity_table_str: name of activity table
         :param global_filters: List of PQL filters that are used to get the
         activities.
         """
@@ -155,9 +165,6 @@ class ProcessConfig:
         ]
         activity_table_sort_column = activity_table_process_config["sortingColumn"]
         activity_table_columns = self._create_columns(activity_table)
-        activity_table_process_model = ProcessModelFactory.create(
-            datamodel=self.dm, activity_table=activity_table_str
-        )
 
         if case_table_id:
             # Check if case table object already exists
@@ -179,12 +186,12 @@ class ProcessConfig:
             case_table_str = None
 
         activity_table_obj = ActivityTable(
+            dm=self.dm,
             table_str=activity_table_str,
             caseid_col_str=activity_table_case_id_column,
             activity_col_str=activity_table_activity_column,
             eventtime_col_str=activity_table_eventtime_column,
             id=activity_table_id,
-            process_model=activity_table_process_model,
             sort_col_str=activity_table_sort_column,
             case_table_str=case_table_str,
             columns=activity_table_columns,
@@ -234,6 +241,7 @@ class ProcessConfig:
             case_case_id = None
         case_table_columns = self._create_columns(case_table)
         case_table_obj = CaseTable(
+            dm=self.dm,
             table_str=case_table_str,
             caseid_col_str=case_case_id,
             activity_tables_str=[activity_table_str],
@@ -252,7 +260,7 @@ class ProcessConfig:
         table_id = table.id
         table_columns = self._create_columns(table)
         other_table = OtherTable(
-            table_str=table_str, id=table_id, columns=table_columns
+            dm=self.dm, table_str=table_str, id=table_id, columns=table_columns
         )
         return other_table
 
@@ -288,6 +296,8 @@ class ProcessConfig:
 
     def get_activities(self, activity_table_str: str) -> List[str]:
         """Get all activities from an activity table. This is done usong a PQL query.
+        TODO: If we use process model, can also get the activities from the process
+        model.
         :param activity_table_str: name of the activity table
         :return: List with the activities
         """
@@ -337,6 +347,11 @@ class ProcessConfig:
                 categorical_cols.remove(table.activity_col_str)
             if table.activity_col_str in numeric_cols:
                 numeric_cols.remove(table.activity_col_str)
+
+            if table.sort_col_str in categorical_cols:
+                categorical_cols.remove(table.sort_col_str)
+            if table.sort_col_str in numeric_cols:
+                numeric_cols.remove(table.sort_col_str)
 
             if table.sort_col_str in categorical_cols:
                 categorical_cols.remove(table.sort_col_str)
@@ -408,6 +423,17 @@ class ProcessConfig:
                     col for col in numeric_cols if col.name == table.sort_col_str
                 ][0]
                 numeric_cols.remove(col_to_remove)
+
+        if table.caseid_col_str in categorical_col_names:
+            col_to_remove = [
+                col for col in categorical_cols if col.name == table.caseid_col_str
+            ][0]
+            categorical_cols.remove(col_to_remove)
+        if table.caseid_col_str in numeric_col_names:
+            col_to_remove = [
+                col for col in numeric_cols if col.name == table.caseid_col_str
+            ][0]
+            numeric_cols.remove(col_to_remove)
 
         return categorical_cols, numeric_cols
 

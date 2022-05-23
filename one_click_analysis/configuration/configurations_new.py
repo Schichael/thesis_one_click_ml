@@ -38,7 +38,7 @@ class Configuration(abc.ABC):
         self,
         configurator: Configurator,
         config_identifier: str,
-        additional_prerequsit_config_identifiers: Optional[List[str]],
+        additional_prerequsit_config_ids: Optional[List[str]],
         title: str,
         required: bool = False,
         caption_size: int = 14,
@@ -49,9 +49,7 @@ class Configuration(abc.ABC):
         self.config_identifier = config_identifier
         # Additional config identifiers that need to have an entry before the real
         # config box is built.
-        self.additional_prerequsit_config_identifiers = (
-            additional_prerequsit_config_identifiers
-        )
+        self.additional_prerequsit_config_identifiers = additional_prerequsit_config_ids
         self.caption_size = caption_size
         self.caption_bold = caption_bold
         self.required = required
@@ -234,7 +232,8 @@ class Configuration(abc.ABC):
 
 
 class DatePickerConfig(Configuration):
-    """Configuration for defining a start and end date"""
+    """Configuration for defining a start and end date. Start date and end date are
+    stored in config['date_start'] and config['date_end]"""
 
     def __init__(
         self,
@@ -242,7 +241,7 @@ class DatePickerConfig(Configuration):
         datamodel_identifier: str,
         activity_table_identifier: str,
         config_identifier: str = "datepicker",
-        additional_prerequsit_config_identifiers: Optional[List[str]] = None,
+        additional_prerequsit_config_ids: Optional[List[str]] = None,
         **kwargs,
     ):
         """
@@ -260,7 +259,7 @@ class DatePickerConfig(Configuration):
             configurator=configurator,
             config_identifier=config_identifier,
             title=title,
-            additional_prerequsit_config_identifiers=additional_prerequsit_config_identifiers,
+            additional_prerequsit_config_ids=additional_prerequsit_config_ids,
             **kwargs,
         )
         self.datamodel_identifier = datamodel_identifier
@@ -274,7 +273,7 @@ class DatePickerConfig(Configuration):
     def requirement_met(self):
         if not self.required:
             return True
-        if self.datepicker_start is not None and self.datepicker_end is not None:
+        if self.configurator.config_dict.get("datepicker") is not None:
             return True
         else:
             return False
@@ -382,7 +381,7 @@ class DatamodelConfig(Configuration):
         self,
         configurator: Configurator,
         config_identifier: str = "datamodel",
-        additional_prerequsit_config_identifiers: Optional[List[str]] = None,
+        additional_prerequsit_config_ids: Optional[List[str]] = None,
         celonis_login: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
@@ -395,7 +394,7 @@ class DatamodelConfig(Configuration):
         super().__init__(
             configurator=configurator,
             config_identifier=config_identifier,
-            additional_prerequsit_config_identifiers=additional_prerequsit_config_identifiers,
+            additional_prerequsit_config_ids=additional_prerequsit_config_ids,
             title=title,
             **kwargs,
         )
@@ -443,6 +442,8 @@ class DatamodelConfig(Configuration):
 
     @property
     def requirement_met(self) -> bool:
+        if not self.required:
+            return True
         try:
             if (
                 self.configurator.config_dict[self.config_identifier]["datamodel"]
@@ -469,7 +470,7 @@ class ActivityTableConfig(Configuration):
         configurator: Configurator,
         datamodel_identifier: str,
         config_identifier: str = "activity_table",
-        additional_prerequsit_config_identifiers: Optional[List[str]] = None,
+        additional_prerequsit_config_ids: Optional[List[str]] = None,
         **kwargs,
     ):
         if "title" in kwargs:
@@ -481,7 +482,7 @@ class ActivityTableConfig(Configuration):
         super().__init__(
             configurator=configurator,
             config_identifier=config_identifier,
-            additional_prerequsit_config_identifiers=additional_prerequsit_config_identifiers,
+            additional_prerequsit_config_ids=additional_prerequsit_config_ids,
             title=title,
             **kwargs,
         )
@@ -518,6 +519,8 @@ class ActivityTableConfig(Configuration):
 
     @property
     def requirement_met(self) -> bool:
+        if not self.required:
+            return True
         try:
             if (
                 self.configurator.config_dict[self.config_identifier][
@@ -541,18 +544,22 @@ class ActivityTableConfig(Configuration):
 
 
 class AttributeSelectionConfig(Configuration):
-    """Configuration for selecting the activity table. The name of the activity
-    table is stored in config['activity_table_str']
+    """Configuration for selecting the activity table. The static attributes
+    descriptors are stored in config['static_attributes']. The dynamic attributes
+    descriptors are stored in config['dynamic_attributes'].The selected activity
+    table columns are stored in config['activity_table_cols]. The case level table
+    columns are stored in config['case_level_table_cols']
     """
 
     def __init__(
         self,
         configurator: Configurator,
-        attribute_descriptions: List[AttributeDescriptor],
+        static_attribute_descriptors: List[AttributeDescriptor],
+        dynamic_attribute_descriptors: List[AttributeDescriptor],
         datamodel_identifier: str,
         activity_table_identifier: str,
         config_identifier: str = "attribute_selection",
-        additional_prerequsit_config_identifiers: Optional[List[str]] = None,
+        additional_prerequsit_config_ids: Optional[List[str]] = None,
         **kwargs,
     ):
         if "title" in kwargs:
@@ -564,15 +571,19 @@ class AttributeSelectionConfig(Configuration):
         super().__init__(
             configurator=configurator,
             config_identifier=config_identifier,
-            additional_prerequsit_config_identifiers=additional_prerequsit_config_identifiers,
+            additional_prerequsit_config_ids=additional_prerequsit_config_ids,
             title=title,
             **kwargs,
         )
 
         self.datamodel_identifier = datamodel_identifier
         self.activity_table_identifier = activity_table_identifier
-        self.attribute_descriptions = attribute_descriptions
-        self.local_selected_attributes = self.attribute_descriptions.copy()
+        self.static_attribute_descriptors = static_attribute_descriptors
+        self.dynamic_attribute_descriptors = dynamic_attribute_descriptors
+        self.local_selected_static_attributes = self.static_attribute_descriptors.copy()
+        self.local_selected_dynamic_attributes = (
+            self.static_attribute_descriptors.copy()
+        )
         self.local_selected_activity_cols = []  # activity_table_cols.copy()
         self.local_selected_case_cols = {}
         # Initialize config box
@@ -594,7 +605,8 @@ class AttributeSelectionConfig(Configuration):
 
     def _update_configurator(self):
         self.configurator.config_dict[self.config_identifier] = {
-            "attributes": self.local_selected_attributes,
+            "static_attributes": self.local_selected_static_attributes,
+            "dynamic_attributes": self.local_selected_dynamic_attributes,
             "activity_table_cols": self.local_selected_activity_cols,
             "case_level_table_cols": self.local_selected_case_cols,
         }
@@ -614,30 +626,52 @@ class AttributeSelectionConfig(Configuration):
         ]["activity_table_str"]
         self.local_selected_case_cols = self._create_initial_local_selected_case_cols()
         # dict that maps Attribute display_name to the attribute object
-        attrs_dict = {i.display_name: i for i in self.attribute_descriptions}
+        attrs_dict = {
+            i.display_name: i
+            for i in self.static_attribute_descriptors
+            + self.dynamic_attribute_descriptors
+        }
 
-        cbs = []
+        cbs_static = []
+        cbs_dynamic = []
 
-        def on_checkbox_clicked(b):
+        def on_checkbox_clicked(b, selected_attributes):
             """Define behaviour when checkbox of a "normal" attribute (not activity
             or case column attribute) is toggled
 
             :param b:
+            :param selected_attributes: the list of attributes (static or dynamic)
             :return:
             """
             if b.new is False:
-                self.local_selected_attributes.remove(attrs_dict[b.owner.description])
+                selected_attributes.remove(attrs_dict[b.owner.description])
             else:
-                self.local_selected_attributes.append(attrs_dict[b.owner.description])
+                selected_attributes.append(attrs_dict[b.owner.description])
             self._update_configurator()
 
-        for attr in self.attribute_descriptions:
+        on_checkbox_clicked_static = functools.partial(
+            on_checkbox_clicked,
+            selected_attributes=self.local_selected_static_attributes,
+        )
+        on_checkbox_clicked_dynamic = functools.partial(
+            on_checkbox_clicked,
+            selected_attributes=self.local_selected_dynamic_attributes,
+        )
+
+        for attr in self.static_attribute_descriptors:
             # if the attribute is the label,
             cb = widgets.Checkbox(
                 value=True, description=attr.display_name, indent=False
             )
-            cb.observe(on_checkbox_clicked, "value")
-            cbs.append(cb)
+            cb.observe(on_checkbox_clicked_static, "value")
+            cbs_static.append(cb)
+        for attr in self.dynamic_attribute_descriptors:
+            # if the attribute is the label,
+            cb = widgets.Checkbox(
+                value=True, description=attr.display_name, indent=False
+            )
+            cb.observe(on_checkbox_clicked_dynamic, "value")
+            cbs_dynamic.append(cb)
         # activity_table_cols_cat, activity_table_cols_num = \
         #    process_config.get_categorical_numerical_columns(
         #    activity_table_str)
@@ -658,14 +692,26 @@ class AttributeSelectionConfig(Configuration):
         # remove None
         cbs_activity_case_table = list(filter(None, cbs_activity_case_table))
 
-        vbox_cbs = widgets.VBox(children=cbs + cbs_activity_case_table)
-
-        # Add a title
-        html_title_str = (
-            '<span style="font-weight:bold;  font-size:16px">Attribute '
-            "selection</span>"
+        static_header_str = (
+            '<span style="font-weight:bold;  font-size:14px">Static attributes '
+            "</span>"
         )
-        html_title = widgets.HTML(html_title_str)
+        static_header = widgets.HTML(static_header_str)
+
+        dynamic_header_str = (
+            '<span style="font-weight:bold;  font-size:14px">Dynamic attributes '
+            "</span>"
+        )
+        dynamic_header = widgets.HTML(dynamic_header_str)
+
+        vbox_cbs_static = widgets.VBox(children=[static_header] + cbs_static)
+        vbox_cbs_dynamic = widgets.VBox(children=[dynamic_header] + cbs_dynamic)
+
+        vbox_cbs = widgets.VBox(
+            children=[vbox_cbs_static, vbox_cbs_dynamic] + cbs_activity_case_table
+        )
+
+        html_title = widgets.HTML(self.html_caption_str)
         vbox_all_attributes = widgets.VBox(children=[html_title, vbox_cbs])
         self.config_box = vbox_all_attributes
 
@@ -809,11 +855,10 @@ class AttributeSelectionConfig(Configuration):
 
     @property
     def requirement_met(self) -> bool:
+        if not self.required:
+            return True
         try:
-            if (
-                self.configurator.config_dict[self.config_identifier]["attributes"]
-                is not None
-            ):
+            if self.configurator.config_dict[self.config_identifier] is not None:
                 return True
             else:
                 return False

@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Any
+from typing import Callable
 from typing import List
 
 from ipywidgets import Button
@@ -19,7 +19,7 @@ class ConfiguratorView:
         self,
         configurations: List[Configuration],
         run_analysis: Callable,
-        *run_analysis_args
+        **run_analysis_args
     ):
         """
 
@@ -60,7 +60,7 @@ class ConfiguratorView:
 
         self.apply_button.disabled = True
 
-        self.run_analysis(*self.run_analysis_args)
+        self.run_analysis(**self.run_analysis_args)
         self.button_was_clicked = True
         self.apply_button.disabled = False
 

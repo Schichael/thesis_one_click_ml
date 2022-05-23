@@ -19,7 +19,7 @@ from one_click_analysis.feature_processing.feature_processor import (
     FeatureProcessor,
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
-from one_click_analysis.gui.expert_screen import ExpertScreen
+from one_click_analysis.gui.expert_screen_new import ExpertScreen
 from one_click_analysis.gui.overview_screen import OverviewScreenCaseDuration
 from one_click_analysis.gui.statistical_analysis_screen_new import (
     StatisticalAnalysisScreen,
@@ -53,16 +53,10 @@ class AttributeSelectionCaseDuration(AttributeSelection):
             if type(f.attribute) in selected_Attribute_types:
                 if f.attribute.attribute_type == AttributeType.OTHER:
                     self.updated_features.append(f)
-                elif f.attribute.attribute_type in [
-                    AttributeType.ACTIVITY_COL_NUMERICAL,
-                    AttributeType.ACTIVITY_COL_CATEGORICAL,
-                ]:
+                elif f.attribute.attribute_type == AttributeType.ACTIVITY_COL:
                     if f.attribute.column_name in self.selected_activity_table_cols:
                         self.updated_features.append(f)
-                elif f.attribute.attribute_type in [
-                    AttributeType.CASE_COL_CATEGORICAL,
-                    AttributeType.CASE_COL_NUMERICAL,
-                ]:
+                elif f.attribute.attribute_type == AttributeType.CASE_COL:
                     if f.attribute.column_name in self.selected_case_table_cols:
                         self.updated_features.append(f)
 
@@ -86,6 +80,7 @@ class AnalysisCaseDuration:
         self.celonis_login = celonis_login
         self.th = th
         self.dm = None
+        self.process_config = None
         self.fp = None
         self.df_total_time = None
         self.configurator = None
@@ -117,7 +112,7 @@ class AnalysisCaseDuration:
         out.append_stdout("\nDone!")
 
         # 2. Create FeatureProcessor and Configurator
-
+        # self.process_config =
         self.fp = FeatureProcessor(self.dm)
         dp_config = DatePickerConfig(self.fp)
         self.configurator = Configurator(self.fp, [dp_config], self.run_analysis, out)
@@ -134,7 +129,6 @@ class AnalysisCaseDuration:
 
     def run_analysis(self, out: widgets.Output):
         # Reset fp from a previous run
-        self.fp.reset_fp()
         out.append_stdout("\nFetching data and preprocessing...")
 
         # Get configurations
@@ -206,10 +200,12 @@ class AnalysisCaseDuration:
 
         self.expert_screen = ExpertScreen(
             attributes=attributes,
-            categorical_activity_table_cols=self.fp.dynamic_categorical_cols,
-            numerical_activity_table_cols=self.fp.dynamic_numerical_cols,
-            categorical_case_table_cols=self.fp.static_categorical_cols,
-            numerical_case_table_cols=self.fp.static_numerical_cols,
+            activity_table_cols=self.fp.dynamic_categorical_cols
+            + self.fp.dynamic_numerical_cols,
+            case_table_cols={
+                "table name": self.fp.static_categorical_cols
+                + self.fp.static_numerical_cols
+            },
             features=self.fp.features,
             attr_selection=self.attr_selection,
         )
