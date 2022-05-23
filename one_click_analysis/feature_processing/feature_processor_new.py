@@ -7,9 +7,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from prediction_builder.data_extraction import PQLExtractor
-from prediction_builder.data_extraction import ProcessModelFactory
 from prediction_builder.data_extraction import StaticPQLExtractor
-from pycelonis.celonis_api.event_collection import data_model
 from pycelonis.celonis_api.pql.pql import PQL
 from pycelonis.celonis_api.pql.pql import PQLColumn
 from pycelonis.celonis_api.pql.pql import PQLFilter
@@ -66,7 +64,6 @@ from one_click_analysis.feature_processing.attributes.static_attributes import (
 )
 from one_click_analysis.feature_processing.post_processing import PostProcessor
 from one_click_analysis.feature_processing.statistics_computer import StatisticsComputer
-from one_click_analysis.feature_processing.util_queries import extract_transitions
 from one_click_analysis.process_config.process_config import ActivityTable
 from one_click_analysis.process_config.process_config import ProcessConfig
 
@@ -215,12 +212,14 @@ def extract_dfs(
     is_closed_indicator: PQLColumn,
     target_variable: PQLColumn,
     filters: List[PQLFilter],
+    key_activities: Optional[List[str]] = None,
 ) -> Tuple[Any, ...]:
     """Extract dfs from datamodel using the ProcessModel object"""
     activity_table = process_config.table_dict[activity_table_str]
     process_model = activity_table.process_model
     # Get PQLColumns from the attributes
     process_model.global_filters = filters
+    process_model.key_activities = key_activities
     static_attributes_pql = [attr.pql_query for attr in static_attributes]
     if dynamic_attributes:
         dynamic_attributes_pql = [attr.pql_query for attr in dynamic_attributes]
@@ -295,7 +294,8 @@ def get_valid_vals(
                 name=col_name + "_count",
                 query='COUNT_TABLE("' + target_table_str + '")',
             )
-        )  # Can just query  # enough occurences using filter
+        )  # Can just query  #
+        # enough occurences using filter
 
     df_val_counts = get_df_with_filters(
         dm=process_config.dm, filters=filters, query=query, chunksize=chunksize
@@ -353,6 +353,334 @@ def gen_static_numeric_activity_table_attributes(
         )
         attrs.append(attr)
     return attrs
+
+
+def gen_case_column_attributes_single_table(
+    process_config: ProcessConfig,
+    table_str: str,
+    columns: List[str],
+    attribute_datatype: AttributeDataType,
+    is_feature: bool = True,
+    is_class_feature: bool = False,
+):
+    """Generate list of static CaseTableColumnAttributes for one table
+
+    :param process_config:
+    :param table_str:
+    :param columns:
+    :param attribute_datatype:
+    :param is_feature:
+    :param is_class_feature:
+    :return:
+    """
+    attrs = []
+    for column in columns:
+        attr = CaseTableColumnAttribute(
+            process_config=process_config,
+            table_name=table_str,
+            attribute_datatype=attribute_datatype,
+            column_name=column,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+        attrs.append(attr)
+    return attrs
+
+
+def gen_numeric_case_column_attributes_single_table(
+    process_config: ProcessConfig,
+    table_str: str,
+    columns: List[str],
+    is_feature: bool = True,
+    is_class_feature: bool = False,
+):
+    """Convenience method. Generate list of static numeric CaseTableColumnAttributes
+
+    :param columns:
+    :param is_feature:
+    :param is_class_feature:
+    :return:
+    """
+    return gen_case_column_attributes_single_table(
+        process_config=process_config,
+        table_str=table_str,
+        columns=columns,
+        attribute_datatype=AttributeDataType.NUMERICAL,
+        is_feature=is_feature,
+        is_class_feature=is_class_feature,
+    )
+
+
+def gen_categorical_case_column_attributes_single_table(
+    process_config: ProcessConfig,
+    table_str: str,
+    columns: List[str],
+    is_feature: bool = True,
+    is_class_feature: bool = False,
+):
+    """Convenience method. Generate list of static
+    categorical CaseTableColumnAttributes
+
+    :param columns:
+    :param is_feature:
+    :param is_class_feature:
+    :return:
+    """
+    return gen_case_column_attributes_single_table(
+        process_config=process_config,
+        table_str=table_str,
+        columns=columns,
+        attribute_datatype=AttributeDataType.CATEGORICAL,
+        is_feature=is_feature,
+        is_class_feature=is_class_feature,
+    )
+
+
+def gen_case_column_attributes_multi_table(
+    process_config: ProcessConfig,
+    table_column_dict: Dict[str, List[str]],
+    is_feature: bool = True,
+    is_class_feature: bool = False,
+):
+    """Generate list of static CaseTableColumnAttributes for several tables and
+    for numeric and categorical columns.
+
+    :param process_config:
+    :param table_column_dict: dictionary with table names and columns that shall
+    be considered.
+    :param is_feature:
+    :param is_class_feature:
+    :return:
+    """
+    attributes = []
+    for table_name, all_columns in table_column_dict.items():
+        # Get all categorical and numerical columns from table
+        (
+            cat_cols,
+            num_cols,
+        ) = process_config.get_categorical_numerical_column_names(table_name)
+        # Now only use those columns that are defined in the table_column_dict
+        cat_cols = utils.list_intersection(cat_cols, all_columns)
+        num_cols = utils.list_intersection(num_cols, all_columns)
+        # Get attributes for categorical columns
+        num_attributes = gen_numeric_case_column_attributes_single_table(
+            process_config=process_config,
+            columns=num_cols,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            table_str=table_name,
+        )
+        cat_attributes = gen_categorical_case_column_attributes_single_table(
+            process_config=process_config,
+            columns=cat_cols,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            table_str=table_name,
+        )
+        attributes = attributes + num_attributes + cat_attributes
+
+    return attributes
+
+
+def _gen_previous_numerical_activity_col_attributes(
+    process_config: ProcessConfig,
+    columns: List[str],
+    activity_table_str: str,
+    is_feature: bool,
+    is_class_feature: bool,
+):
+    """Helper function"""
+    attrs = []
+    for col in columns:
+        attr = PreviousActivityColumnAttribute(
+            process_config=process_config,
+            activity_table_str=activity_table_str,
+            column_name=col,
+            attribute_datatype=AttributeDataType.NUMERICAL,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+        attrs.append(attr)
+    return attrs
+
+
+def _gen_previous_categorical_activity_col_attributes(
+    process_config: ProcessConfig,
+    columns: List[str],
+    activity_table_str: str,
+    is_feature: bool,
+    is_class_feature: bool,
+):
+    """Helper function"""
+    attrs = []
+    for col in columns:
+        attr = PreviousActivityColumnAttribute(
+            process_config=process_config,
+            activity_table_str=activity_table_str,
+            column_name=col,
+            attribute_datatype=AttributeDataType.CATEGORICAL,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+        attrs.append(attr)
+    return attrs
+
+
+def gen_previous_activity_col_attributes(
+    process_config: ProcessConfig,
+    columns: List[str],
+    activity_table_str: str,
+    is_feature: bool,
+    is_class_feature: bool,
+):
+    """Get both numeric anf categorical previous activity column attributes"""
+    # Get all categorical and numerical columns from table
+    (
+        cat_cols,
+        num_cols,
+    ) = process_config.get_categorical_numerical_column_names(activity_table_str)
+    # Now only use those columns that are defined in the table_column_dict
+    cat_cols = utils.list_intersection(cat_cols, columns)
+    num_cols = utils.list_intersection(num_cols, columns)
+
+    num_attributes = _gen_previous_numerical_activity_col_attributes(
+        process_config=process_config,
+        columns=num_cols,
+        activity_table_str=activity_table_str,
+        is_feature=is_feature,
+        is_class_feature=is_class_feature,
+    )
+    cat_attributes = _gen_previous_numerical_activity_col_attributes(
+        process_config=process_config,
+        columns=cat_cols,
+        activity_table_str=activity_table_str,
+        is_feature=is_feature,
+        is_class_feature=is_class_feature,
+    )
+
+    attributes = num_attributes + cat_attributes
+
+    return attributes
+
+
+def _gen_current_numerical_activity_col_attributes(
+    process_config: ProcessConfig,
+    columns: List[str],
+    activity_table_str: str,
+    is_feature: bool,
+    is_class_feature: bool,
+):
+    """Helper function"""
+    attrs = []
+    for col in columns:
+        attr = CurrentActivityColumnAttribute(
+            process_config=process_config,
+            activity_table_str=activity_table_str,
+            column_name=col,
+            attribute_datatype=AttributeDataType.NUMERICAL,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+        attrs.append(attr)
+    return attrs
+
+
+def _gen_current_categorical_activity_col_attributes(
+    process_config: ProcessConfig,
+    columns: List[str],
+    activity_table_str: str,
+    is_feature: bool,
+    is_class_feature: bool,
+):
+    """Helper function"""
+    attrs = []
+    for col in columns:
+        attr = CurrentActivityColumnAttribute(
+            process_config=process_config,
+            activity_table_str=activity_table_str,
+            column_name=col,
+            attribute_datatype=AttributeDataType.CATEGORICAL,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+        attrs.append(attr)
+    return attrs
+
+
+def gen_current_activity_col_attributes(
+    process_config: ProcessConfig,
+    columns: List[str],
+    activity_table_str: str,
+    is_feature: bool,
+    is_class_feature: bool,
+):
+    """Get both numeric anf categorical current activity column attributes"""
+    # Get all categorical and numerical columns from table
+    (
+        cat_cols,
+        num_cols,
+    ) = process_config.get_categorical_numerical_column_names(activity_table_str)
+    # Now only use those columns that are defined in the table_column_dict
+    cat_cols = utils.list_intersection(cat_cols, columns)
+    num_cols = utils.list_intersection(num_cols, columns)
+
+    num_attributes = _gen_current_numerical_activity_col_attributes(
+        process_config=process_config,
+        columns=num_cols,
+        activity_table_str=activity_table_str,
+        is_feature=is_feature,
+        is_class_feature=is_class_feature,
+    )
+    cat_attributes = _gen_current_numerical_activity_col_attributes(
+        process_config=process_config,
+        columns=cat_cols,
+        activity_table_str=activity_table_str,
+        is_feature=is_feature,
+        is_class_feature=is_class_feature,
+    )
+
+    attributes = num_attributes + cat_attributes
+
+    return attributes
+
+
+def gen_dynamic_activity_occurence_attributes(
+    process_config: ProcessConfig,
+    activity_table_str: str,
+    activities: List[str] = None,
+    min_vals: int = 0,
+    max_vals: int = np.inf,
+    is_feature: bool = True,
+    is_class_feature: bool = False,
+    filters: Optional[List[PQLFilter]] = None,
+) -> List[PreviousActivityOccurrenceAttribute]:
+    """Generates the dynamic PreviousActivityOccurrenceAttributes. If no
+    activities are given, all activities are used and it's checked for min and
+    max values. If activities are given, it is not checked for min and max
+    occurences."""
+    activity_table = process_config.table_dict[activity_table_str]
+    if activities is None:
+        activities_dict = get_valid_vals(
+            table_name=activity_table.table_str,
+            column_names=[activity_table.activity_col_str],
+            process_config=process_config,
+            min_vals=min_vals,
+            max_vals=max_vals,
+            filters=filters,
+        )
+    activities = activities_dict[activity_table.activity_col_str]
+    activity_occ_attributes = []
+    for activity in activities:
+        attr = PreviousActivityOccurrenceAttribute(
+            process_config=process_config,
+            activity_table_str=activity_table_str,
+            activity=activity,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+        activity_occ_attributes.append(attr)
+
+    return activity_occ_attributes
 
 
 class FeatureProcessor:
@@ -460,7 +788,8 @@ class FeatureProcessor:
                     name=col_name + "_count",
                     query='COUNT_TABLE("' + target_table_str + '")',
                 )
-            )  # Can just query  # enough occurences using filter
+            )  # Can just query
+            # enough occurences using filter
 
         df_val_counts = self.get_df_with_filters(query)
         cols = df_val_counts.columns.tolist()
@@ -488,9 +817,10 @@ class FeatureProcessor:
         is_feature: bool = True,
         is_class_feature: bool = False,
     ) -> List[PreviousActivityOccurrenceAttribute]:
-        """Generates the static ActivitiyOccurenceAttributes. If no activities are
-        given, all activities are used and it's checked for min and max values. If
-        activities are given, it is not checked for min and max occurences."""
+        """Generates the dynamic PreviousActivityOccurrenceAttributes. If no
+        activities are given, all activities are used and it's checked for min and
+        max values. If activities are given, it is not checked for min and max
+        occurences."""
         activity_table = process_config.table_dict[activity_table_str]
         if activities is None:
             activities = self.get_valid_vals(
@@ -812,8 +1142,7 @@ class FeatureProcessor:
             EndActivityTimeAttribute(
                 process_config=self.process_config,
                 activity_table_str=activity_table_str,
-            )
-            # ActivityOccurenceAttribute(
+            )  # ActivityOccurenceAttribute(
             # process_model=self.process_model,
             #    aggregation="AVG", is_feature=True,
             #    is_class_feature=False,
