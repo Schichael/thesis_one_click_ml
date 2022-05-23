@@ -583,7 +583,7 @@ class AttributeSelectionConfig(Configuration):
         self.dynamic_attribute_descriptors = dynamic_attribute_descriptors
         self.local_selected_static_attributes = self.static_attribute_descriptors.copy()
         self.local_selected_dynamic_attributes = (
-            self.static_attribute_descriptors.copy()
+            self.dynamic_attribute_descriptors.copy()
         )
         self.local_selected_activity_cols = []  # activity_table_cols.copy()
         self.local_selected_case_cols = {}
@@ -693,6 +693,8 @@ class AttributeSelectionConfig(Configuration):
         # remove None
         cbs_activity_case_table = list(filter(None, cbs_activity_case_table))
 
+        # Update configurator with default values
+        self._update_configurator()
         static_header_str = (
             '<span style="font-weight:bold;  font-size:14px">Static attributes '
             "</span>"
@@ -714,6 +716,7 @@ class AttributeSelectionConfig(Configuration):
 
         html_title = widgets.HTML(self.html_caption_str)
         vbox_all_attributes = widgets.VBox(children=[html_title, vbox_cbs])
+
         self.config_box = vbox_all_attributes
 
     def create_cbs_activity_case(self, table_type: str, table: Any) -> widgets.VBox:

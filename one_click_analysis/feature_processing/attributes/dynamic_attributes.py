@@ -197,27 +197,18 @@ class PreviousActivityOccurrenceAttribute(DynamicAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = (
-            f"CASE WHEN {self._get_query_string_without_case_table} >= 1 THEN 1 ELSE "
+            f"CASE WHEN {self._get_query_string_without_case_table()} >= 1 THEN 1 ELSE "
             f"0 END"
         )
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
     def _get_query_string_without_case_table(self):
-        return f"""
-            COALESCE(
-                RUNNING_SUM(
-                    CASE
-                        WHEN "{self.activity_table.table_str}"."
-                        {self.activity_table.activity_col_str}" =
-                            '{self.activity}'
-                        THEN 1
-                        ELSE 0
-                    END,
-                    PARTITION BY ("
-                    {self.activity_table.table_str}".
-                    "{self.activity_table.caseid_col_str}") ),
-            0)
-        """
+        return (
+            f'COALESCE(RUNNING_SUM(CASE WHEN "{self.activity_table.table_str}"."'
+            f"{self.activity_table.activity_col_str}\" = '{self.activity}' THEN 1 "
+            f'ELSE 0 END, PARTITION BY ("{self.activity_table.table_str}"."'
+            f'{self.activity_table.caseid_col_str}") ), 0)'
+        )
 
 
 class ActivityCountAttribute(DynamicAttribute):
@@ -310,10 +301,10 @@ class ActivityDurationAttribute(DynamicAttribute):
         q = f"""
             COALESCE(
                 {self.unit}_BETWEEN(
-                    ACTIVITY_LAG("{self.activity_table.table_str}"."
-                    {self.activity_table.eventtime_col_str}", 1),
-                    "{self.activity_table.table_str}"."
-                    {self.activity_table.eventtime_col_str}"
+                    ACTIVITY_LAG("{self.activity_table.table_str}".
+                    "{self.activity_table.eventtime_col_str}", 1),
+                    "{self.activity_table.table_str}".
+                    "{self.activity_table.eventtime_col_str}"
                 ), 0.0
             )
         """
