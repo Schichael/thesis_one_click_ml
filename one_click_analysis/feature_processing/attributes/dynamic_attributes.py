@@ -311,7 +311,47 @@ class ActivityDurationAttribute(DynamicAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
-# class RoutingDecisionEventuallylyFollowsAttribute(DynamicAttribute):
-#    """This eventually follows is specifically used for the Routing decisions
-#    analysis."""
-#    display_name = "Eventually follows activity"
+class DecisionToActivityAttribute(DynamicAttribute):
+    """This attribute is specifically designed for the RoutingDecision analysis as
+    the target attribute. A
+    source activity A and target activities (e.g. T1, T2) are defined.
+    If both T1 and T2 eventually follow A, only the first one is used. This attribute
+    cannot be used without further processing since the PQL query only queries the
+    current activity.
+    """
+
+    display_name = "Decision to Activity"
+    description = (
+        "The target activity that eventually follows the selected source activity. If "
+        "multiple target activities are defined, it is the one that first eventually "
+        "follows the source activity."
+    )
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+    ):
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
+        self.attribute_name = f"Decision to activity"
+
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
+            process_config=self.process_config,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            f'"{self.activity_table.table_str}".'
+            f'"{self.activity_table.activity_col_str}"'
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
