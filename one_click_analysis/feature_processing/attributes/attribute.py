@@ -46,7 +46,6 @@ class Attribute(abc.ABC):
     ):
         self.process_config = process_config
         self.attribute_name = attribute_name
-        self.pql_query = pql_query
         self.data_type = data_type
         self.attribute_type = attribute_type
         self.is_feature = is_feature
@@ -59,6 +58,10 @@ class Attribute(abc.ABC):
             raise ValueError(
                 "Attributes is_feature and is_class_feature cannot both " "be True"
             )
+
+    @property
+    def pql_query(self):
+        return self._gen_query()
 
     @abc.abstractmethod
     def _gen_query(self):
