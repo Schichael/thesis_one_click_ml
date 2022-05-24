@@ -631,7 +631,7 @@ def gen_current_activity_col_attributes(
         is_feature=is_feature,
         is_class_feature=is_class_feature,
     )
-    cat_attributes = _gen_current_numerical_activity_col_attributes(
+    cat_attributes = _gen_current_categorical_activity_col_attributes(
         process_config=process_config,
         columns=cat_cols,
         activity_table_str=activity_table_str,
@@ -681,6 +681,20 @@ def gen_dynamic_activity_occurence_attributes(
         activity_occ_attributes.append(attr)
 
     return activity_occ_attributes
+
+
+def default_target_query(
+    process_config: ProcessConfig, activity_table_str: str, name="TARGET"
+):
+    """Return PQLColumn that evaluates to 1 for all cases wth default column name
+    TARGET"""
+    activity_table = process_config.table_dict[activity_table_str]
+    q_str = (
+        f'CASE WHEN PU_COUNT("{activity_table.case_table_str}", '
+        f'"{activity_table.table_str}"."'
+        f'{activity_table.activity_col_str}") >= 1 THEN 1 ELSE 0 END'
+    )
+    return PQLColumn(name=name, query=q_str)
 
 
 class FeatureProcessor:
