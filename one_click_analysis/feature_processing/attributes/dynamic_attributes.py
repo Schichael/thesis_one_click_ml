@@ -25,7 +25,21 @@ class DynamicAttribute(Attribute, abc.ABC):
         is_class_feature: bool = False,
         unit: str = "",
         column_name: Optional[str] = None,
+        **kwargs,
     ):
+        """
+
+        :param process_config:
+        :param attribute_name:
+        :param pql_query:
+        :param data_type:
+        :param attribute_type:
+        :param is_feature:
+        :param is_class_feature:
+        :param unit:
+        :param column_name:
+        :param kwargs: Additional arguments for Attribute base class
+        """
         super().__init__(
             process_config=process_config,
             attribute_name=attribute_name,
@@ -36,6 +50,7 @@ class DynamicAttribute(Attribute, abc.ABC):
             is_class_feature=is_class_feature,
             unit=unit,
             column_name=column_name,
+            **kwargs,
         )
 
 
@@ -52,6 +67,7 @@ class NextActivityAttribute(DynamicAttribute):
         is_feature: bool = False,
         is_class_feature: bool = False,
         attribute_name: str = "Next activity",
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -65,6 +81,7 @@ class NextActivityAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -92,6 +109,7 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
         attribute_datatype: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -110,6 +128,7 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             column_name=column_name,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -137,6 +156,7 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
         attribute_datatype: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -155,6 +175,7 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             column_name=column_name,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -178,6 +199,7 @@ class PreviousActivityOccurrenceAttribute(DynamicAttribute):
         activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -193,6 +215,7 @@ class PreviousActivityOccurrenceAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -227,6 +250,7 @@ class ActivityCountAttribute(DynamicAttribute):
         activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -242,6 +266,7 @@ class ActivityCountAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -279,6 +304,7 @@ class ActivityDurationAttribute(DynamicAttribute):
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "DAYS",
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -295,6 +321,7 @@ class ActivityDurationAttribute(DynamicAttribute):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=self.unit.lower(),
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -333,6 +360,7 @@ class DecisionToActivityAttribute(DynamicAttribute):
         activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -347,6 +375,7 @@ class DecisionToActivityAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:

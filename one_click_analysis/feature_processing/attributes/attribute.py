@@ -43,6 +43,8 @@ class Attribute(abc.ABC):
         is_class_feature: bool = False,
         unit: str = "",
         column_name: Optional[str] = None,
+        display_name: Optional[str] = None,
+        description: Optional[str] = None,
     ):
         self.process_config = process_config
         self.attribute_name = attribute_name
@@ -52,6 +54,10 @@ class Attribute(abc.ABC):
         self.is_class_feature = is_class_feature
         self.unit = unit
         self.column_name = column_name
+        if display_name is not None:
+            self.display_name = display_name
+        if description is not None:
+            self.description = description
 
     def validate_feature_type(self):
         if self.is_feature and self.is_class_feature:

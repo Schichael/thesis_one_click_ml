@@ -26,6 +26,7 @@ class StaticAttribute(Attribute, abc.ABC):
         is_class_feature: bool = False,
         unit: str = "",
         column_name: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__(
             process_config=process_config,
@@ -37,6 +38,7 @@ class StaticAttribute(Attribute, abc.ABC):
             is_class_feature=is_class_feature,
             unit=unit,
             column_name=column_name,
+            **kwargs,
         )
 
     def get_query_with_value(self, value: Optional[str] = None):
@@ -64,6 +66,7 @@ class CaseDurationAttribute(StaticAttribute):
         time_aggregation: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.time_aggregation = time_aggregation
@@ -79,6 +82,7 @@ class CaseDurationAttribute(StaticAttribute):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=self.time_aggregation.lower(),
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -112,6 +116,7 @@ class WorkInProgressAttribute(StaticAttribute):
         aggregation: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -127,6 +132,7 @@ class WorkInProgressAttribute(StaticAttribute):
             attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -169,6 +175,7 @@ class EventCountAttribute(StaticAttribute):
         activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -182,6 +189,7 @@ class EventCountAttribute(StaticAttribute):
             attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -212,6 +220,7 @@ class ActivityOccurenceAttribute(StaticAttribute):
         activity: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -226,6 +235,7 @@ class ActivityOccurenceAttribute(StaticAttribute):
             attribute_type=AttributeType.OTHER,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -253,6 +263,7 @@ class ReworkCountAttribute(StaticAttribute):
         activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.attribute_name = f"Case Rework count (all activities)"
@@ -266,6 +277,7 @@ class ReworkCountAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -297,6 +309,7 @@ class ReworkOccurrenceAttribute(StaticAttribute):
         activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -310,6 +323,7 @@ class ReworkOccurrenceAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -339,6 +353,7 @@ class StartActivityAttribute(StaticAttribute):
         activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -352,6 +367,7 @@ class StartActivityAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -396,6 +412,7 @@ class EndActivityAttribute(StaticAttribute):
         activity_table_str: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -409,6 +426,7 @@ class EndActivityAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -458,6 +476,7 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
         aggregation: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -482,6 +501,7 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             column_name=column_name,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -506,6 +526,7 @@ class CaseTableColumnAttribute(StaticAttribute):
         attribute_datatype: AttributeDataType,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.table_name = table_name
@@ -523,6 +544,7 @@ class CaseTableColumnAttribute(StaticAttribute):
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             column_name=column_name,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -563,6 +585,7 @@ class TransitionOccurenceAttribute(StaticAttribute):
         transition_end: str,
         is_feature: bool = False,
         is_class_feature: bool = False,
+        **kwargs,
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -580,6 +603,7 @@ class TransitionOccurenceAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -599,9 +623,7 @@ class StartActivityTimeAttribute(StaticAttribute):
     description = "The date / time of the first event of a case"
 
     def __init__(
-        self,
-        process_config: ProcessConfig,
-        activity_table_str: str,
+        self, process_config: ProcessConfig, activity_table_str: str, **kwargs
     ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
@@ -615,6 +637,7 @@ class StartActivityTimeAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=False,
             is_class_feature=False,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
@@ -635,7 +658,9 @@ class EndActivityTimeAttribute(StaticAttribute):
     display_name = "End activity time"
     description = "The date / time of the last event of a case"
 
-    def __init__(self, process_config: ProcessConfig, activity_table_str: str):
+    def __init__(
+        self, process_config: ProcessConfig, activity_table_str: str, **kwargs
+    ):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
         self.attribute_name = f"End activity Time"
@@ -648,6 +673,7 @@ class EndActivityTimeAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=False,
             is_class_feature=False,
+            **kwargs,
         )
 
     def _gen_query(self) -> pql.PQLColumn:
