@@ -49,12 +49,14 @@ class OverviewScreenCaseDuration(OverviewScreen):
         features: List[Feature],
         target_features: List[Feature],
         timestamp_column: str,
+        num_cases: int,
     ):
         self.df_x = df_x
         self.df_target = df_target
         self.features = features
         self.target_features = target_features
         self.timestamp_column = timestamp_column
+        self.num_cases = num_cases
         self._overview_box = self._create_overview_screen()
 
     @property
@@ -79,11 +81,10 @@ class OverviewScreenCaseDuration(OverviewScreen):
             val_color="Blue",
         )
 
-        num_cases = len(set(self.df_target.index.get_level_values(0)))
         title = "Number of selected cases"
         num_cases_box = SingleValueBox(
             title=title,
-            val=num_cases,
+            val=self.num_cases,
             unit=None,
             title_color="Black",
             val_color="Blue",
@@ -105,6 +106,7 @@ class OverviewScreenCaseDuration(OverviewScreen):
             time_col=self.timestamp_column,
             attribute_cols=self.target_features[0].df_column_name,
             fill=True,
+            case_level=False,
             title="Case duration development",
         )
 
@@ -125,7 +127,7 @@ class OverviewScreenCaseDuration(OverviewScreen):
         )
 
 
-class OverviewScreenDecisionRules(OverviewScreen):
+class OverviewScreenRoutingDecisions(OverviewScreen):
     def __init__(
         self,
         df_x: pd.DataFrame,
@@ -135,6 +137,7 @@ class OverviewScreenDecisionRules(OverviewScreen):
         timestamp_column: str,
         source_activity: str,
         case_duration_col_name: str,
+        num_cases: int,
     ):
         self.df_x = df_x
         self.df_target = df_target
@@ -143,6 +146,7 @@ class OverviewScreenDecisionRules(OverviewScreen):
         self.timestamp_column = timestamp_column
         self.source_activity = source_activity
         self.case_duration_col_name = case_duration_col_name
+        self.num_cases = num_cases
         self.target_activities = self._get_target_activities()
         self._overview_box = self._create_overview_screen()
 
@@ -161,27 +165,69 @@ class OverviewScreenDecisionRules(OverviewScreen):
 
         :return:
         """
+        # Transitions from source activity to selected target activities. It is the
+        # length of the DataFrame without the rows where there is no target activity
+        # (Then after the source activity none of the target activities occur.)
+        # Get indices where there is a decision to one of the target activities
+        indices_with_target_activities = []
+        num_transitions = 0
+        for target_feature in self.target_features:
+            col_name = target_feature.df_column_name
+            idxs_with_target = np.where(self.df_target[col_name] == 1)[0]
+            num_transitions += len(idxs_with_target)
+            indices_with_target_activities = (
+                indices_with_target_activities + idxs_with_target.tolist()
+            )
 
-        transitions_with_source_activity = len(self.df_target.index)
-        title = f"Transitions from activity '{self.source_activity}'"
-        cases_with_activity_box = SingleValueBox(
+        title = (
+            f"Total number of decisions from activity '{self.source_activity}' "
+            f"to selected target activities"
+        )
+        number_transitions_box = SingleValueBox(
             title=title,
-            val=transitions_with_source_activity,
+            val=num_transitions,
             title_color="Black",
             val_color="Blue",
         )
 
-        num_cases = len(set(self.df_target.index.get_level_values(0)))
+        # Total number of selected cases
         title = "Number of selected cases"
         num_cases_box = SingleValueBox(
             title=title,
-            val=num_cases,
+            val=self.num_cases,
             unit=None,
             title_color="Black",
             val_color="Blue",
         )
+
+        # Number of cases with at least one transition from source activity to one of
+        # the target activities
+        num_cases_with_transitions = len(
+            set(
+                self.df_target.iloc[
+                    indices_with_target_activities
+                ].index.get_level_values(0)
+            )
+        )
+        title = (
+            f"Total number of cases with decisions from activity "
+            f"'{self.source_activity}' "
+            f"to selected target activities"
+        )
+        num_cases_with_transition_box = SingleValueBox(
+            title=title,
+            val=num_cases_with_transitions,
+            unit=None,
+            title_color="Black",
+            val_color="Blue",
+        )
+
         metrics_box = HBox(
-            children=[cases_with_activity_box.box, num_cases_box.box],
+            children=[
+                num_cases_box.box,
+                num_cases_with_transition_box.box,
+                number_transitions_box.box,
+            ],
             layout=Layout(margin="0px 30px 0px 0px"),
         )
         target_column_names = [x.df_column_name for x in self.target_features]
@@ -201,16 +247,16 @@ class OverviewScreenDecisionRules(OverviewScreen):
                     )
                 )
 
-        num_datapoints_with_target = []
+        num_cases_with_target = []
         for tf in self.target_features:
 
-            num_datapoints_with_target.append(tf.metrics["case_count"])
+            num_cases_with_target.append(tf.metrics["case_count"])
 
         # barplot with cases with target activities and metric line plot
 
         barplot_args = {
             "x": self.target_activities,
-            "y": num_datapoints_with_target,
+            "y": num_cases_with_target,
             "name": "Cases with transition",
         }
         line_plot_args = {
@@ -220,17 +266,17 @@ class OverviewScreenDecisionRules(OverviewScreen):
         }
 
         layout_args = {
-            "xaxis_title": "Transitions to",
-            "yaxis_title": "Cases with transition",
+            "xaxis_title": "Decisions to",
+            "yaxis_title": "Cases with decision",
             "yaxis2_title": "Average case duration [Days]",
-            "title": "Cases with transitions and average case duration",
+            "title": "Cases with decisions and average case duration",
         }
 
         barplot = BarWithLines(barplot_args, line_plot_args, **layout_args)
 
         # development of case duration
         title_transition_development = (
-            "Cases with transitions from "
+            "Cases with decisions from "
             + self.source_activity
             + " to selected target activities"
         )
@@ -244,6 +290,8 @@ class OverviewScreenDecisionRules(OverviewScreen):
             attribute_cols=target_column_names,
             attribute_names=self.target_activities,
             fill=False,
+            case_level=True,
+            case_level_aggregation="max",
             title=title_transition_development,
             data_aggregation=np.sum,
         )
@@ -266,6 +314,7 @@ class OverviewScreenTransitionTime(OverviewScreen):
         timestamp_column: str,
         source_activity: str,
         target_activity: str,
+        num_cases: int,
     ):
         self.df_x = df_x
         self.df_target = df_target
@@ -274,6 +323,7 @@ class OverviewScreenTransitionTime(OverviewScreen):
         self.timestamp_column = timestamp_column
         self.source_activity = source_activity
         self.target_activity = target_activity
+        self.num_cases = num_cases
         self._overview_box = self._create_overview_screen()
 
     @property
@@ -337,6 +387,7 @@ class OverviewScreenTransitionTime(OverviewScreen):
             time_col=self.timestamp_column,
             attribute_cols=self.target_features[0].df_column_name,
             fill=True,
+            case_level=False,
             title="Transition duration development",
         )
 
