@@ -83,6 +83,8 @@ class AttributeDevelopmentFigure(Figure):
         attribute_names: Optional[List[str] or str] = None,
         time_aggregation: Optional[str] = "M",
         data_aggregation: Union[str, Callable] = "mean",
+        case_level: bool = False,
+        case_level_aggregation: str = "max",
         fill: bool = False,
         **kwargs,
     ):
@@ -95,7 +97,13 @@ class AttributeDevelopmentFigure(Figure):
         :param time_aggregation: how to aggregate the time. One of pandas’ offset
         strings or an Offset object. E.g. 'Y' for yearly, 'M' for monthly, 'D' for
         daily
-        :param data_Aggregation: the way to aggregate the data
+        :param data_aggregation: the way to aggregate the data
+        :param case_level: whether to perform the aggregation on the case level. If
+        False, it will be done on the datapoint level
+        :param case_level_aggregation: When performing aggregation on case level,
+        a case level aggregation needs to me provided. For binary categorical
+        attributes, the 'max' aggregation is handy since it says whether the
+        feature occurs in a case or not.
         :param fill: whether to fille the plot to become an area chart. If True,
         the plot for the last attribute in attribute_cols will be filled to zero_y.
         :param kwargs: arguments to use for the figure layout
@@ -108,6 +116,8 @@ class AttributeDevelopmentFigure(Figure):
         self.attribute_names = utils.make_list(attribute_names)
         self.time_aggregation = time_aggregation
         self.data_aggregation = data_aggregation
+        self.case_level = case_level
+        self.case_level_aggregation = case_level_aggregation
         self.fill = fill
         layout_vals_this_fig = self._get_layout_args(**kwargs)
         super().__init__(**layout_vals_this_fig)
@@ -121,9 +131,14 @@ class AttributeDevelopmentFigure(Figure):
 
     def _create_figure(self):
         df = self.df[[self.time_col] + self.attribute_cols].copy()
+
         df["time_agg"] = (
             df[self.time_col].dt.to_period(self.time_aggregation).astype(str)
         )
+
+        if self.case_level:
+            df = df.groupby(level=0).agg(self.case_level_aggregation)
+
         df = df.groupby("time_agg", as_index=False)[self.attribute_cols].aggregate(
             self.data_aggregation
         )
