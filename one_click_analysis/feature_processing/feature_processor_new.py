@@ -697,6 +697,23 @@ def default_target_query(
     return PQLColumn(name=name, query=q_str)
 
 
+def get_number_cases(
+    process_config: ProcessConfig, activity_table_str: str, filters: List[PQLFilter]
+) -> int:
+    """Get the number of cases based on an activity table"""
+    activity_table = process_config.table_dict[activity_table_str]
+    pql_str = (
+        f'COUNT(DISTINCT "{activity_table_str}"."{activity_table.caseid_col_str}")'
+    )
+    pql_query = PQL()
+    pql_query.add(PQLColumn(name="number_cases", query=pql_str))
+    df_num_cases = get_df_with_filters(
+        process_config.dm, filters, pql_query, chunksize=10000
+    )
+    num_cases = df_num_cases["number_cases"].values[0]
+    return num_cases
+
+
 class FeatureProcessor:
     """
     The FeatureProcessor fetches data from the Celonis database and generates the
