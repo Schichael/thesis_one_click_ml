@@ -1,3 +1,5 @@
+import numpy as np
+
 from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
@@ -35,15 +37,30 @@ class StatisticsComputer:
         # Do this for both normal and target features
         for feature in self.features:
             if feature.datatype == AttributeDataType.CATEGORICAL:
+                indices_with_feature = np.where(self.df_x[feature.df_column_name] == 1)[
+                    0
+                ]
+
                 case_count = len(
-                    self.df_x[self.df_x[feature.df_column_name] == 1].index
+                    set(
+                        self.df_x.iloc[
+                            indices_with_feature.tolist()
+                        ].index.get_level_values(0)
+                    )
                 )
                 feature.metrics["case_count"] = case_count
 
         for tf in self.target_features:
             if tf.datatype == AttributeDataType.CATEGORICAL:
+                indices_with_feature = np.where(self.df_target[tf.df_column_name] == 1)[
+                    0
+                ]
                 case_count = len(
-                    self.df_target[self.df_target[tf.df_column_name] == 1].index
+                    set(
+                        self.df_target.iloc[
+                            indices_with_feature.tolist()
+                        ].index.get_level_values(0)
+                    )
                 )
                 tf.metrics["case_count"] = case_count
 
