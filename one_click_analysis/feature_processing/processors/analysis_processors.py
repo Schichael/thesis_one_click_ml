@@ -826,6 +826,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
         # same case
         # First need to set level 0 index (case level) values to a column
         df_with_shifts["index"] = df_with_shifts.index.get_level_values(0)
+        df_with_shifts["previous_index"] = df_with_shifts["index"].shift(1)
         groups = df_with_shifts.groupby(
             (df_with_shifts["index"].shift() != df_with_shifts["index"]).cumsum()
         )
@@ -833,21 +834,23 @@ class RoutingDecisionProcessor(UseCaseProcessor):
             idxs = group.index[-1]
             df_with_shifts.loc[idxs, "shifted_-1"] = None
 
+        # If the source activity is not also a target activity:
         # Set shifted_-1 to the last value in a group (grouped by index and target
         # column). This is needed for the case that the source activity happens
         # multiple times in a row. For the first occurrence of the source activity in
-        # such a group we still want to get the eventually following target activity
-        groups = df_with_shifts.groupby(
-            (
-                (df_with_shifts["index"].shift() != df_with_shifts["index"])
-                | (df_with_shifts[target_col].shift() != df_with_shifts[target_col])
-            ).cumsum()
-        )
-        for name, group in groups:
-            if len(group) <= 1:
-                continue
-            idxs = group.index
-            df_with_shifts.loc[idxs, "shifted_-1"] = group["shifted_-1"].iloc[-1]
+        # such a group we still want to get the eventually following target activity.
+        if self.source_activity not in self.target_activities:
+            groups = df_with_shifts.groupby(
+                (
+                    (df_with_shifts["index"].shift() != df_with_shifts["index"])
+                    | (df_with_shifts[target_col].shift() != df_with_shifts[target_col])
+                ).cumsum()
+            )
+            for name, group in groups:
+                if len(group) <= 1:
+                    continue
+                idxs = group.index
+                df_with_shifts.loc[idxs, "shifted_-1"] = group["shifted_-1"].iloc[-1]
 
         # Remove the rows where target_col != source activity
         indices_to_drop = df_with_shifts[
@@ -855,15 +858,20 @@ class RoutingDecisionProcessor(UseCaseProcessor):
         ].index
         df_only_sources = df_with_shifts.drop(index=indices_to_drop)
 
-        # Remove the rows where B==1 and shifted_+1==1. Gets only the first
+        # Remove the rows where target_col==self.source_activity and
+        # shifted_+1==self.source_activity. Gets only the first
         # occurrences in a group of the source activity.
-        indices_to_drop_not_first = df_with_shifts[
-            (
-                (df_with_shifts[target_col] == self.source_activity)
-                & (df_with_shifts["shifted_+1"] == self.source_activity)
-            )
-        ].index
-        df_target = df_only_sources.drop(index=indices_to_drop_not_first)
+        if self.source_activity not in self.target_activities:
+            indices_to_drop_not_first = df_with_shifts[
+                (
+                    (df_with_shifts[target_col] == self.source_activity)
+                    & (df_with_shifts["shifted_+1"] == self.source_activity)
+                    & (df_with_shifts["previous_index"] == df_with_shifts["index"])
+                )
+            ].index
+            df_target = df_only_sources.drop(index=indices_to_drop_not_first)
+        else:
+            df_target = df_only_sources
         # The real target values are in 'shifted_-1' now. Copy it to the target_col
         # column.
         df_target[target_col] = df_target["shifted_-1"]
