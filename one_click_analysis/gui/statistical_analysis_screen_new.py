@@ -340,6 +340,8 @@ class FeatureField:
                 attribute_cols=[datapoint_all_str, datapoint_with_attr_str],
                 time_aggregation="M",
                 data_aggregation="sum",
+                case_level=True,
+                case_level_aggregation="max",
                 fill=True,
             )
 
@@ -396,6 +398,7 @@ class FeatureField:
                 attribute_names=self.feature.df_column_name,
                 time_aggregation="M",
                 data_aggregation="mean",
+                case_level=False,
                 fill=True,
                 title="Attribute value development",
             )
