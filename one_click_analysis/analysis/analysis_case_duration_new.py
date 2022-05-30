@@ -194,6 +194,7 @@ class AnalysisCaseDuration:
             self.case_duration_processor.features,
             self.case_duration_processor.target_features,
             self.case_duration_processor.df_timestamp_column,
+            self.case_duration_processor.num_cases,
         )
 
         # Ceate statistical analysis tab

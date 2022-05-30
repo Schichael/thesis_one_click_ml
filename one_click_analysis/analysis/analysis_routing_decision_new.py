@@ -19,13 +19,13 @@ from one_click_analysis.feature_processing.processors.analysis_processors import
     TransitionTimeProcessor,
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
-from one_click_analysis.gui.overview_screen import OverviewScreenDecisionRules
+from one_click_analysis.gui.overview_screen import OverviewScreenRoutingDecisions
 from one_click_analysis.gui.statistical_analysis_screen_new import (
     StatisticalAnalysisScreen,
 )
 
 
-class AnalysisDecisionRules:
+class AnalysisRoutingDecisions:
     """Analysis of potential effects on case duration."""
 
     def __init__(self, th: float = 0.3, login: Optional[dict] = None):
@@ -214,7 +214,7 @@ class AnalysisDecisionRules:
 
         # Create overview box
 
-        self.overview_screen = OverviewScreenDecisionRules(
+        self.overview_screen = OverviewScreenRoutingDecisions(
             self.routing_decision_processor.df_x,
             self.routing_decision_processor.df_target,
             self.routing_decision_processor.features,
@@ -222,6 +222,7 @@ class AnalysisDecisionRules:
             self.routing_decision_processor.df_timestamp_column,
             source_activity,
             case_duration_col_name=self.routing_decision_processor.case_duration_attribute.attribute_name,  # noqa
+            num_cases=self.routing_decision_processor.num_cases,
         )
 
         # Ceate statistical analysis tab

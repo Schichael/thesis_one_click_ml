@@ -216,6 +216,7 @@ class AnalysisTransitionTime:
             self.transition_time_processor.df_timestamp_column,
             source_activity,
             target_activity,
+            self.transition_time_processor.num_cases,
         )
 
         # Ceate statistical analysis tab

@@ -21,7 +21,7 @@ from one_click_analysis.feature_processing.feature_processor import (
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.expert_screen import ExpertScreen
-from one_click_analysis.gui.overview_screen import OverviewScreenDecisionRules
+from one_click_analysis.gui.overview_screen import OverviewScreenRoutingDecisions
 from one_click_analysis.gui.statistical_analysis_screen_new import (
     StatisticalAnalysisScreen,
 )
@@ -178,7 +178,7 @@ class AnalysisRoutingDecision:
         # self.overview_screen.create_overview_screen()
 
         # Ceate statistical analysis tab
-        self.overview_screen = OverviewScreenDecisionRules(
+        self.overview_screen = OverviewScreenRoutingDecisions(
             self.fp.df_x,
             self.fp.df_target,
             self.fp.features,
