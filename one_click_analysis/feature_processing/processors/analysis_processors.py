@@ -1,4 +1,5 @@
 import abc
+import timeit
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -49,6 +50,7 @@ class UseCaseProcessor(abc.ABC):
         self.features = None
         self.filters = []
         self.df_timestamp_column = None
+        self.num_cases = None
 
     @abc.abstractmethod
     def process(self):
@@ -151,6 +153,12 @@ class CaseDurationProcessor(UseCaseProcessor):
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
             name="IS_CLOSED",
+        )
+
+        self.num_cases = feature_processor_new.get_number_cases(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            filters=self.filters,
         )
 
         (
@@ -409,6 +417,12 @@ class TransitionTimeProcessor(UseCaseProcessor):
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
             name="IS_CLOSED",
+        )
+
+        self.num_cases = feature_processor_new.get_number_cases(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            filters=self.filters,
         )
 
         (
@@ -672,6 +686,12 @@ class RoutingDecisionProcessor(UseCaseProcessor):
             name="IS_CLOSED",
         )
 
+        self.num_cases = feature_processor_new.get_number_cases(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            filters=self.filters,
+        )
+
         (
             min_attr_count,
             max_attr_count,
@@ -731,7 +751,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
         key_activities = [self.source_activity] + self.target_activities
         # Get DataFrame. Need to add [target_attribute] to dynamic_attributes in case
         # that there are no dynamic features. Then one would get an error.
-
+        start = timeit.default_timer()
         _, df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
@@ -748,7 +768,8 @@ class RoutingDecisionProcessor(UseCaseProcessor):
 
         # Get final df_x
         self.df_x = self._get_final_df_x(df_x, self.df_target)
-
+        stop = timeit.default_timer()
+        print("Time for creating the real dataframes: ", stop - start)
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
@@ -773,8 +794,17 @@ class RoutingDecisionProcessor(UseCaseProcessor):
     def _create_true_target_df(
         self, df_target: pd.DataFrame, target_attr: DecisionToActivityAttribute
     ) -> pd.DataFrame:
-        """Create the true target df from the original df_target that just has the
-        current activities"""
+        """Create the true target df from the original df_target. It will just have
+        the source activity as index and not the target activities anymore. Also,
+        the column of the target_attr attribute will have the eventually following
+        defined target activities or 'None' if none of the defined target activities
+        eventually follow. If the source activity happens several times in a row
+        without one of the target activities being between them, only the first
+        occurrence of the source activity is held. The others are discarded. So,
+        if S is the source activity and T is the target activity and A is another
+        activity and the trace goes like this: S(1)->A->A-S(2)->S(3)->A->T, then the
+        features are taken from S(1) and the decision goes to T. The other source
+        activities are discarded."""
         target_col = target_attr.attribute_name
         # Add shifted columns of target column
         df_target_shifted_minus_1 = pd.DataFrame(
