@@ -54,7 +54,7 @@ class ConfiguratorView:
         """Define what happens when apply button is clicked"""
         # Reset applied configs
         for config in self.configurations:
-            if not config.requirement_met:
+            if not config.configurator_requirement_met:
                 # TODO Print the requirements that are not met.
                 return
 

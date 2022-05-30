@@ -143,8 +143,14 @@ class Configuration(abc.ABC):
         configuration."""
         if not self.validate_prerequisites():
             return
-        self.configurator.config_dict[self.config_identifier] = self.config
-        self.configurator.filter_dict[self.config_identifier] = self.filters
+        if self.local_requirement_met:
+            self.configurator.config_dict[self.config_identifier] = self.config
+            self.configurator.filter_dict[self.config_identifier] = self.filters
+        else:
+            if self.configurator.config_dict.get(self.config_identifier) is not None:
+                self.configurator.config_dict.pop(self.config_identifier)
+            if self.configurator.filter_dict.get(self.config_identifier) is not None:
+                self.configurator.filter_dict.pop(self.config_identifier)
 
     def _validate_additional_prerequisites(self):
         if self.additional_prerequsit_config_identifiers is None:
@@ -158,11 +164,21 @@ class Configuration(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def requirement_met(self) -> bool:
-        """Check whether the requirement is met if self.required = True. If
-        self.required = True, the configuration must be somehow done by the user. If
-        that was done, True is returned, else False. If False,
-        the analysis/prediction shall not be allowed to be started yet.
+    def configurator_requirement_met(self) -> bool:
+        """Check whether the requirement in the configurator is met if self.required =
+        True. If self.required = True, the configuration must be somehow done by the
+        user. If that was done and applied, i.e. it is in the configurator dicts,
+        True is returned, else False. If False, the analysis/prediction shall not be
+        allowed to be started yet.
+        :return:
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def local_requirement_met(self) -> bool:
+        """Check whether the local requirement is met. It is met, when the
+        self.config variable is populated with the necessary entries.
         :return:
         """
         pass
@@ -267,7 +283,11 @@ class DatePickerConfig(Configuration):
         self._create_config_box()
 
     @property
-    def requirement_met(self):
+    def local_requirement_met(self) -> bool:
+        return True
+
+    @property
+    def configurator_requirement_met(self):
         if not self.required:
             return True
         if self.configurator.config_dict.get("datepicker") is not None:
@@ -439,7 +459,17 @@ class DatamodelConfig(Configuration):
         self.config_box = box_config
 
     @property
-    def requirement_met(self) -> bool:
+    def local_requirement_met(self) -> bool:
+        if (
+            self.config.get("datamodel") is not None
+            and self.config.get("process_config") is not None
+        ):
+            return True
+        else:
+            return False
+
+    @property
+    def configurator_requirement_met(self) -> bool:
         if not self.required:
             return True
         try:
@@ -516,7 +546,14 @@ class ActivityTableConfig(Configuration):
         self.config_box = box_config
 
     @property
-    def requirement_met(self) -> bool:
+    def local_requirement_met(self) -> bool:
+        if self.config.get("activity_table_str") is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def configurator_requirement_met(self) -> bool:
         if not self.required:
             return True
         try:
@@ -855,7 +892,11 @@ class AttributeSelectionConfig(Configuration):
         return vbox_col_attrs
 
     @property
-    def requirement_met(self) -> bool:
+    def local_requirement_met(self) -> bool:
+        return True
+
+    @property
+    def configurator_requirement_met(self) -> bool:
         if not self.required:
             return True
         try:
@@ -974,11 +1015,13 @@ class TransitionConfig(Configuration):
         apply_button = widgets.Button(description="Apply")
 
         def on_apply_clicked(b):
+            """
             if (
                 self.config.get("source_activity") is not None
                 and self.config.get("target_activity") is not None
             ):
-                self.apply()
+            """
+            self.apply()
 
         apply_button.on_click(on_apply_clicked)
 
@@ -997,7 +1040,17 @@ class TransitionConfig(Configuration):
         self.config_box = box_config
 
     @property
-    def requirement_met(self) -> bool:
+    def local_requirement_met(self) -> bool:
+        if (
+            self.config.get("source_activity") is not None
+            and self.config.get("target_activity") is not None
+        ):
+            return True
+        else:
+            return False
+
+    @property
+    def configurator_requirement_met(self) -> bool:
         if not self.required:
             return True
         if self.configurator.config_dict.get(self.config_identifier) is not None:
@@ -1090,10 +1143,6 @@ class DecisionConfig(Configuration):
             children=[html_descr_source_activity, source_activity_selection]
         )
 
-        def on_target_activity_clicked(b):
-            self.selected_target_activity = b.new
-            self.config["target_activity"] = self.selected_target_activity
-
         # Target Activities
         selected_target_activities = []
 
@@ -1108,7 +1157,10 @@ class DecisionConfig(Configuration):
                 selected_target_activities.remove(b.owner.description)
             else:
                 selected_target_activities.append(b.owner.description)
-            self.config["target_activities"] = selected_target_activities
+            if len(selected_target_activities) > 0:
+                self.config["target_activities"] = selected_target_activities
+            else:
+                self.config["target_activities"] = None
 
         checkboxes = []
         for activity in activities:
@@ -1129,11 +1181,14 @@ class DecisionConfig(Configuration):
         apply_button = widgets.Button(description="Apply")
 
         def on_apply_clicked(b):
+            self.apply()
+            """
             if (
                 self.config.get("source_activity") is not None
                 and self.config.get("target_activities") is not None
             ):
                 self.apply()
+            """
 
         apply_button.on_click(on_apply_clicked)
 
@@ -1152,7 +1207,17 @@ class DecisionConfig(Configuration):
         self.config_box = box_config
 
     @property
-    def requirement_met(self) -> bool:
+    def local_requirement_met(self) -> bool:
+        if (
+            self.config.get("source_activity") is not None
+            and self.config.get("target_activities") is not None
+        ):
+            return True
+        else:
+            return False
+
+    @property
+    def configurator_requirement_met(self) -> bool:
         if not self.required:
             return True
         if self.configurator.config_dict.get(self.config_identifier) is not None:
