@@ -61,7 +61,7 @@ class PostProcessor:
     ) -> Tuple[pd.DataFrame, pd.DataFrame, List[Feature], List[Feature]]:
         """Processing pipeline.
         Creates features and target features. Processes the DataFrames df_x and
-        df_target.
+        df_target. This does not include the removal of NaN values.
 
         :return: processed df_x, df_target, feature lists for target and normal features
         """
@@ -222,3 +222,46 @@ class PostProcessor:
         min_counts = round(min_counts_perc * num_rows)
         max_counts = round(max_counts_perc * num_rows)
         return min_counts, max_counts
+
+
+def remove_nan(
+    df_x: pd.DataFrame,
+    df_target: pd.DataFrame,
+    features: List[Feature],
+    target_features: List[Feature],
+    th_remove_col: float = 0.3,
+):
+    """Remove nan values.
+    For categorical features: set to 0 if NaN. If too many values are nan (more than
+    th_remove_col times the number of rows),
+    remove the column
+    For numeric features: if column has more NaN values that th_remove_col of the
+    rows, the whole column is removed. This also removes the feature from the feature
+    list.
+    For target feature: if target feature(s) value is nan, remove whole row. If not
+    too many NaN value, replace nan values with the median value
+    """
+    # Get column names with nan values
+    feature_dict = {f.df_column_name: f for f in features}
+    target_feature_dict = {f.df_column_name: f for f in target_features}
+    # remove rows with nan values in df_target
+    df_target_only_features = df_target[list(target_feature_dict.keys())]
+    indices_nan = np.where(pd.isnull(df_target_only_features).any(1))[0]
+    df_x = df_x[~df_x.index.isin(indices_nan)]
+    df_target = df_target[~df_target.index.isin(indices_nan)]
+    cols_with_nan = df_x.columns[df_x.isna().any()].tolist()
+
+    for col in cols_with_nan:
+        if feature_dict.get(col) is None:
+            continue
+        if df_x[col].isna().sum() > len(df_x.index) * th_remove_col:
+            df_x.drop(col, axis=1, inplace=True)
+            features.remove(feature_dict[col])
+            continue
+
+        if feature_dict[col].datatype == AttributeDataType.CATEGORICAL:
+            df_x[col] = df_x[col].fillna(value=0)
+
+        if feature_dict[col].datatype == AttributeDataType.NUMERICAL:
+            df_x[col] = df_x[col].fillna(value=df_x[col].median())
+    return df_x, df_target
