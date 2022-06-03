@@ -7,6 +7,7 @@ from typing import Optional
 import pandas as pd
 
 from one_click_analysis.feature_processing import feature_processor_new
+from one_click_analysis.feature_processing import post_processing
 from one_click_analysis.feature_processing.attributes import dynamic_attributes
 from one_click_analysis.feature_processing.attributes import static_attributes
 from one_click_analysis.feature_processing.attributes.attribute import (
@@ -43,7 +44,7 @@ class UseCaseProcessor(abc.ABC):
         self.chunksize = kwargs.get("chunksize", 10000)
         self.min_attr_count_perc = kwargs.get("min_attr_count_perc", 0.02)
         self.max_attr_count_perc = kwargs.get("max_attr_count_perc", 0.98)
-
+        self.th_remove_col = kwargs.get("th_remove_col", 0.3)
         self.df_x = None
         self.df_target = None
         self.target_features = None
@@ -221,6 +222,13 @@ class CaseDurationProcessor(UseCaseProcessor):
             df_target=self.df_target,
         )
         statistics_computer.compute_all_statistics()
+        self.df_x, self.df_target = post_processing.remove_nan(
+            df_x=self.df_x,
+            df_target=self.df_target,
+            features=self.features,
+            target_features=self.target_features,
+            th_remove_col=self.th_remove_col,
+        )
 
     def _gen_static_attr_list(self, min_attr_count: int, max_attr_count: int):
         """Gen list of used static attributes."""
@@ -498,6 +506,13 @@ class TransitionTimeProcessor(UseCaseProcessor):
             df_target=self.df_target,
         )
         statistics_computer.compute_all_statistics()
+        self.df_x, self.df_target = post_processing.remove_nan(
+            df_x=self.df_x,
+            df_target=self.df_target,
+            features=self.features,
+            target_features=self.target_features,
+            th_remove_col=self.th_remove_col,
+        )
 
     def _gen_static_attr_list(self, min_attr_count: int, max_attr_count: int):
         """Gen list of used static attributes."""
@@ -790,6 +805,13 @@ class RoutingDecisionProcessor(UseCaseProcessor):
             df_target=self.df_target,
         )
         statistics_computer.compute_all_statistics()
+        self.df_x, self.df_target = post_processing.remove_nan(
+            df_x=self.df_x,
+            df_target=self.df_target,
+            features=self.features,
+            target_features=self.target_features,
+            th_remove_col=self.th_remove_col,
+        )
 
     def _create_true_target_df(
         self, df_target: pd.DataFrame, target_attr: DecisionToActivityAttribute
