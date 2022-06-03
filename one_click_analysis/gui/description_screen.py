@@ -2,6 +2,7 @@ from typing import Dict
 from typing import List
 
 from ipywidgets import HTML
+from ipywidgets import Layout
 from ipywidgets import VBox
 
 from one_click_analysis.feature_processing.attributes.attribute import (
@@ -91,7 +92,7 @@ class DescriptionScreen:
             html_description = HTML(html_description_str)
         return html_description
 
-    def _create_atrributes_descriptions_box(self) -> HTML:
+    def _create_atrributes_descriptions_box(self) -> VBox:
         """Create an HTML object with the descriptions of the attributes.
 
         :return: HTML object
@@ -101,6 +102,7 @@ class DescriptionScreen:
             f'{self.html_args["html_caption_size"]}px"><p>Attribute '
             f"Descriptions</p></span>"
         )
+        html_caption = HTML(html_caption_str)
         static_description = self._create_atrributes_description_static_dynamic(
             "static"
         )
@@ -108,12 +110,9 @@ class DescriptionScreen:
             "dynamic"
         )
 
-        html_description_str = (
-            html_caption_str + static_description + dynamic_description
-        )
-        return HTML(html_description_str)
+        return VBox(children=[html_caption, static_description, dynamic_description])
 
-    def _create_atrributes_description_static_dynamic(self, attr_type: str) -> str:
+    def _create_atrributes_description_static_dynamic(self, attr_type: str) -> VBox:
         """Create an HTML object with the descriptions of the static attributes.
 
         :param attr_type: type of the attribute. either 'static' or 'dynamic
@@ -123,13 +122,13 @@ class DescriptionScreen:
         if attr_type == "static":
             descriptors = self.static_attribute_descriptors
             html_caption_str = (
-                f'<div style="font-weight:bold; font-size: '
-                f'{self.html_args["html_attribute_caption_size"]}px margin-bottom: '
-                f'10px">Case level '
-                f"Attributes</div>"
+                f'<div style="line-height:140%; font-weight:bold; font-size: '
+                f'{self.html_args["html_attribute_caption_size"]}px '
+                f'">Case level '
+                f"Attributes:</div>"
             )
             html_general_description_str = (
-                f'<div style="font-size: '
+                f'<div style="line-height:140%; font-size: '
                 f'{self.html_args["html_normal_size"]}px margin-bottom: 10px">'
                 f"{self.static_attribute_description}"
                 f"</div>"
@@ -137,15 +136,15 @@ class DescriptionScreen:
         elif attr_type == "dynamic":
             descriptors = self.dynamic_attribute_descriptors
             html_caption_str = (
-                f'<div style="font-weight:bold; font-size: '
+                f'<div style="line-height:140%; font-weight:bold; font-size: '
                 f'{self.html_args["html_attribute_caption_size"]}px '
-                f'margin-bottom: 10px">Activity level '
+                f'padding-bottom: 30px">Activity level '
                 f"Attributes</div>"
             )
             html_general_description_str = (
-                f'<div style="font-size: '
+                f'<div style="line-height:140%; font-size: '
                 f'{self.html_args["html_normal_size"]}px '
-                f'margin-bottom: 10px">'
+                f'margin-bottom: 30px">'
                 f"{self.dynamic_attribute_description}"
                 f"</div>"
             )
@@ -157,21 +156,29 @@ class DescriptionScreen:
             attr_name = attribute_descriptor.display_name
             attr_description = attribute_descriptor.description
             attr_caption_html_str = (
-                f'<div><span style="font-weight:bold; font-size: '
+                f'<div style="line-height:140%; font-weight:bold; font-size: '
                 f'{self.html_args["html_attribute_caption_size"]}px">'
-                f"{attr_name}</p></span></div>"
+                f"{attr_name}</div>"
             )
             attr_description_html_str = (
-                f'<div><span style="font-size: '
-                f'{self.html_args["html_normal_size"]}px"><p>'
-                f"{attr_description}</p></span></div>"
+                f'<div style="line-height:140%; font-size: '
+                f'{self.html_args["html_normal_size"]}px">'
+                f"{attr_description}</div>"
             )
             curr_attribute_description = (
                 attr_caption_html_str + attr_description_html_str
             )
             attribute_descriptions = attribute_descriptions + curr_attribute_description
 
-        complete_html_str = (
-            html_caption_str + html_general_description_str + attribute_descriptions
-        )
-        return complete_html_str
+        caption_html = HTML(html_caption_str + html_general_description_str)
+        attributes_html = HTML(attribute_descriptions)
+        margin_static = "0px 0px 10px 0px"
+        margin_dynamic = "0ox 0px 0px 0px"
+        if attr_type == "static":
+            margin = margin_static
+        else:
+            margin = margin_dynamic
+        layout_attributes = Layout(border="3px double CornflowerBlue", margin=margin)
+        vbox_attributes = VBox(children=[attributes_html], layout=layout_attributes)
+        vbox_complete = VBox(children=[caption_html, vbox_attributes])
+        return vbox_complete
