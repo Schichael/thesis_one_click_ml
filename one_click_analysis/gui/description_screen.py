@@ -12,6 +12,7 @@ from one_click_analysis.feature_processing.attributes.attribute import (
 
 class DescriptionScreen:
     default_args = {
+        "html_primary_caption_size": 16,
         "html_caption_size": 14,
         "html_normal_size": 12,
         "html_attribute_caption_size": 13,
@@ -30,16 +31,19 @@ class DescriptionScreen:
 
     def __init__(
         self,
-        analysis_description: HTML or str,
+        analysis_name: str,
+        analysis_goal: str,
+        analysis_definition: str,
         static_attribute_descriptors: List[AttributeDescriptor],
         dynamic_attribute_descriptors: List[AttributeDescriptor],
         **kwargs,
     ):
-        self.analysis_description = analysis_description
+        self.analysis_name = analysis_name
+        self.analysis_goal = analysis_goal
+        self.analysis_definition = analysis_definition
         self.static_attribute_descriptors = static_attribute_descriptors
         self.dynamic_attribute_descriptors = dynamic_attribute_descriptors
         self.html_args = self._get_html_vars(**kwargs)
-
         self.description_box = VBox()  # The box that is the view
 
     def _get_html_vars(self, **kwargs) -> Dict[str, str]:
@@ -65,6 +69,11 @@ class DescriptionScreen:
             if kwargs.get("html_attribute_caption_size") is None
             else kwargs.get("html_attribute_caption_size")
         )
+        html_args["html_primary_caption_size"] = (
+            self.default_args["html_primary_caption_size"]
+            if kwargs.get("html_primary_caption_size") is None
+            else kwargs.get("html_primary_caption_size")
+        )
         return html_args
 
     def create_description_screen(self):
@@ -78,18 +87,31 @@ class DescriptionScreen:
 
         :return: HTML object
         """
-        if isinstance(self.analysis_description, HTML):
-            html_description = self.analysis_description
-        else:
-            html_description_str = (
-                f'<span style="font-weight:bold; font-size: '
-                f'{self.html_args["html_caption_size"]}px"><p>Analysis '
-                f"Description</p></span><span "
-                f'style="font-size: '
-                f'{self.html_args["html_normal_size"]}px"><p>'
-                f"{self.analysis_description}</span></p>"
-            )
-            html_description = HTML(html_description_str)
+        html_header_str = (
+            f'<div style="line-height:140%;font-weight:bold; font-size: '
+            f'{self.html_args["html_primary_caption_size"]}px"><p> '
+            f"{self.analysis_name}</p></div>"
+        )
+        html_goal_str = (
+            f'<div style="margin-top: 10px;line-height:140%;font-weight:bold; '
+            f"font-size: "
+            f'{self.html_args["html_caption_size"]}px"><p>Goal '
+            f"</p></div><div "
+            f'style="line-height:140%;font-size: '
+            f'{self.html_args["html_normal_size"]}px"><p>'
+            f"{self.analysis_goal}</div></p>"
+        )
+        html_definition_str = (
+            f'<div style="margin-top: 10px;line-height:140%;font-weight:bold; '
+            f"font-size: "
+            f'{self.html_args["html_caption_size"]}px"><p>Definition '
+            f"</p></div><div "
+            f'style="line-height:140%;font-size: '
+            f'{self.html_args["html_normal_size"]}px"><p>'
+            f"{self.analysis_definition}</div></p>"
+        )
+
+        html_description = HTML(html_header_str + html_goal_str + html_definition_str)
         return html_description
 
     def _create_atrributes_descriptions_box(self) -> VBox:
@@ -98,9 +120,10 @@ class DescriptionScreen:
         :return: HTML object
         """
         html_caption_str = (
-            f'<span style="font-weight:bold; font-size: '
-            f'{self.html_args["html_caption_size"]}px"><p>Attribute '
-            f"Descriptions</p></span>"
+            f'<div style="margin-top: 10px; margin-botton: 5px; font-weight:bold; '
+            f"font-size: "
+            f'{self.html_args["html_caption_size"]}px">Attribute '
+            f"Descriptions</div>"
         )
         html_caption = HTML(html_caption_str)
         static_description = self._create_atrributes_description_static_dynamic(
@@ -152,16 +175,21 @@ class DescriptionScreen:
             raise ValueError("attr_type must be either 'static' or 'dynamic'")
 
         attribute_descriptions = ""
+        is_first = True
         for attribute_descriptor in descriptors:
+            margin_bottom = "0px" if is_first else "5px"
+            is_first = False
             attr_name = attribute_descriptor.display_name
             attr_description = attribute_descriptor.description
             attr_caption_html_str = (
-                f'<div style="line-height:140%; font-weight:bold; font-size: '
+                f'<div style="margin-top: {margin_bottom}; line-height:140%; '
+                f"font-weight:bold; font-size: "
                 f'{self.html_args["html_attribute_caption_size"]}px">'
                 f"{attr_name}</div>"
             )
             attr_description_html_str = (
-                f'<div style="line-height:140%; font-size: '
+                f'<div style="line-height:140%; '
+                f"font-size: "
                 f'{self.html_args["html_normal_size"]}px">'
                 f"{attr_description}</div>"
             )
