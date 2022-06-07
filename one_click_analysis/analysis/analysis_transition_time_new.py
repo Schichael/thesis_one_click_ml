@@ -16,6 +16,7 @@ from one_click_analysis.feature_processing.processors.analysis_processors import
     TransitionTimeProcessor,
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
+from one_click_analysis.gui.description_screen import DescriptionScreen
 from one_click_analysis.gui.overview_screen import OverviewScreenTransitionTime
 from one_click_analysis.gui.statistical_analysis_screen_new import (
     StatisticalAnalysisScreen,
@@ -41,6 +42,7 @@ class AnalysisTransitionTime:
         self.transition_time_processor = None
         self.df_total_time = None
         self.configurator = None
+        self.description_view = None
         self.config_view = None
         self.overview_screen = None
         self.stat_analysis_screen = None
@@ -49,6 +51,7 @@ class AnalysisTransitionTime:
         self.attr_selection = None
         self.tabs = None
         self.tab_names = [
+            "Description",
             "Configurations",
             "Overview",
             "Statistical Analysis",
@@ -58,6 +61,33 @@ class AnalysisTransitionTime:
         self.selected_attributes = []
         self.selected_activity_table_cols = []
         self.selected_case_table_cols = []
+
+    def _create_description(self):
+        static_attributes = (
+            TransitionTimeProcessor.potential_static_attributes_descriptors
+        )
+        dynamic_attributes = (
+            TransitionTimeProcessor.potential_dynamic_attributes_descriptors
+        )
+        name_str = "Bottleneck / Transition-Time Analysis"
+        goal_str = (
+            "The goal of the bottleneck analysis is to get insights into the "
+            "possible root causes of long transition times between two "
+            "directly-following activities."
+        )
+        definition_str = (
+            "The transition time is the time between two "
+            "directly-following activities."
+        )
+
+        self.description_view = DescriptionScreen(
+            analysis_name=name_str,
+            analysis_goal=goal_str,
+            analysis_definition=definition_str,
+            static_attribute_descriptors=static_attributes,
+            dynamic_attribute_descriptors=dynamic_attributes,
+        )
+        self.description_view.create_description_screen()
 
     def _create_config(self, out):
         """Create config view.
@@ -137,6 +167,7 @@ class AnalysisTransitionTime:
         display(out)
         out.append_stdout("\nConfiguration...")
         # 1. Connect to Celonis and get dm
+        self._create_description()
         self._create_config(out=out)
 
         # 2. Create FeatureProcessor and Configurator
@@ -144,6 +175,7 @@ class AnalysisTransitionTime:
 
         self.tabs = self.create_tabs(
             [
+                self.description_view.description_box,
                 self.config_view.configurator_box,
                 widgets.VBox(),
                 widgets.VBox(),

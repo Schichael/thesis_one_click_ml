@@ -14,6 +14,7 @@ from one_click_analysis.feature_processing.processors.analysis_processors import
     CaseDurationProcessor,
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
+from one_click_analysis.gui.description_screen import DescriptionScreen
 from one_click_analysis.gui.overview_screen import OverviewScreenCaseDuration
 from one_click_analysis.gui.statistical_analysis_screen_new import (
     StatisticalAnalysisScreen,
@@ -39,6 +40,7 @@ class AnalysisCaseDuration:
         self.case_duration_processor = None
         self.df_total_time = None
         self.configurator = None
+        self.description_view = None
         self.config_view = None
         self.overview_screen = None
         self.stat_analysis_screen = None
@@ -47,6 +49,7 @@ class AnalysisCaseDuration:
         self.attr_selection = None
         self.tabs = None
         self.tab_names = [
+            "Description",
             "Configurations",
             "Overview",
             "Statistical Analysis",
@@ -56,6 +59,33 @@ class AnalysisCaseDuration:
         self.selected_attributes = []
         self.selected_activity_table_cols = []
         self.selected_case_table_cols = []
+
+    def _create_description(self):
+        static_attributes = (
+            CaseDurationProcessor.potential_static_attributes_descriptors
+        )
+        dynamic_attributes = (
+            CaseDurationProcessor.potential_dynamic_attributes_descriptors
+        )
+        name_str = "Case duration Analysis"
+        goal_str = (
+            "The goal of the case duration analysis is to get insights into "
+            "the possible root causes of long case durations. These insights "
+            "can be used to optimize the process."
+        )
+        definition_str = (
+            "The case duration is the time between the first activity "
+            "and the last activity of a case."
+        )
+
+        self.description_view = DescriptionScreen(
+            analysis_name=name_str,
+            analysis_goal=goal_str,
+            analysis_definition=definition_str,
+            static_attribute_descriptors=static_attributes,
+            dynamic_attribute_descriptors=dynamic_attributes,
+        )
+        self.description_view.create_description_screen()
 
     def _create_config(self, out):
         """Create config view.
@@ -122,6 +152,7 @@ class AnalysisCaseDuration:
         display(out)
         out.append_stdout("\nConfiguration...")
         # 1. Connect to Celonis and get dm
+        self._create_description()
         self._create_config(out=out)
 
         # 2. Create FeatureProcessor and Configurator
@@ -129,6 +160,7 @@ class AnalysisCaseDuration:
 
         self.tabs = self.create_tabs(
             [
+                self.description_view.description_box,
                 self.config_view.configurator_box,
                 widgets.VBox(),
                 widgets.VBox(),
@@ -241,6 +273,7 @@ class AnalysisCaseDuration:
         # Create tabs
         self.update_tabs(
             [
+                self.description_view.description_box,
                 self.config_view.configurator_box,
                 self.overview_screen.overview_box,
                 self.stat_analysis_screen.statistical_analysis_box,

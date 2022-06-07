@@ -72,8 +72,31 @@ class AnalysisRoutingDecisions:
         dynamic_attributes = (
             TransitionTimeProcessor.potential_dynamic_attributes_descriptors
         )
+        name_str = "Routing Decision Analysis"
+        goal_str = (
+            "The goal of the routing decision analysis is to get insights into "
+            "the possible root causes why certain routing decisions are taken."
+        )
+        definition_str = (
+            "A source activity and multiple target activities can be "
+            "selected. A decision from the source activity to a target "
+            "activity is taken if the target activity eventually follows "
+            "the source activity without any other target activity "
+            "happening in between. If the source activity happens "
+            "multiple times in a row, the activity-level attributes are "
+            "used from the first occurrence of the source activity. "
+            "<br>It is possible that multiple decisions happen in a case. "
+            "Consider Source Activity <b>S</b> and Target activities "
+            "<b>T1</b> and <b>T2</b>. For "
+            "the trace <b>S -> T1 -> S -> T2 -> S -> T1</b>, there are "
+            "two decision to 'Target activity 1' "
+            "and one decision to 'Target activity 2'"
+        )
+
         self.description_view = DescriptionScreen(
-            analysis_description="This is a " "description",
+            analysis_name=name_str,
+            analysis_goal=goal_str,
+            analysis_definition=definition_str,
             static_attribute_descriptors=static_attributes,
             dynamic_attribute_descriptors=dynamic_attributes,
         )
