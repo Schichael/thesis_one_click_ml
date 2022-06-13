@@ -91,7 +91,8 @@ class StatisticalAnalysisScreen:
                 (label.df_column_name, i)
                 for i, label in enumerate(self.target_features)
             ]
-            dropdown = Dropdown(options=dropdpwn_options, value=0)
+            dropdpwn_options_sorted = sorted(dropdpwn_options)
+            dropdown = Dropdown(options=dropdpwn_options_sorted, value=0)
             dropdown.observe(drop_down_on_change, "value")
             title_box = VBox(children=[title_attributes_html, dropdown])
 
