@@ -93,9 +93,9 @@ class CaseDurationProcessor(UseCaseProcessor):
     )
 
     case_table_col_attr_descriptor = AttributeDescriptor(
-        attribute_type=static_attributes.NumericActivityTableColumnAttribute,
-        display_name=static_attributes.NumericActivityTableColumnAttribute.display_name,
-        description=static_attributes.NumericActivityTableColumnAttribute.description,
+        attribute_type=static_attributes.CaseTableColumnAttribute,
+        display_name=static_attributes.CaseTableColumnAttribute.display_name,
+        description=static_attributes.CaseTableColumnAttribute.description,
     )
 
     potential_static_attributes_descriptors = [
@@ -419,7 +419,13 @@ class TransitionTimeProcessor(UseCaseProcessor):
             start_date=self.start_date,
             end_date=self.end_date,
         )
-        self.filters = self.filters + date_filters
+        prev_activity_filter = feature_processor_new.filter_prev_activity(
+            prev_activity=self.source_activity,
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+        )
+
+        self.filters = self.filters + date_filters + [prev_activity_filter]
 
         is_closed_indicator = feature_processor_new.all_cases_closed_query(
             process_config=self.process_config,
@@ -619,21 +625,23 @@ class RoutingDecisionProcessor(UseCaseProcessor):
     )
 
     case_table_col_attr_descriptor = AttributeDescriptor(
-        attribute_type=static_attributes.NumericActivityTableColumnAttribute,
-        display_name=static_attributes.NumericActivityTableColumnAttribute.display_name,
-        description=static_attributes.NumericActivityTableColumnAttribute.description,
+        attribute_type=static_attributes.CaseTableColumnAttribute,
+        display_name=static_attributes.CaseTableColumnAttribute.display_name,
+        description=static_attributes.CaseTableColumnAttribute.description,
     )
 
     current_activity_col_attr_descriptor = AttributeDescriptor(
         attribute_type=dynamic_attributes.CurrentActivityColumnAttribute,
-        display_name=dynamic_attributes.CurrentActivityColumnAttribute.display_name,
-        description=dynamic_attributes.CurrentActivityColumnAttribute.description,
+        display_name="Activity table column value during source activity",
+        description="The values of an activity table column at the time the source "
+        "activity occurs",
     )
 
     previous_activity_occurrence_attr_descriptor = AttributeDescriptor(
         attribute_type=PreviousActivityOccurrenceAttribute,
         display_name=PreviousActivityOccurrenceAttribute.display_name,
-        description=PreviousActivityOccurrenceAttribute.description,
+        description="Checks whether or not an activity has occured before the source "
+        "activity (evaluates to 1 if yes and to 0 if no)",
     )
     # PreviousActivityOccurrenceAttribute
     potential_static_attributes_descriptors = [
