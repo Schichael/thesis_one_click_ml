@@ -163,6 +163,61 @@ class WorkInProgressAttribute(StaticAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+class WorkInProgressCaseStartAttribute(StaticAttribute):
+    """Work in Progress at case start"""
+
+    display_name = "Work in Progress at case start"
+    # TODO Change the definition and implementation such that it is not aggregated
+    #  over events but over time.
+    description = "The number of parallelly running cases at the start of a case."
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        **kwargs,
+    ):
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
+        self.attribute_name = "Work in Progress at case start"
+        pql_query = self._gen_query()
+        super().__init__(
+            process_config=self.process_config,
+            attribute_name=self.attribute_name,
+            pql_query=pql_query,
+            data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.OTHER,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            **kwargs,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            "PU_FIRST" + ' ( "' + self.activity_table.case_table_str + '", '
+            "RUNNING_SUM( "
+            "CASE WHEN "
+            'INDEX_ACTIVITY_ORDER ( "'
+            + self.activity_table.table_str
+            + '"."'
+            + self.activity_table.activity_col_str
+            + '" ) = 1 THEN 1'
+            " WHEN "
+            'INDEX_ACTIVITY_ORDER_REVERSE ( "'
+            + self.activity_table.table_str
+            + '"."'
+            + self.activity_table.activity_col_str
+            + '" ) = 1 THEN -1 ELSE 0 END, ORDER BY ( "'
+            + self.activity_table.table_str
+            + '"."'
+            + self.activity_table.eventtime_col_str
+            + '" ) ) )'
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
 class EventCountAttribute(StaticAttribute):
     """Event Count for a whole case"""
 
