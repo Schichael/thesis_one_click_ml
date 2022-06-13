@@ -252,16 +252,27 @@ class OverviewScreenRoutingDecisions(OverviewScreen):
 
             num_cases_with_target.append(tf.metrics["case_count"])
 
+        # Sort for number of cases with target
+        sorted_indices = np.argsort(np.argsort(num_cases_with_target))
+        sorted_indices = np.flip(sorted_indices)
+        num_cases_with_target_sorted = []
+        avg_case_durations_sorted = []
+        target_activities_sorted = []
+        for el in sorted_indices:
+            num_cases_with_target_sorted.append(num_cases_with_target[el])
+            avg_case_durations_sorted.append(avg_case_durations[el])
+            target_activities_sorted.append(self.target_activities[el])
+
         # barplot with cases with target activities and metric line plot
 
         barplot_args = {
-            "x": self.target_activities,
-            "y": num_cases_with_target,
+            "x": target_activities_sorted,
+            "y": num_cases_with_target_sorted,
             "name": "Cases with transition",
         }
         line_plot_args = {
-            "x": self.target_activities,
-            "y": avg_case_durations,
+            "x": target_activities_sorted,
+            "y": avg_case_durations_sorted,
             "name": "Average case duration",
         }
 
@@ -269,7 +280,8 @@ class OverviewScreenRoutingDecisions(OverviewScreen):
             "xaxis_title": "Decisions to",
             "yaxis_title": "Cases with decision",
             "yaxis2_title": "Average case duration [Days]",
-            "title": "Cases with decisions and average case duration",
+            "title": "Cases containing decisions and average case duration (One case "
+            "can have decisions to different activities)",
         }
 
         barplot = BarWithLines(barplot_args, line_plot_args, **layout_args)
