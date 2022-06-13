@@ -253,16 +253,20 @@ class OverviewScreenRoutingDecisions(OverviewScreen):
             num_cases_with_target.append(tf.metrics["case_count"])
 
         # Sort for number of cases with target
+        print(f"num_cases_with_target: {num_cases_with_target}")
         sorted_indices = np.argsort(np.argsort(num_cases_with_target))
-        sorted_indices = np.flip(sorted_indices)
-        num_cases_with_target_sorted = []
-        avg_case_durations_sorted = []
-        target_activities_sorted = []
-        for el in sorted_indices:
-            num_cases_with_target_sorted.append(num_cases_with_target[el])
-            avg_case_durations_sorted.append(avg_case_durations[el])
-            target_activities_sorted.append(self.target_activities[el])
+        print(f"sorted indices: {sorted_indices}")
+        num_cases_with_target_sorted = [None] * sorted_indices.size
+        avg_case_durations_sorted = [None] * sorted_indices.size
+        target_activities_sorted = [None] * sorted_indices.size
 
+        for i, el in enumerate(sorted_indices):
+            num_cases_with_target_sorted[el] = num_cases_with_target[i]
+            avg_case_durations_sorted[el] = avg_case_durations[i]
+            target_activities_sorted[el] = self.target_activities[i]
+        num_cases_with_target_sorted.reverse()
+        avg_case_durations_sorted.reverse()
+        target_activities_sorted.reverse()
         # barplot with cases with target activities and metric line plot
 
         barplot_args = {
@@ -281,7 +285,7 @@ class OverviewScreenRoutingDecisions(OverviewScreen):
             "yaxis_title": "Cases with decision",
             "yaxis2_title": "Average case duration [Days]",
             "title": "Cases containing decisions and average case duration (One case "
-            "can have decisions to different activities)",
+            "can have decisions to more than one activity)",
         }
 
         barplot = BarWithLines(barplot_args, line_plot_args, **layout_args)
@@ -369,11 +373,10 @@ class OverviewScreenTransitionTime(OverviewScreen):
             val_color="Blue",
         )
 
-        num_cases = len(set(self.df_target.index.get_level_values(0)))
         title = "Number of selected cases"
         num_cases_box = SingleValueBox(
             title=title,
-            val=num_cases,
+            val=self.num_cases,
             unit=None,
             title_color="Black",
             val_color="Blue",
