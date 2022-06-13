@@ -436,7 +436,9 @@ class DatamodelConfig(Configuration):
 
     def _create_true_config_box(self):
         text_field = widgets.Text(
-            placeholder="Insert Datamodel ID", description="Datamodel ID:"
+            placeholder="Insert Datamodel ID",
+            description="Datamodel ID:",
+            style={"description_width": "initial"},
         )
 
         # Create Apply button
@@ -528,7 +530,10 @@ class ActivityTableConfig(Configuration):
             table.table_str for table in process_config.activity_tables
         ]
         dropdown = widgets.Dropdown(
-            options=activity_table_str_list, description="Select activity table:"
+            options=activity_table_str_list,
+            description="Select activity table:",
+            style={"description_width": "initial"},
+            layout=Layout(width="max-content"),
         )
 
         apply_button = widgets.Button(description="Apply")
@@ -793,6 +798,7 @@ class AttributeSelectionConfig(Configuration):
             raise ValueError("table must be one of ['case', 'activity']")
 
         # Checkboxes for columns
+
         cbs = []
 
         # Add checkbox to Select/Unselect all columms as first checkbox
@@ -989,7 +995,8 @@ class TransitionConfig(Configuration):
         source_activity_selection = Select(
             options=activities,
             value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+            layout=Layout(overflow="auto", width="max-content", min_width="200"),
+            rows=10,
         )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(
@@ -1004,7 +1011,8 @@ class TransitionConfig(Configuration):
         target_activity_selection = Select(
             options=activities,
             value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+            layout=Layout(overflow="auto", width="max-content"),
+            rows=10,
         )
         target_activity_selection.observe(on_target_activity_clicked, "value")
         vbox_target_activity_selection = VBox(
@@ -1136,11 +1144,13 @@ class DecisionConfig(Configuration):
         source_activity_selection = Select(
             options=activities,
             value=None,
-            layout=Layout(overflow="auto", height="auto", max_height="400px"),
+            layout=Layout(overflow="auto", width="max-content", min_width="200"),
+            rows=10,
         )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(
-            children=[html_descr_source_activity, source_activity_selection]
+            children=[html_descr_source_activity, source_activity_selection],
+            layout=Layout(margin="0px 10px 0px 0px"),
         )
 
         # Target Activities
@@ -1174,7 +1184,8 @@ class DecisionConfig(Configuration):
         )
 
         vbox_target_activities_selection = VBox(
-            children=[html_descr_target_activities, vbox_target_activities_cbs]
+            children=[html_descr_target_activities, vbox_target_activities_cbs],
+            layout=Layout(height="235px", width="max-content", min_width="200"),
         )
 
         # Create Apply button
