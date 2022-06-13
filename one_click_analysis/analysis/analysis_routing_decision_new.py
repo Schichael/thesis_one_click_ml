@@ -15,9 +15,6 @@ from one_click_analysis.configuration.configurator_new import ConfiguratorView
 from one_click_analysis.feature_processing.processors.analysis_processors import (
     RoutingDecisionProcessor,
 )
-from one_click_analysis.feature_processing.processors.analysis_processors import (
-    TransitionTimeProcessor,
-)
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.description_screen import DescriptionScreen
 from one_click_analysis.gui.overview_screen import OverviewScreenRoutingDecisions
@@ -67,10 +64,10 @@ class AnalysisRoutingDecisions:
 
     def _create_description(self):
         static_attributes = (
-            TransitionTimeProcessor.potential_static_attributes_descriptors
+            RoutingDecisionProcessor.potential_static_attributes_descriptors
         )
         dynamic_attributes = (
-            TransitionTimeProcessor.potential_dynamic_attributes_descriptors
+            RoutingDecisionProcessor.potential_dynamic_attributes_descriptors
         )
         name_str = "Routing Decision Analysis"
         goal_str = (
@@ -138,10 +135,10 @@ class AnalysisRoutingDecisions:
         )
 
         static_attributes = (
-            TransitionTimeProcessor.potential_static_attributes_descriptors
+            RoutingDecisionProcessor.potential_static_attributes_descriptors
         )
         dynamic_attributes = (
-            TransitionTimeProcessor.potential_dynamic_attributes_descriptors
+            RoutingDecisionProcessor.potential_dynamic_attributes_descriptors
         )
         config_attributeselector = AttributeSelectionConfig(
             configurator=self.configurator,
@@ -311,6 +308,7 @@ class AnalysisRoutingDecisions:
         # Create tabs
         self.update_tabs(
             [
+                self.description_view.description_box,
                 self.config_view.configurator_box,
                 self.overview_screen.overview_box,
                 self.stat_analysis_screen.statistical_analysis_box,
