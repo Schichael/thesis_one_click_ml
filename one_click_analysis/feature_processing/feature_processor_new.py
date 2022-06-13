@@ -714,6 +714,20 @@ def get_number_cases(
     return num_cases
 
 
+def filter_prev_activity(
+    prev_activity: str, process_config: ProcessConfig, activity_table_str: str
+):
+    activity_table = process_config.table_dict[activity_table_str]
+    pql_str = (
+        f'ACTIVITY_LAG("{activity_table.table_str}"."'
+        f"{activity_table.activity_col_str}\", 1) = '"
+        f"{prev_activity}'"
+    )
+
+    filter_next_activity = PQLFilter(pql_str)
+    return filter_next_activity
+
+
 class FeatureProcessor:
     """
     The FeatureProcessor fetches data from the Celonis database and generates the
