@@ -295,6 +295,7 @@ class AnalysisTransitionTime:
         # Create tabs
         self.update_tabs(
             [
+                self.description_view.description_box,
                 self.config_view.configurator_box,
                 self.overview_screen.overview_box,
                 self.stat_analysis_screen.statistical_analysis_box,
