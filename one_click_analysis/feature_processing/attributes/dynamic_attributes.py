@@ -143,9 +143,9 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
 class CurrentActivityColumnAttribute(DynamicAttribute):
     """Current value of column in the Activity table"""
 
-    display_name = "Current categorical activity column value"
+    display_name = "Current activity column value"
     description = (
-        "The value of the specified activity table column at the current " "event"
+        "The value of the specified activity table column at the current event"
     )
 
     def __init__(
