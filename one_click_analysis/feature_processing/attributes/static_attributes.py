@@ -350,6 +350,59 @@ class ReworkCountAttribute(StaticAttribute):
 
 
 class ReworkOccurrenceAttribute(StaticAttribute):
+    """Count of reworked activities"""
+
+    display_name = "Rework occurrence"
+    description = "Whether the activity happens twice or more in a case"
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        activity: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        **kwargs,
+    ):
+        self.process_config = process_config
+        self.attribute_name = f"Rework occurrence of activity {activity}"
+        self.activity_table = self.process_config.table_dict[activity_table_str]
+        self.activity = activity
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
+            process_config=self.process_config,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            **kwargs,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = f"""
+        PU_MAX("{self.activity_table.case_table_str}",
+        CASE WHEN
+            COALESCE(
+                RUNNING_SUM(
+                    CASE
+                     WHEN "{self.activity_table.table_str}".
+                     "{self.activity_table.activity_col_str}" =
+                            '{self.activity}'
+                        THEN 1
+                        ELSE 0
+                    END,
+                    PARTITION BY (
+                    "{self.activity_table.table_str}".
+                    "{self.activity_table.caseid_col_str}") ),
+            0) > 1 THEN 1 ELSE 0 END
+        )
+        """
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
+class ReworkOccurrenceAttribute_old(StaticAttribute):
     """Whether any activity was done more than once"""
 
     display_name = "Rework occurence in case"
