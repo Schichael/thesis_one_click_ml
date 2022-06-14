@@ -8,6 +8,7 @@ from one_click_analysis.configuration.configurations_new import ActivityTableCon
 from one_click_analysis.configuration.configurations_new import AttributeSelectionConfig
 from one_click_analysis.configuration.configurations_new import DatamodelConfig
 from one_click_analysis.configuration.configurations_new import DatePickerConfig
+from one_click_analysis.configuration.configurations_new import IsClosedConfig
 from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.configuration.configurator_new import ConfiguratorView
 from one_click_analysis.feature_processing.processors.analysis_processors import (
@@ -106,11 +107,21 @@ class AnalysisCaseDuration:
             datamodel_identifier="datamodel",
             required=True,
         )
+
+        config_closed_cases = IsClosedConfig(
+            configurator=self.configurator,
+            datamodel_identifier="datamodel",
+            activity_table_identifier="activity_table",
+            required=True,
+            additional_prerequsit_config_ids=[],
+        )
+
         config_datepicker = DatePickerConfig(
             configurator=self.configurator,
             datamodel_identifier="datamodel",
             activity_table_identifier="activity_table",
             required=False,
+            additional_prerequsit_config_ids=["is_closed"],
         )
 
         static_attributes = (
@@ -126,20 +137,21 @@ class AnalysisCaseDuration:
             datamodel_identifier="datamodel",
             activity_table_identifier="activity_table",
             required=False,
+            additional_prerequsit_config_ids=["datepicker"],
         )
 
         # Set the subsequrnt configurations that are updated when the respective
         # configuration is applied or updated itself
         config_dm.subsequent_configurations = [config_activity_table]
-        config_activity_table.subsequent_configurations = [
-            config_datepicker,
-            config_attributeselector,
-        ]
+        config_activity_table.subsequent_configurations = [config_closed_cases]
+        config_closed_cases.subsequent_configurations = [config_datepicker]
+        config_datepicker.subsequent_configurations = [config_attributeselector]
         config_attributeselector.subsequent_configurations = []
         self.config_view = ConfiguratorView(
             configurations=[
                 config_dm,
                 config_activity_table,
+                config_closed_cases,
                 config_datepicker,
                 config_attributeselector,
             ],
@@ -188,6 +200,7 @@ class AnalysisCaseDuration:
         activity_table_str = self.configurator.config_dict["activity_table"][
             "activity_table_str"
         ]
+        is_closed_query = self.configurator.config_dict["is_closed"]["pql_query"]
         used_static_attribute_descriptors = self.configurator.config_dict[
             "attribute_selection"
         ]["static_attributes"]
@@ -209,6 +222,7 @@ class AnalysisCaseDuration:
             used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             time_unit=time_unit,
             start_date=start_date,
             end_date=end_date,
