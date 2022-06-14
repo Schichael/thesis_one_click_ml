@@ -1070,10 +1070,17 @@ class ReworkProcessor(UseCaseProcessor):
         description=static_attributes.StartActivityAttribute.description,
     )
 
+    case_table_col_attr_descriptor = AttributeDescriptor(
+        attribute_type=static_attributes.CaseTableColumnAttribute,
+        display_name=static_attributes.CaseTableColumnAttribute.display_name,
+        description=static_attributes.CaseTableColumnAttribute.description,
+    )
+
     potential_static_attributes_descriptors = [
         start_activity_attr_descriptor,
         work_in_progress_attr_descriptor,
         wip_case_start_attr_descriptor,
+        case_table_col_attr_descriptor,
     ]
     potential_dynamic_attributes_descriptors = []
     # the target attribute that is used for this use case
@@ -1288,5 +1295,19 @@ class ReworkProcessor(UseCaseProcessor):
                     is_class_feature=False,
                 )
             )
+
+        if (
+            self.case_table_col_attr_descriptor
+            in self.used_static_attribute_descriptors
+        ):
+            case_table_col_attirbutes = (
+                feature_processor_new.gen_case_column_attributes_multi_table(
+                    process_config=self.process_config,
+                    table_column_dict=self.considered_case_level_table_cols,
+                    is_feature=True,
+                    is_class_feature=False,
+                )
+            )
+            static_attributes_list = static_attributes_list + case_table_col_attirbutes
 
         return static_attributes_list
