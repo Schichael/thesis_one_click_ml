@@ -206,7 +206,7 @@ class CaseDurationProcessor(UseCaseProcessor):
             df_x=self.df_x,
             df_target=self.df_target,
             attributes=used_static_attributes,
-            target_attribute=target_attribute,
+            target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
             min_counts_perc=self.min_attr_count_perc,
@@ -497,7 +497,7 @@ class TransitionTimeProcessor(UseCaseProcessor):
             df_x=self.df_x,
             df_target=self.df_target,
             attributes=used_static_attributes,
-            target_attribute=target_attribute,
+            target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
             min_counts_perc=self.min_attr_count_perc,
@@ -798,7 +798,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
             df_x=self.df_x,
             df_target=self.df_target,
             attributes=used_static_attributes + used_dynamic_attributes,
-            target_attribute=target_attribute,
+            target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
             min_counts_perc=self.min_attr_count_perc,
@@ -1058,50 +1058,29 @@ class ReworkProcessor(UseCaseProcessor):
         description=static_attributes.WorkInProgressAttribute.description,
     )
 
+    wip_case_start_attr_descriptor = AttributeDescriptor(
+        attribute_type=static_attributes.WorkInProgressCaseStartAttribute,
+        display_name=static_attributes.WorkInProgressCaseStartAttribute.display_name,
+        description=static_attributes.WorkInProgressCaseStartAttribute.description,
+    )
+
     start_activity_attr_descriptor = AttributeDescriptor(
         attribute_type=static_attributes.StartActivityAttribute,
         display_name=static_attributes.StartActivityAttribute.display_name,
         description=static_attributes.StartActivityAttribute.description,
     )
 
-    end_activity_attr_descriptor = AttributeDescriptor(
-        attribute_type=static_attributes.EndActivityAttribute,
-        display_name=static_attributes.EndActivityAttribute.display_name,
-        description=static_attributes.EndActivityAttribute.description,
-    )
-
-    activity_occurrence_attr_descriptor = AttributeDescriptor(
-        attribute_type=static_attributes.ActivityOccurenceAttribute,
-        display_name=static_attributes.ActivityOccurenceAttribute.display_name,
-        description=static_attributes.ActivityOccurenceAttribute.description,
-    )
-
-    numeric_activity_table_col_attr_descriptor = AttributeDescriptor(
-        attribute_type=static_attributes.NumericActivityTableColumnAttribute,
-        display_name=static_attributes.NumericActivityTableColumnAttribute.display_name,
-        description=static_attributes.NumericActivityTableColumnAttribute.description,
-    )
-
-    case_table_col_attr_descriptor = AttributeDescriptor(
-        attribute_type=static_attributes.CaseTableColumnAttribute,
-        display_name=static_attributes.CaseTableColumnAttribute.display_name,
-        description=static_attributes.CaseTableColumnAttribute.description,
-    )
-
     potential_static_attributes_descriptors = [
         start_activity_attr_descriptor,
-        end_activity_attr_descriptor,
-        activity_occurrence_attr_descriptor,
         work_in_progress_attr_descriptor,
-        numeric_activity_table_col_attr_descriptor,
-        case_table_col_attr_descriptor,
+        wip_case_start_attr_descriptor,
     ]
     potential_dynamic_attributes_descriptors = []
     # the target attribute that is used for this use case
     target_attribute_descriptor = AttributeDescriptor(
-        attribute_type=static_attributes.CaseDurationAttribute,
-        display_name=static_attributes.CaseDurationAttribute.display_name,
-        description=static_attributes.CaseDurationAttribute.description,
+        attribute_type=static_attributes.ReworkOccurrenceAttribute,
+        display_name=static_attributes.ReworkOccurrenceAttribute.display_name,
+        description=static_attributes.ReworkOccurrenceAttribute.description,
     )
 
     def __init__(
@@ -1112,6 +1091,7 @@ class ReworkProcessor(UseCaseProcessor):
         used_dynamic_attribute_descriptors: List[AttributeDescriptor],
         considered_activity_table_cols: List[str],
         considered_case_level_table_cols: Dict[str, List[str]],
+        rework_activities: List[str],
         time_unit="DAYS",
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -1127,6 +1107,7 @@ class ReworkProcessor(UseCaseProcessor):
             **kwargs,
         )
         self.activity_table_str = activity_table_str
+        self.rework_activities = rework_activities
         self.time_unit = time_unit
         self.start_date = start_date
         self.end_date = end_date
@@ -1170,19 +1151,13 @@ class ReworkProcessor(UseCaseProcessor):
 
         self.df_timestamp_column = "Start activity Time"
 
-        target_attribute = static_attributes.CaseDurationAttribute(
-            process_config=self.process_config,
-            activity_table_str=self.activity_table_str,
-            time_aggregation=self.time_unit,
-            is_feature=False,
-            is_class_feature=True,
-        )
-
+        target_attributes = self._gen_target_attributes()
         # Define a default target variable
-        target_variable = target_attribute.pql_query
-
+        target_variable = target_attributes[0].pql_query
+        target_variable.name = "dummy"
+        used_static_attributes += target_attributes
         # Get DataFrames
-        self.df_x, self.df_target = feature_processor_new.extract_dfs(
+        df_x, df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
             static_attributes=used_static_attributes,
@@ -1192,11 +1167,15 @@ class ReworkProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
+        self.df_x, self.df_target = self._get_real_dfs(
+            df_x=df_x, target_attributes=target_attributes
+        )
+
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
             attributes=used_static_attributes,
-            target_attribute=target_attribute,
+            target_attributes=target_attributes,
             valid_target_values=None,
             invalid_target_replacement=None,
             min_counts_perc=self.min_attr_count_perc,
@@ -1220,6 +1199,29 @@ class ReworkProcessor(UseCaseProcessor):
             th_remove_col=self.th_remove_col,
         )
 
+    def _get_real_dfs(self, df_x, target_attributes):
+        columns_target = [attr.attribute_name for attr in target_attributes]
+        columns_target_extended = columns_target.copy()
+        columns_target_extended.append("Start activity Time")
+        columns_target_extended.append("End activity Time")
+        df_target = df_x[columns_target].copy()
+        df_x.drop(columns=columns_target, axis=1, inplace=True)
+        return df_x, df_target
+
+    def _gen_target_attributes(self):
+        """Gen target attributes"""
+        target_attributes = []
+        for act in self.rework_activities:
+            attr = static_attributes.ReworkOccurrenceAttribute(
+                process_config=self.process_config,
+                activity_table_str=self.activity_table_str,
+                activity=act,
+                is_feature=False,
+                is_class_feature=True,
+            )
+            target_attributes.append(attr)
+        return target_attributes
+
     def _gen_static_attr_list(self, min_attr_count: int, max_attr_count: int):
         """Gen list of used static attributes."""
         static_attributes_list = []
@@ -1236,6 +1238,15 @@ class ReworkProcessor(UseCaseProcessor):
                 activity_table_str=self.activity_table_str,
             )
         )
+
+        self.case_duration_attribute = static_attributes.CaseDurationAttribute(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            time_aggregation=self.time_unit,
+            is_feature=False,
+            is_class_feature=False,
+        )
+        static_attributes_list.append(self.case_duration_attribute)
 
         # Add used attributes
         if (
@@ -1265,61 +1276,17 @@ class ReworkProcessor(UseCaseProcessor):
                 )
             )
 
-        if self.end_activity_attr_descriptor in self.used_static_attribute_descriptors:
+        if (
+            self.wip_case_start_attr_descriptor
+            in self.used_static_attribute_descriptors
+        ):
             static_attributes_list.append(
-                static_attributes.EndActivityAttribute(
+                static_attributes.WorkInProgressCaseStartAttribute(
                     process_config=self.process_config,
                     activity_table_str=self.activity_table_str,
                     is_feature=True,
                     is_class_feature=False,
                 )
             )
-
-        if (
-            self.activity_occurrence_attr_descriptor
-            in self.used_static_attribute_descriptors
-        ):
-            activity_occ_attributes = (
-                feature_processor_new.gen_static_activity_occurence_attributes(
-                    process_config=self.process_config,
-                    activity_table_str=self.activity_table_str,
-                    is_feature=True,
-                    min_vals=min_attr_count,
-                    max_vals=max_attr_count,
-                )
-            )
-            static_attributes_list = static_attributes_list + activity_occ_attributes
-
-        if (
-            self.numeric_activity_table_col_attr_descriptor
-            in self.used_static_attribute_descriptors
-        ):
-            numeric_activity_attirbutes = (
-                feature_processor_new.gen_static_numeric_activity_table_attributes(
-                    process_config=self.process_config,
-                    activity_table_str=self.activity_table_str,
-                    columns=self.considered_activity_table_cols,
-                    aggregation="AVG",
-                    is_feature=True,
-                    is_class_feature=False,
-                )
-            )
-            static_attributes_list = (
-                static_attributes_list + numeric_activity_attirbutes
-            )
-
-        if (
-            self.case_table_col_attr_descriptor
-            in self.used_static_attribute_descriptors
-        ):
-            case_table_col_attirbutes = (
-                feature_processor_new.gen_case_column_attributes_multi_table(
-                    process_config=self.process_config,
-                    table_column_dict=self.considered_case_level_table_cols,
-                    is_feature=True,
-                    is_class_feature=False,
-                )
-            )
-            static_attributes_list = static_attributes_list + case_table_col_attirbutes
 
         return static_attributes_list
