@@ -1,5 +1,6 @@
 import abc
 import functools
+from timeit import default_timer as timer
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -18,12 +19,17 @@ from ipywidgets import VBox
 from ipywidgets import widgets
 from pycelonis import get_celonis
 from pycelonis.celonis_api.errors import PyCelonisNotFoundError
+from pycelonis.celonis_api.pql import pql
+from pycelonis.celonis_api.pql.pql import PQLColumn
 from pycelonis.celonis_api.pql.pql import PQLFilter
 
 from one_click_analysis import utils
 from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDescriptor,
+)
+from one_click_analysis.feature_processing.attributes.static_attributes import (
+    ReworkOccurrenceAttribute,
 )
 from one_click_analysis.process_config.process_config import ProcessConfig
 
@@ -189,34 +195,6 @@ class Configuration(abc.ABC):
         already reset in self.reset()"""
         pass
 
-    # @property
-    # def config(self) -> Dict[str, Any]:
-    #    """dictionary that holds the configuration"""
-    #    return self._config
-
-    # @config.setter
-    # def config(self, new_config: Dict[str, Any]):
-    #    self._config = new_config
-
-    # @property
-    # def config_box(self):
-    #    """ipywidgets Box to display the config visualization"""
-    #    return self._config_box
-
-    # @config_box.setter
-    # def config_box(self, new_config_box: Any):
-    #    self._config_box = new_config_box
-
-    # @property
-    # def subsequent_configurations(self):
-    #    """List with subsequent configurations which update() and reset() methods
-    #    are called from this configuration"""
-    #    return self._subsequent_configurations
-
-    # @subsequent_configurations.setter
-    # def subsequent_configurations(self, function_list: List[Callable]):
-    #    self._subsequent_configurations = function_list
-
     @abc.abstractmethod
     def _create_true_config_box(self) -> Box:
         """Create box with the configuration
@@ -232,8 +210,8 @@ class Configuration(abc.ABC):
         :return: Box with the placeholder configuration
         """
         caption_HTML = HTML(self.html_caption_str)
-        hbox_datepickers = HBox()
-        box_config = VBox(children=[caption_HTML, hbox_datepickers])
+        hbox = HBox()
+        box_config = VBox(children=[caption_HTML, hbox])
         self.config_box = box_config
 
     @abc.abstractmethod
@@ -364,18 +342,29 @@ class DatePickerConfig(Configuration):
         self.datepicker_start = DatePicker(disabled=False)
         self.datepicker_end = DatePicker(disabled=False)
 
-        def bind_datepicker_start(b):
-            self.config["date_start"] = b.new
+        # Create Apply button
+        apply_button = widgets.Button(description="Apply")
+
+        def on_apply_clicked(b):
+            self.config["date_start"] = self.datepicker_start.value
+            self.config["date_end"] = self.datepicker_end.value
             self.filters = self.create_filter_queries()
             self.apply()
 
-        def bind_datepicker_end(b):
-            self.config["date_end"] = b.new
-            self.filters = self.create_filter_queries()
-            self.apply()
+        apply_button.on_click(on_apply_clicked)
 
-        self.datepicker_start.observe(bind_datepicker_start, "value")
-        self.datepicker_end.observe(bind_datepicker_end, "value")
+        # def bind_datepicker_start(b):
+        #    date_start = b.new
+        #    self.filters = self.create_filter_queries()
+        #    self.apply()
+
+        # def bind_datepicker_end(b):
+        #    self.config["date_end"] = b.new
+        #    self.filters = self.create_filter_queries()
+        #    self.apply()
+
+        # self.datepicker_start.observe(bind_datepicker_start, "value")
+        # self.datepicker_end.observe(bind_datepicker_end, "value")
         vbox_datepicker_start = VBox(
             children=[html_descr_datepicker_start, self.datepicker_start]
         )
@@ -386,7 +375,7 @@ class DatePickerConfig(Configuration):
 
         caption_HTML = HTML(self.html_caption_str)
         hbox_datepickers = HBox(children=[vbox_datepicker_start, vbox_datepicker_end])
-        box_config = VBox(children=[caption_HTML, hbox_datepickers])
+        box_config = VBox(children=[caption_HTML, hbox_datepickers, apply_button])
         self.config_box = box_config
 
 
@@ -1251,7 +1240,7 @@ class DecisionConfig(Configuration):
         )
 
 
-class MultiActivitySelection(Configuration):
+class ReworkActivitySelection(Configuration):
     """Configuration for defining multiple activities. The name
     of the activities is stored in config['activities'].
     """
@@ -1282,6 +1271,7 @@ class MultiActivitySelection(Configuration):
         self._create_config_box()
 
     def _create_true_config_box(self):
+        print("creating true config box")
         process_config = self.configurator.config_dict[self.datamodel_identifier][
             "process_config"
         ]
@@ -1292,15 +1282,35 @@ class MultiActivitySelection(Configuration):
 
         html_descr_activities = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick activities</div>'
+            'font-size: 14px;">Pick activities (Cases with rework on activity)</div>'
         )
         activity_table = process_config.table_dict[activity_table_str]
         activities = activity_table.process_model.activities
         # Sort activities
         activities = sorted(activities)
 
+        # Get number of cases with rework for each activity
+        activity_rework_dict = self._get_number_reworks(
+            activities, process_config, activity_table
+        )
+        # Sort activities by number of rework cases
+        activities = [
+            key
+            for (key, _) in sorted(
+                activity_rework_dict.items(), key=lambda x: x[1], reverse=True
+            )
+        ]
+
         # Target Activities
         selected_activities = []
+
+        checkboxes = []
+        activity_description_dict = {
+            act: act + "(" + str(activity_rework_dict[act]) + ")" for act in activities
+        }
+        activity_description_dict_reverse = {
+            v: k for k, v in activity_description_dict.items()
+        }
 
         def on_checkbox_clicked(b):
             """Define behaviour when an activity is toggled
@@ -1309,17 +1319,24 @@ class MultiActivitySelection(Configuration):
             :return:
             """
             if b.new is False:
-                selected_activities.remove(b.owner.description)
+                selected_activities.remove(
+                    activity_description_dict_reverse[b.owner.description]
+                )
             else:
-                selected_activities.append(b.owner.description)
+                selected_activities.append(
+                    activity_description_dict_reverse[b.owner.description]
+                )
             if len(selected_activities) > 0:
                 self.config["activities"] = selected_activities
             else:
                 self.config["activities"] = None
 
-        checkboxes = []
         for activity in activities:
-            cb = Checkbox(value=False, description=activity, indent=False)
+            cb = Checkbox(
+                value=False,
+                description=activity_description_dict[activity],
+                indent=False,
+            )
             cb.observe(on_checkbox_clicked, "value")
             checkboxes.append(cb)
 
@@ -1360,6 +1377,31 @@ class MultiActivitySelection(Configuration):
         )
         self.config_box = box_config
 
+    def _get_number_reworks(
+        self, activities, process_config: ProcessConfig, activity_table
+    ) -> dict:
+        """Get dictionary of activities and number of cases with rework on activity"""
+
+        start = timer()
+        filters = self.configurator.get_all_filters()
+        pql_query = pql.PQL()
+        for act in activities:
+            rework_attr = ReworkOccurrenceAttribute(
+                process_config=process_config,
+                activity_table_str=activity_table.table_str,
+                activity=act,
+            )
+            query = "SUM(" + rework_attr.pql_query.query + ")"
+            pql_query.add(PQLColumn(name=act, query=query))
+        pql_query.add(filters)
+        df = process_config.dm.get_data_frame(pql_query)
+        act_dict = {}
+        for act in activities:
+            act_dict[act] = df[act].values[0]
+        end = timer()
+        print(f"time spent on getting the rework thingies: {end-start}")
+        return act_dict
+
     @property
     def local_requirement_met(self) -> bool:
         if self.config.get("activities") is not None:
@@ -1383,6 +1425,205 @@ class MultiActivitySelection(Configuration):
         activity_table_set = (
             self.configurator.config_dict.get(self.activitytable_identifier) is not None
         )
+        return (
+            process_config_set
+            and activity_table_set
+            and self._validate_additional_prerequisites()
+        )
+
+
+class IsClosedConfig(Configuration):
+    """Configuration for defining the IS_CLOSED property. The name
+    of the query is stored in config['pql_query']. The user has the option to
+    either select a set of activities that needed to happen for the case to be closed or
+    to add an own PQL query that defines the IS_CLOSED property.
+    """
+
+    def __init__(
+        self,
+        configurator: Configurator,
+        datamodel_identifier: str,
+        activity_table_identifier: str,
+        config_identifier: str = "is_closed",
+        additional_prerequsit_config_ids: Optional[List[str]] = None,
+        **kwargs,
+    ):
+
+        if "title" in kwargs:
+            title = kwargs["title"]
+            kwargs.pop("title")
+        else:
+            title = f"Specify closed cases"
+
+        super().__init__(
+            configurator=configurator,
+            config_identifier=config_identifier,
+            additional_prerequsit_config_ids=additional_prerequsit_config_ids,
+            title=title,
+            **kwargs,
+        )
+
+        self.datamodel_identifier = datamodel_identifier
+        self.activitytable_identifier = activity_table_identifier
+
+        # Initialize config box
+        self._create_config_box()
+
+    def _create_true_config_box(self):
+        process_config = self.configurator.config_dict[self.datamodel_identifier][
+            "process_config"
+        ]
+        activity_table_str = self.configurator.config_dict[
+            self.activitytable_identifier
+        ]["activity_table_str"]
+        # Create ipywidgets Box object for configuration visualization
+
+        html_descr_picking_choice = HTML(
+            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
+            'font-size: 14px;">Only closed cases are considered for the analysis. '
+            "Select activities that specify when a case is considered close. If any "
+            "of the selected activities has happened in a case it will be considered "
+            "closed. Alternatively, specify an own PQL query below. The cases for "
+            "which the query evaluates to 1 will be considered "
+            "closed. If a PQL query is specified, the selected "
+            "activities will be "
+            "ignored. If you want to use all cases, click Apply without specifying "
+            "activities or a PQL query."
+            "</div>"
+        )
+
+        html_activity_picking = HTML(
+            '<div style="line-height:140%; margin-top: 5px; '
+            'margin-bottom: 0px; font-size: 14px;"> Pick '
+            "activities:</div>"
+        )
+
+        activity_table = process_config.table_dict[activity_table_str]
+        activities = activity_table.process_model.activities
+        # Sort activities
+        activities = sorted(activities)
+
+        # Target Activities
+        selected_activities = []
+
+        def on_checkbox_clicked(b):
+            """Define behaviour when an activity is toggled
+
+            :param b:
+            :return:
+            """
+            if b.new is False:
+                selected_activities.remove(b.owner.description)
+            else:
+                selected_activities.append(b.owner.description)
+
+        checkboxes = []
+        for activity in activities:
+            cb = Checkbox(value=False, description=activity, indent=False)
+            cb.observe(on_checkbox_clicked, "value")
+            checkboxes.append(cb)
+
+        vbox_activities_cbs = VBox(
+            children=checkboxes,
+            layout=Layout(overflow="auto", max_height="400px"),
+        )
+
+        vbox_activities_selection = VBox(
+            children=[vbox_activities_cbs],
+            layout=Layout(height="235px", width="max-content", min_width="200"),
+        )
+
+        pql_text_area = widgets.Textarea(
+            value="",
+            placeholder="Enter PQL query",
+            description="Enter PQL query",
+            layout=widgets.Layout(width="auto", margin="15px 0px 0px " "0px"),
+            rows=5,
+            style={"description_width": "initial"},
+        )
+
+        # Create Apply button
+        apply_button = widgets.Button(description="Apply")
+
+        def on_apply_clicked(b):
+            if pql_text_area.value != "":
+                self._create_query_from_text(pql_text_area.value)
+            else:
+                self._create_query_from_activities(selected_activities)
+            self.apply()
+            """
+            if (
+                self.config.get("source_activity") is not None
+                and self.config.get("target_activities") is not None
+            ):
+                self.apply()
+            """
+
+        apply_button.on_click(on_apply_clicked)
+
+        # html_caption_str = (f'<span style="font-weight:'
+        #                    f"{self.get_html_str_caption_bold()}; font-size"
+        #                    f':{self.caption_size}px">Pick transition activities for '
+        #                    f"analysis "
+        #                    f"({self.optional_or_required_str})</span>")
+        caption_HTML = HTML(self.html_caption_str)
+
+        box_config = VBox(
+            children=[
+                caption_HTML,
+                html_descr_picking_choice,
+                html_activity_picking,
+                vbox_activities_selection,
+                pql_text_area,
+                apply_button,
+            ]
+        )
+        self.config_box = box_config
+
+    def _create_query_from_text(self, pql_str: str):
+        """Create PQLColumn and PQLFilter from text and populate config and filter"""
+        filter_str = pql_str + " = 1"
+        self.filters = PQLFilter(query=filter_str)
+        self.config["pql_query"] = PQLColumn(name="IS_CLOSED", query=pql_str)
+
+    def _create_query_from_activities(self, activities):
+        if len(activities) == 0:
+            pql_query = "MATCH_ACTIVITIES(EXCLUDING_ALL [])"
+            self.config["pql_query"] = PQLColumn(name="IS_CLOSED", query=pql_query)
+            self.filters = []
+            return
+        list_str = f"'{activities[0]}'"
+        for act in activities[1:]:
+            list_str = list_str + ", '" + act + "'"
+        pql_query = f"MATCH_ACTIVITIES(NODE_ANY [{list_str}] )"
+        self.config["pql_query"] = PQLColumn(name="IS_CLOSED", query=pql_query)
+        filter_str = pql_query + " = 1"
+        self.filters = [PQLFilter(query=filter_str)]
+
+    @property
+    def local_requirement_met(self) -> bool:
+        if self.config.get("pql_query") is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def configurator_requirement_met(self) -> bool:
+        if not self.required:
+            return True
+        if self.configurator.config_dict.get(self.config_identifier) is not None:
+            return True
+        else:
+            return False
+
+    def validate_prerequisites(self) -> bool:
+        process_config_set = (
+            self.configurator.config_dict.get(self.datamodel_identifier) is not None
+        )
+        activity_table_set = (
+            self.configurator.config_dict.get(self.activitytable_identifier) is not None
+        )
+
         return (
             process_config_set
             and activity_table_set
