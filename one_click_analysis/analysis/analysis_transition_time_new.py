@@ -9,6 +9,7 @@ from one_click_analysis.configuration.configurations_new import ActivityTableCon
 from one_click_analysis.configuration.configurations_new import AttributeSelectionConfig
 from one_click_analysis.configuration.configurations_new import DatamodelConfig
 from one_click_analysis.configuration.configurations_new import DatePickerConfig
+from one_click_analysis.configuration.configurations_new import IsClosedConfig
 from one_click_analysis.configuration.configurations_new import TransitionConfig
 from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.configuration.configurator_new import ConfiguratorView
@@ -109,11 +110,12 @@ class AnalysisTransitionTime:
             required=True,
         )
 
-        config_transition = TransitionConfig(
+        config_closed_cases = IsClosedConfig(
             configurator=self.configurator,
             datamodel_identifier="datamodel",
-            activitytable_identifier="activity_table",
+            activity_table_identifier="activity_table",
             required=True,
+            additional_prerequsit_config_ids=[],
         )
 
         config_datepicker = DatePickerConfig(
@@ -121,7 +123,15 @@ class AnalysisTransitionTime:
             datamodel_identifier="datamodel",
             activity_table_identifier="activity_table",
             required=False,
-            additional_prerequsit_config_ids=["transition"],
+            additional_prerequsit_config_ids=["is_closed"],
+        )
+
+        config_transition = TransitionConfig(
+            configurator=self.configurator,
+            datamodel_identifier="datamodel",
+            activitytable_identifier="activity_table",
+            required=True,
+            additional_prerequsit_config_ids=["datepicker"],
         )
 
         static_attributes = (
@@ -143,9 +153,10 @@ class AnalysisTransitionTime:
         # Set the subsequrnt configurations that are updated when the respective
         # configuration is applied or updated itself
         config_dm.subsequent_configurations = [config_activity_table]
-        config_activity_table.subsequent_configurations = [config_transition]
+        config_activity_table.subsequent_configurations = [config_closed_cases]
+        config_closed_cases.subsequent_configurations = [config_datepicker]
+        config_datepicker.subsequent_configurations = [config_transition]
         config_transition.subsequent_configurations = [
-            config_datepicker,
             config_attributeselector,
         ]
 
@@ -154,8 +165,9 @@ class AnalysisTransitionTime:
             configurations=[
                 config_dm,
                 config_activity_table,
-                config_transition,
+                config_closed_cases,
                 config_datepicker,
+                config_transition,
                 config_attributeselector,
             ],
             run_analysis=self.run_analysis,
@@ -203,6 +215,8 @@ class AnalysisTransitionTime:
         activity_table_str = self.configurator.config_dict["activity_table"][
             "activity_table_str"
         ]
+        is_closed_query = self.configurator.config_dict["is_closed"]["pql_query"]
+
         source_activity = self.configurator.config_dict["transition"]["source_activity"]
         target_activity = self.configurator.config_dict["transition"]["target_activity"]
 
@@ -227,6 +241,7 @@ class AnalysisTransitionTime:
             used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             source_activity=source_activity,
             target_activity=target_activity,
             time_unit=time_unit,
