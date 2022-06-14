@@ -5,6 +5,7 @@ from typing import List
 from typing import Optional
 
 import pandas as pd
+from pycelonis.celonis_api.pql import pql
 
 from one_click_analysis.feature_processing import feature_processor_new
 from one_click_analysis.feature_processing import post_processing
@@ -33,6 +34,7 @@ class UseCaseProcessor(abc.ABC):
         target_attribute_descriptor: AttributeDescriptor,
         considered_activity_table_cols: List[str],
         considered_case_level_table_cols: Dict[str, List[str]],
+        is_closed_query: pql.PQLColumn,
         **kwargs,
     ):
         self.process_config = process_config
@@ -41,6 +43,8 @@ class UseCaseProcessor(abc.ABC):
         self.target_attribute_descriptor = target_attribute_descriptor
         self.considered_activity_table_cols = considered_activity_table_cols
         self.considered_case_level_table_cols = considered_case_level_table_cols
+        self.is_closed_query = is_closed_query
+        self.is_closed_filter = self._create_is_closed_filter(self.is_closed_query)
         self.chunksize = kwargs.get("chunksize", 10000)
         self.min_attr_count_perc = kwargs.get("min_attr_count_perc", 0.02)
         self.max_attr_count_perc = kwargs.get("max_attr_count_perc", 0.98)
@@ -50,8 +54,15 @@ class UseCaseProcessor(abc.ABC):
         self.target_features = None
         self.features = None
         self.filters = []
+        self.filters.append(self.is_closed_filter)
         self.df_timestamp_column = None
         self.num_cases = None
+
+    def _create_is_closed_filter(self, is_closed_query: pql.PQLColumn) -> pql.PQLFilter:
+        """Create IS_CLOSED PQLFilter object"""
+        query_str = is_closed_query.query
+        query_str_filter = query_str + " = 1"
+        return pql.PQLFilter(query=query_str_filter)
 
     @abc.abstractmethod
     def process(self):
@@ -122,6 +133,7 @@ class CaseDurationProcessor(UseCaseProcessor):
         used_dynamic_attribute_descriptors: List[AttributeDescriptor],
         considered_activity_table_cols: List[str],
         considered_case_level_table_cols: Dict[str, List[str]],
+        is_closed_query: pql.PQLColumn,
         time_unit="DAYS",
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -134,6 +146,7 @@ class CaseDurationProcessor(UseCaseProcessor):
             target_attribute_descriptor=self.target_attribute_descriptor,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             **kwargs,
         )
         self.activity_table_str = activity_table_str
@@ -149,12 +162,6 @@ class CaseDurationProcessor(UseCaseProcessor):
             end_date=self.end_date,
         )
         self.filters = self.filters + date_filters
-
-        is_closed_indicator = feature_processor_new.all_cases_closed_query(
-            process_config=self.process_config,
-            activity_table_str=self.activity_table_str,
-            name="IS_CLOSED",
-        )
 
         self.num_cases = feature_processor_new.get_number_cases(
             process_config=self.process_config,
@@ -197,7 +204,7 @@ class CaseDurationProcessor(UseCaseProcessor):
             activity_table_str=self.activity_table_str,
             static_attributes=used_static_attributes,
             dynamic_attributes=[],
-            is_closed_indicator=is_closed_indicator,
+            is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
             filters=self.filters,
         )
@@ -389,6 +396,7 @@ class TransitionTimeProcessor(UseCaseProcessor):
         used_dynamic_attribute_descriptors: List[AttributeDescriptor],
         considered_activity_table_cols: List[str],
         considered_case_level_table_cols: Dict[str, List[str]],
+        is_closed_query: pql.PQLColumn,
         source_activity: str,
         target_activity: str,
         time_unit="DAYS",
@@ -403,6 +411,7 @@ class TransitionTimeProcessor(UseCaseProcessor):
             target_attribute_descriptor=self.target_attribute_descriptor,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             **kwargs,
         )
         self.activity_table_str = activity_table_str
@@ -434,11 +443,6 @@ class TransitionTimeProcessor(UseCaseProcessor):
         )
 
         self.filters = self.filters + [prev_activity_filter]
-        is_closed_indicator = feature_processor_new.all_cases_closed_query(
-            process_config=self.process_config,
-            activity_table_str=self.activity_table_str,
-            name="IS_CLOSED",
-        )
 
         (
             min_attr_count,
@@ -488,7 +492,7 @@ class TransitionTimeProcessor(UseCaseProcessor):
             key_activities=key_activities,
             static_attributes=used_static_attributes,
             dynamic_attributes=used_dynamic_attributes + [target_attribute_for_dyn],
-            is_closed_indicator=is_closed_indicator,
+            is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
             filters=self.filters,
         )
@@ -669,6 +673,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
         used_dynamic_attribute_descriptors: List[AttributeDescriptor],
         considered_activity_table_cols: List[str],
         considered_case_level_table_cols: Dict[str, List[str]],
+        is_closed_query: pql.PQLColumn,
         source_activity: str,
         target_activities: List[str],
         time_unit="DAYS",
@@ -683,6 +688,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
             target_attribute_descriptor=self.target_attribute_descriptor,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             **kwargs,
         )
         self.activity_table_str = activity_table_str
@@ -1098,6 +1104,7 @@ class ReworkProcessor(UseCaseProcessor):
         used_dynamic_attribute_descriptors: List[AttributeDescriptor],
         considered_activity_table_cols: List[str],
         considered_case_level_table_cols: Dict[str, List[str]],
+        is_closed_query: pql.PQLColumn,
         rework_activities: List[str],
         time_unit="DAYS",
         start_date: Optional[str] = None,
@@ -1111,6 +1118,7 @@ class ReworkProcessor(UseCaseProcessor):
             target_attribute_descriptor=self.target_attribute_descriptor,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             **kwargs,
         )
         self.activity_table_str = activity_table_str
