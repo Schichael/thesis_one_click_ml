@@ -10,6 +10,7 @@ from one_click_analysis.configuration.configurations_new import AttributeSelecti
 from one_click_analysis.configuration.configurations_new import DatamodelConfig
 from one_click_analysis.configuration.configurations_new import DatePickerConfig
 from one_click_analysis.configuration.configurations_new import DecisionConfig
+from one_click_analysis.configuration.configurations_new import IsClosedConfig
 from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.configuration.configurator_new import ConfiguratorView
 from one_click_analysis.feature_processing.processors.analysis_processors import (
@@ -119,11 +120,12 @@ class AnalysisRoutingDecisions:
             required=True,
         )
 
-        config_decision = DecisionConfig(
+        config_closed_cases = IsClosedConfig(
             configurator=self.configurator,
             datamodel_identifier="datamodel",
-            activitytable_identifier="activity_table",
+            activity_table_identifier="activity_table",
             required=True,
+            additional_prerequsit_config_ids=[],
         )
 
         config_datepicker = DatePickerConfig(
@@ -131,7 +133,15 @@ class AnalysisRoutingDecisions:
             datamodel_identifier="datamodel",
             activity_table_identifier="activity_table",
             required=False,
-            additional_prerequsit_config_ids=["decisions"],
+            additional_prerequsit_config_ids=["is_closed"],
+        )
+
+        config_decision = DecisionConfig(
+            configurator=self.configurator,
+            datamodel_identifier="datamodel",
+            activitytable_identifier="activity_table",
+            required=True,
+            additional_prerequsit_config_ids=["datepicker"],
         )
 
         static_attributes = (
@@ -153,9 +163,10 @@ class AnalysisRoutingDecisions:
         # Set the subsequrnt configurations that are updated when the respective
         # configuration is applied or updated itself
         config_dm.subsequent_configurations = [config_activity_table]
-        config_activity_table.subsequent_configurations = [config_decision]
+        config_activity_table.subsequent_configurations = [config_closed_cases]
+        config_closed_cases.subsequent_configurations = [config_datepicker]
+        config_datepicker.subsequent_configurations = [config_decision]
         config_decision.subsequent_configurations = [
-            config_datepicker,
             config_attributeselector,
         ]
 
@@ -164,8 +175,9 @@ class AnalysisRoutingDecisions:
             configurations=[
                 config_dm,
                 config_activity_table,
-                config_decision,
+                config_closed_cases,
                 config_datepicker,
+                config_decision,
                 config_attributeselector,
             ],
             run_analysis=self.run_analysis,
@@ -213,6 +225,7 @@ class AnalysisRoutingDecisions:
         activity_table_str = self.configurator.config_dict["activity_table"][
             "activity_table_str"
         ]
+        is_closed_query = self.configurator.config_dict["is_closed"]["pql_query"]
         source_activity = self.configurator.config_dict["decisions"]["source_activity"]
         target_activities = self.configurator.config_dict["decisions"][
             "target_activities"
@@ -239,6 +252,7 @@ class AnalysisRoutingDecisions:
             used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             source_activity=source_activity,
             target_activities=target_activities,
             time_unit=time_unit,
