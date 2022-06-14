@@ -200,6 +200,82 @@ class BarWithLines(Figure):
         return layout_args
 
 
+class GroupedBarWithLines(Figure):
+    def __init__(self, barplot_args: List[dict], line_plot_args: dict, **kwargs):
+        self.barplot_args = barplot_args
+        self.line_plot_args = line_plot_args
+        layout_args = self._get_layout_args(**kwargs)
+        if "barmode" not in layout_args:
+            layout_args["barmode"] = "group"
+        super().__init__(**layout_args)
+        self.figure = self._create_figure()
+
+    def _create_figure(self):
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        for arg in self.barplot_args:
+            trace_bar = go.Bar(arg)
+            fig.add_trace(trace_bar, secondary_y=False)
+        trace_metric = go.Scatter(
+            self.line_plot_args, mode="lines", marker={"color": "red"}
+        )
+        fig.add_trace(trace_metric, secondary_y=True)
+
+        fig.update_layout(self.layout_vals)
+        fig_widget = go.FigureWidget(fig)
+        return fig_widget
+
+    def _get_layout_args(self, **kwargs):
+        layout_args = kwargs
+        return layout_args
+
+
+class GroupedBar(Figure):
+    def __init__(self, barplot_args: List[dict], **kwargs):
+        self.barplot_args = barplot_args
+        layout_args = self._get_layout_args(**kwargs)
+        if "barmode" not in layout_args:
+            layout_args["barmode"] = "group"
+        super().__init__(**layout_args)
+        self.figure = self._create_figure()
+
+    def _create_figure(self):
+        fig = make_subplots(specs=[[{"secondary_y": False}]])
+        for arg in self.barplot_args:
+            trace_bar = go.Bar(arg)
+            fig.add_trace(trace_bar, secondary_y=False)
+
+        fig.update_layout(self.layout_vals)
+        fig_widget = go.FigureWidget(fig)
+        return fig_widget
+
+    def _get_layout_args(self, **kwargs):
+        layout_args = kwargs
+        return layout_args
+
+
+class Bar(Figure):
+    def __init__(self, barplot_args: dict, **kwargs):
+        self.barplot_args = barplot_args
+        layout_args = self._get_layout_args(**kwargs)
+        super().__init__(**layout_args)
+        self.figure = self._create_figure()
+
+    def _create_figure(self):
+        go.Histogram()
+        trace_bar = go.Bar(self.barplot_args, marker=dict(color="rgb(34,163,192)"))
+
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(trace_bar, secondary_y=False)
+
+        fig.update_layout(self.layout_vals)
+        fig_widget = go.FigureWidget(fig)
+        return fig_widget
+
+    def _get_layout_args(self, **kwargs):
+        layout_args = kwargs
+        return layout_args
+
+
 class NumericalAttributeEffectOnLabel(Figure):
     def __init__(
         self,
