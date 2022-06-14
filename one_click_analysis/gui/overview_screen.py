@@ -9,10 +9,13 @@ from ipywidgets import VBox
 from ipywidgets import Widget
 from plotly.graph_objs import FigureWidget
 
+from one_click_analysis import utils
 from one_click_analysis.feature_processing.attributes.feature import Feature
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
+from one_click_analysis.gui.figures import Bar
 from one_click_analysis.gui.figures import BarWithLines
 from one_click_analysis.gui.figures import DistributionFigure
+from one_click_analysis.gui.figures import GroupedBar
 from one_click_analysis.gui.figures import SingleValueBox
 
 
@@ -419,5 +422,209 @@ class OverviewScreenTransitionTime(OverviewScreen):
                 [metrics_box],
                 [fig_transition_duration_development.figure],
                 [fig_distribution.figure],
+            ]
+        )
+
+
+class OverviewScreenRework(OverviewScreen):
+    def __init__(
+        self,
+        df_x: pd.DataFrame,
+        df_target: pd.DataFrame,
+        features: List[Feature],
+        target_features: List[Feature],
+        timestamp_column: str,
+        time_aggregation: str,
+        # activities: str,
+        case_duration_col_name: str,
+        num_cases: int,
+    ):
+        self.df_x = df_x
+        self.df_target = df_target
+        self.features = features
+        self.target_features = target_features
+        self.timestamp_column = timestamp_column
+        self.time_aggregation = utils.get_aggregation_df_name(time_aggregation)
+        # self.activities = activities
+        self.case_duration_col_name = case_duration_col_name
+        self.num_cases = num_cases
+        self.activities = self._get_activities()
+        self._overview_box = self._create_overview_screen()
+
+    @property
+    def overview_box(self):
+        return self._overview_box
+
+    def _get_activities(self):
+        activities = []
+        for tf in self.target_features:
+            activities.append(tf.attribute.activity)
+        return activities
+
+    def _create_overview_screen(self):
+        """Create and get the overview screen
+
+        :return:
+        """
+        # Transitions from source activity to selected target activities. It is the
+        # length of the DataFrame without the rows where there is no target activity
+        # (Then after the source activity none of the target activities occur.)
+        # Get indices where there is a decision to one of the target activities
+        indices_with_rework = []
+        for target_feature in self.target_features:
+            col_name = target_feature.df_column_name
+            idxs_with_target = np.where(self.df_target[col_name] == 1)[0]
+            indices_with_rework = indices_with_rework + idxs_with_target.tolist()
+
+        # Total number of selected cases
+        title = "Number of selected cases"
+        num_cases_box = SingleValueBox(
+            title=title,
+            val=self.num_cases,
+            unit=None,
+            title_color="Black",
+            val_color="Blue",
+        )
+
+        # Number of cases with at least one rework on the selected activities
+        num_cases_with_rework = len(
+            set(self.df_target.iloc[indices_with_rework].index.get_level_values(0))
+        )
+        title = (
+            f"Number of cases with rework on at least on of the selected " f"activities"
+        )
+        num_cases_with_rework_box = SingleValueBox(
+            title=title,
+            val=num_cases_with_rework,
+            unit=None,
+            title_color="Black",
+            val_color="Blue",
+        )
+
+        metrics_box = HBox(
+            children=[
+                num_cases_box.box,
+                num_cases_with_rework_box.box,
+            ],
+            layout=Layout(margin="0px 30px 0px 0px"),
+        )
+        activity_column_names = [x.df_column_name for x in self.target_features]
+        # Get average case durations
+        avg_case_durations_with_rework = []
+        avg_case_durations_without_rework = []
+        for col_name in activity_column_names:
+            if len(self.df_target[self.df_target[col_name] == 1].index) == 0:
+                avg_case_durations_with_rework.append(0)
+            else:
+                # self.activity_case_key
+                df_with_target = self.df_x[self.df_target[col_name] == 1]
+                df_grouped = df_with_target.groupby(level=0).first()
+                avg_case_durations_with_rework.append(
+                    round(
+                        df_grouped[self.case_duration_col_name].mean(),
+                        2,
+                    )
+                )
+            if len(self.df_target[self.df_target[col_name] == 0].index) == 0:
+                avg_case_durations_without_rework.append(0)
+            else:
+                # self.activity_case_key
+                df_with_target = self.df_x[self.df_target[col_name] == 0]
+                df_grouped = df_with_target.groupby(level=0).first()
+                avg_case_durations_without_rework.append(
+                    round(
+                        df_grouped[self.case_duration_col_name].mean(),
+                        2,
+                    )
+                )
+
+        num_cases_with_rework = []
+        for tf in self.target_features:
+            num_cases_with_rework.append(tf.metrics["case_count"])
+
+        # Sort for number of cases with target
+        sorted_indices = np.argsort(np.argsort(num_cases_with_rework))
+        num_cases_with_rework_sorted = [None] * sorted_indices.size
+        avg_case_durations_with_rework_sorted = [None] * sorted_indices.size
+        avg_case_durations_without_rework_sorted = [None] * sorted_indices.size
+        activities_sorted = [None] * sorted_indices.size
+
+        for i, el in enumerate(sorted_indices):
+            num_cases_with_rework_sorted[el] = num_cases_with_rework[i]
+            avg_case_durations_with_rework_sorted[el] = avg_case_durations_with_rework[
+                i
+            ]
+            avg_case_durations_without_rework_sorted[
+                el
+            ] = avg_case_durations_without_rework[i]
+            activities_sorted[el] = self.activities[i]
+        num_cases_with_rework_sorted.reverse()
+        avg_case_durations_with_rework_sorted.reverse()
+        avg_case_durations_without_rework_sorted.reverse()
+        activities_sorted.reverse()
+        # barplot with cases with target activities and metric line plot
+
+        barplot_num_cases_args = {
+            "x": activities_sorted,
+            "y": num_cases_with_rework_sorted,
+            "name": "Cases with rework on activity",
+        }
+
+        layout_num_cases_args = {
+            "xaxis_title": "Rework on activity",
+            "yaxis_title": "Cases",
+            "title": "Cases containing rework on the activities. (One case"
+            "can have rework on more than one activity)",
+        }
+        barplot_num_cases = Bar(barplot_num_cases_args, **layout_num_cases_args)
+
+        barplot_case_durations_args = [
+            {
+                "x": activities_sorted,
+                "y": avg_case_durations_with_rework_sorted,
+                "name": "With rework on activity",
+                "marker": dict(color="darkblue"),
+            },
+            {
+                "x": activities_sorted,
+                "y": avg_case_durations_without_rework_sorted,
+                "name": "Without rework on activity",
+                "marker": dict(color="lightblue"),
+            },
+        ]
+
+        layout_case_durations_args = {
+            "xaxis_title": "Activities",
+            "yaxis_title": f"Average case duration ({self.time_aggregation})",
+            "title": "Average case durations of cases with/without rework on an "
+            "activity. (One case can have rework on more than one activity)",
+        }
+
+        barplot_case_duration = GroupedBar(
+            barplot_args=barplot_case_durations_args, **layout_case_durations_args
+        )
+        # development of case duration
+        title_rework_development = "Cases with rework on activities"
+        df_target_with_case_time = self.df_target
+        df_target_with_case_time[self.timestamp_column] = self.df_x[
+            self.timestamp_column
+        ]
+        fig_rework_development = AttributeDevelopmentFigure(
+            df=df_target_with_case_time,
+            time_col=self.timestamp_column,
+            attribute_cols=activity_column_names,
+            attribute_names=self.activities,
+            fill=False,
+            case_level=True,
+            case_level_aggregation="max",
+            title=title_rework_development,
+            data_aggregation=np.sum,
+        )
+        return self.create_box(
+            [
+                [metrics_box],
+                [barplot_num_cases.figure],
+                [barplot_case_duration.figure],
+                [fig_rework_development.figure],
             ]
         )
