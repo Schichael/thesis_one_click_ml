@@ -9,7 +9,8 @@ from one_click_analysis.configuration.configurations_new import ActivityTableCon
 from one_click_analysis.configuration.configurations_new import AttributeSelectionConfig
 from one_click_analysis.configuration.configurations_new import DatamodelConfig
 from one_click_analysis.configuration.configurations_new import DatePickerConfig
-from one_click_analysis.configuration.configurations_new import MultiActivitySelection
+from one_click_analysis.configuration.configurations_new import IsClosedConfig
+from one_click_analysis.configuration.configurations_new import ReworkActivitySelection
 from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.configuration.configurator_new import ConfiguratorView
 from one_click_analysis.feature_processing.processors.analysis_processors import (
@@ -107,12 +108,12 @@ class AnalysisRework:
             required=True,
         )
 
-        config_activity_selection = MultiActivitySelection(
+        config_closed_cases = IsClosedConfig(
             configurator=self.configurator,
             datamodel_identifier="datamodel",
-            activitytable_identifier="activity_table",
-            title="Selections of activities to analyze",
+            activity_table_identifier="activity_table",
             required=True,
+            additional_prerequsit_config_ids=[],
         )
 
         config_datepicker = DatePickerConfig(
@@ -120,7 +121,16 @@ class AnalysisRework:
             datamodel_identifier="datamodel",
             activity_table_identifier="activity_table",
             required=False,
-            additional_prerequsit_config_ids=["multi_activities"],
+            additional_prerequsit_config_ids=["is_closed"],
+        )
+
+        config_activity_selection = ReworkActivitySelection(
+            configurator=self.configurator,
+            datamodel_identifier="datamodel",
+            activitytable_identifier="activity_table",
+            title="Selections of activities to analyze",
+            required=True,
+            additional_prerequsit_config_ids=["datepicker"],
         )
 
         static_attributes = ReworkProcessor.potential_static_attributes_descriptors
@@ -138,9 +148,11 @@ class AnalysisRework:
         # Set the subsequrnt configurations that are updated when the respective
         # configuration is applied or updated itself
         config_dm.subsequent_configurations = [config_activity_table]
-        config_activity_table.subsequent_configurations = [config_activity_selection]
+        config_activity_table.subsequent_configurations = [config_closed_cases]
+
+        config_closed_cases.subsequent_configurations = [config_datepicker]
+        config_datepicker.subsequent_configurations = [config_activity_selection]
         config_activity_selection.subsequent_configurations = [
-            config_datepicker,
             config_attributeselector,
         ]
 
@@ -149,8 +161,9 @@ class AnalysisRework:
             configurations=[
                 config_dm,
                 config_activity_table,
-                config_activity_selection,
+                config_closed_cases,
                 config_datepicker,
+                config_activity_selection,
                 config_attributeselector,
             ],
             run_analysis=self.run_analysis,
@@ -198,6 +211,7 @@ class AnalysisRework:
         activity_table_str = self.configurator.config_dict["activity_table"][
             "activity_table_str"
         ]
+        is_closed_query = self.configurator.config_dict["is_closed"]["pql_query"]
         rework_activities = self.configurator.config_dict["multi_activities"][
             "activities"
         ]
@@ -223,6 +237,7 @@ class AnalysisRework:
             used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
             rework_activities=rework_activities,
             time_unit=time_unit,
             start_date=start_date,
