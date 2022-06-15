@@ -76,7 +76,8 @@ class AnalysisRework:
             "The analysis is performed on the case level. This means that a case "
             "either has rework on a selected activity or not. A case in which an "
             "activity is reworked once is treated the same as a case that is reworked "
-            "multiple times."
+            "multiple times. Only cases are considered in which the selected rework "
+            "activity occurs at least once!"
         )
 
         self.description_view = DescriptionScreen(
@@ -128,7 +129,7 @@ class AnalysisRework:
             configurator=self.configurator,
             datamodel_identifier="datamodel",
             activitytable_identifier="activity_table",
-            title="Selections of activities to analyze",
+            title="Selection of activity to analyze",
             required=True,
             additional_prerequsit_config_ids=["datepicker"],
         )
@@ -212,9 +213,7 @@ class AnalysisRework:
             "activity_table_str"
         ]
         is_closed_query = self.configurator.config_dict["is_closed"]["pql_query"]
-        rework_activities = self.configurator.config_dict["multi_activities"][
-            "activities"
-        ]
+        rework_activity = self.configurator.config_dict["multi_activities"]["activity"]
 
         used_static_attribute_descriptors = self.configurator.config_dict[
             "attribute_selection"
@@ -238,7 +237,7 @@ class AnalysisRework:
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
             is_closed_query=is_closed_query,
-            rework_activities=rework_activities,
+            rework_activity=rework_activity,
             time_unit=time_unit,
             start_date=start_date,
             end_date=end_date,
