@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
 from typing import Any
 from typing import Dict
@@ -24,10 +25,10 @@ class Violation:
     # The name of the start activity, activity, or transition activities
     specifics: Optional[Union[str, Tuple[str, str]]]
     # Number of cases with violation
-    num_cases: int
+    num_cases: Optional[int]
     # Violation occurrences (generally one case can have the same violation (
     # Activity, Transition) several times)
-    num_occurrences: int
+    num_occurrences: Optional[int]
     # Metrics: Avg case duration with and without violation, average case steps with
     # and without violation
-    metrics: Dict[str, Any]
+    metrics: Dict[str, Any] = field(default_factory=dict)
