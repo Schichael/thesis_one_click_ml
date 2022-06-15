@@ -6,6 +6,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from pycelonis import get_celonis
+from pycelonis.celonis_api.event_collection.data_model import Datamodel
 
 
 def join_dfs(dfs: List[pd.DataFrame], keys: List[str]) -> pd.DataFrame:
@@ -40,7 +41,7 @@ def join_dfs(dfs: List[pd.DataFrame], keys: List[str]) -> pd.DataFrame:
     return df_result
 
 
-def get_dm(datamodel_name: str, celonis_login: Optional[dict] = None):
+def get_dm(datamodel_name: str, celonis_login: Optional[dict] = None) -> Datamodel:
     """Get datamodel from Celonis
 
     :param datamodel_name: name or id of datamodel
