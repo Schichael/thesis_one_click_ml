@@ -22,6 +22,8 @@ class Violation:
     """Violation class"""
 
     violation_type: ViolationType
+    # the readable string of the violation in the dataframe
+    violation_readable: str
     # The name of the start activity, activity, or transition activities
     specifics: Optional[Union[str, Tuple[str, str]]]
     # Number of cases with violation

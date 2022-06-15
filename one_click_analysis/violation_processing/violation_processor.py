@@ -10,6 +10,9 @@ from one_click_analysis.feature_processing.attributes.static_attributes import (
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     EventCountAttribute,
 )
+from one_click_analysis.feature_processing.attributes.static_attributes import (
+    StartActivityTimeAttribute,
+)
 from one_click_analysis.process_config.process_config import ActivityTable
 from one_click_analysis.process_config.process_config import ProcessConfig
 from one_click_analysis.violation_processing.violation import Violation
@@ -35,17 +38,18 @@ class ViolationProcessor:
         self.process_config = process_config
         self.activity_table_str = activity_table_str
         self.filters = filters
+        self.violations_df = self._get_violations_df()
+        self.violations = self._create_violations()
 
-    def get_violations(self) -> List[Violation]:
+    def _create_violations(self) -> List[Violation]:
         """Get Violations from the process.
 
         :return: List with Violation objects
         """
-        violations_df = self._get_violations_df()
-        unique_violations = violations_df["violation"].unique()
+        unique_violations = self.violations_df["violation"].unique()
         violations = []
         for violation in unique_violations:
-            violation = self._create_violation_object(violation, violations_df)
+            violation = self._create_violation_object(violation, self.violations_df)
             if violation is not None:
                 violations.append(violation)
         return violations
@@ -62,6 +66,12 @@ class ViolationProcessor:
         :return: Violation object if it is a supported violation. Else None
         """
         # All cases that have this violation
+        avg_case_durations_all = (
+            violations_df.groupby("case").first()["case " "duration"].mean()
+        )
+        avg_events_all = (
+            violations_df.groupby("case").count()["case " "duration"].mean()
+        )
         cases_violation = violations_df[violations_df["violation"] == violation_str][
             "case"
         ].unique()
@@ -79,7 +89,7 @@ class ViolationProcessor:
         # Case duration with violation
         curr_violation_df_grouped = curr_violation_df.groupby("case").first()
         avg_case_duration_with_violation = curr_violation_df_grouped[
-            "case " "duration"
+            "case duration"
         ].mean()
         # Case duration without violation
         curr_not_violation_df_grouped = curr_not_violation_df.groupby("case").first()
@@ -89,15 +99,20 @@ class ViolationProcessor:
 
         # Number of events with violation
         curr_violation_df_grouped = curr_violation_df.groupby("case").count()
-        mean_num_events_with_violation = curr_violation_df_grouped[
+        avg_num_events_with_violation = curr_violation_df_grouped[
             "case duration"
         ].mean()
 
         # Number of events without violation
         curr_not_violation_df_grouped = curr_not_violation_df.groupby("case").count()
-        mean_num_events_without_violation = curr_not_violation_df_grouped[
+        avg_num_events_without_violation = curr_not_violation_df_grouped[
             "case " "duration"
         ].mean()
+
+        effect_on_case_duration = (
+            avg_case_duration_with_violation - avg_case_durations_all
+        )
+        effect_on_event_count = avg_num_events_with_violation - avg_events_all
 
         # Check if violation is a violating Start activity
         if violation_str.endswith(" executed as start activity"):
@@ -116,13 +131,16 @@ class ViolationProcessor:
             return None
 
         metrics = {
+            "effect_on_case_duration": effect_on_case_duration,
+            "effect_on_event_count": effect_on_event_count,
             "avg_case_duration_with_violation": avg_case_duration_with_violation,
             "avg_case_duration_without_violation": avg_case_duration_without_violation,
-            "mean_num_events_with_violation": mean_num_events_with_violation,
-            "mean_num_events_without_violation": mean_num_events_without_violation,
+            "avg_num_events_with_violation": avg_num_events_with_violation,
+            "avg_num_events_without_violation": avg_num_events_without_violation,
         }
         return Violation(
             violation_type=violation_type,
+            violation_readable=violation_str,
             specifics=specifics,
             num_cases=num_cases,
             num_occurrences=num_occurrences,
@@ -153,7 +171,14 @@ class ViolationProcessor:
         pql_query.add(
             pql.PQLColumn(query=pql_case_duration_str, name="case " "duration")
         )
-
+        pql_start_activity_time_attr = StartActivityTimeAttribute(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+        )
+        pql_start_activity_time_str = pql_start_activity_time_attr.pql_query.query
+        pql_query.add(
+            pql.PQLColumn(query=pql_start_activity_time_str, name="Start activity time")
+        )
         event_count_attr = EventCountAttribute(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
