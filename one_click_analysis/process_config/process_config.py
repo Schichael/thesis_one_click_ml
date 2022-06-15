@@ -122,6 +122,8 @@ class ProcessConfig:
         for activity_table_id in activity_table_ids:
             activity_table = self.dm.tables.find(activity_table_id)
             activity_table_str = activity_table.name
+            if activity_table_str in [t.table_str for t in self.activity_tables]:
+                continue
             activity_table, case_table = self._set_activity_case_table(
                 activity_table_str
             )
@@ -151,11 +153,25 @@ class ProcessConfig:
         """
         activity_table = self.dm.tables.find(activity_table_str)
         activity_table_id = activity_table.id
+        # Get the correct process config from all configs
         activity_table_process_config = [
             el
             for el in self.dm.data["processConfigurations"]
             if el["activityTableId"] == activity_table_id
         ][0]
+        # activity_table_process_config = None
+        # for config in activity_table_process_configs:
+        #    if config.get("caseTableId") is not None:
+        #        activity_table_process_config = config
+        # if activity_table_process_config is None:
+        #    activity_table_process_config = activity_table_process_configs[0]
+
+        case_table_id = activity_table_process_config.get("caseTableId")
+
+        # if case_table_id is None or case_table_id == "":
+        #    self._create_case_table(activity_table_str)
+        #    return self._set_activity_case_table(activity_table_str)
+
         case_table_id = activity_table_process_config["caseTableId"]
 
         activity_table_case_id_column = activity_table_process_config["caseIdColumn"]
@@ -198,6 +214,62 @@ class ProcessConfig:
         )
 
         return activity_table_obj, case_table_obj
+
+    def _create_case_table(self, activity_table_str: str):
+        """Create a casetable in the datamodel if the activity table does not have a
+        case table"""
+        process_configs = self.dm.process_configurations
+        process_config = [
+            el for el in process_configs if el.activity_table.name == activity_table_str
+        ][0]
+
+        activity_table = self.dm.tables.find(activity_table_str)
+        activity_table_id = activity_table.id
+        activity_table_process_config = [
+            el
+            for el in self.dm.data["processConfigurations"]
+            if el["activityTableId"] == activity_table_id
+        ][0]
+
+        activity_table_case_id_column = activity_table_process_config["caseIdColumn"]
+        activity_table_activity_column = activity_table_process_config["activityColumn"]
+        activity_table_eventtime_column = activity_table_process_config[
+            "timestampColumn"
+        ]
+        activity_table_sort_column = activity_table_process_config["sortingColumn"]
+
+        pql_query = pql.PQL()
+        query_str = (
+            f'DISTINCT("{activity_table_str}"."{activity_table_case_id_column}")'
+        )
+        pql_query.add(pql.PQLColumn(query_str, "CASE ID"))
+        df = self.dm.get_data_frame(pql_query)
+
+        data_pool = self.dm.pool
+        table_name = activity_table_str + "_DUMMY_CASE_TABLE"
+        data_pool.create_table(df_or_path=df, table_name=table_name, if_exists="drop")
+        if table_name not in [t.name for t in self.dm.tables]:
+            self.dm.add_table_from_pool(
+                table_name=table_name,
+                alias=table_name,
+            )
+            print(f"dm tables: {self.dm.tables}")
+            self.dm.create_foreign_key(
+                source_table=table_name,
+                target_table=activity_table_str,
+                columns=[("CASE ID", activity_table_case_id_column)],
+            )
+        case_table = self.dm.tables.find(table_name)
+        process_config.edit_configuration(
+            activity_table=activity_table,
+            case_table=case_table,
+            case_column=activity_table_case_id_column,
+            activity_column=activity_table_activity_column,
+            timestamp_column=activity_table_eventtime_column,
+            sorting_column=activity_table_sort_column,
+        )
+        # reload datamodel. Does not work when the tables have too many rows.
+        self.dm.reload()
 
     def _get_case_table(self, case_table_id: str) -> CaseTable or None:
         """Get a case table from the table id
