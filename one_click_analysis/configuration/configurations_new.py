@@ -1241,8 +1241,8 @@ class DecisionConfig(Configuration):
 
 
 class ReworkActivitySelection(Configuration):
-    """Configuration for defining multiple activities. The name
-    of the activities is stored in config['activities'].
+    """Configuration for defining an activity. The name
+    of the activities is stored in config['activity'].
     """
 
     def __init__(
@@ -1282,7 +1282,7 @@ class ReworkActivitySelection(Configuration):
 
         html_descr_activities = HTML(
             '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
-            'font-size: 14px;">Pick activities (Cases with rework on activity)</div>'
+            'font-size: 14px;">Pick activity (Cases with rework on activity)</div>'
         )
         activity_table = process_config.table_dict[activity_table_str]
         activities = activity_table.process_model.activities
@@ -1302,9 +1302,6 @@ class ReworkActivitySelection(Configuration):
         ]
 
         # Target Activities
-        selected_activities = []
-
-        checkboxes = []
         activity_description_dict = {
             act: act + "(" + str(activity_rework_dict[act]) + ")" for act in activities
         }
@@ -1312,42 +1309,60 @@ class ReworkActivitySelection(Configuration):
             v: k for k, v in activity_description_dict.items()
         }
 
-        def on_checkbox_clicked(b):
-            """Define behaviour when an activity is toggled
+        # def on_checkbox_clicked(b):
+        #     """Define behaviour when an activity is toggled
+        #
+        #     :param b:
+        #     :return:
+        #     """
+        #     if b.new is False:
+        #         selected_activities.remove(
+        #             activity_description_dict_reverse[b.owner.description]
+        #         )
+        #     else:
+        #         selected_activities.append(
+        #             activity_description_dict_reverse[b.owner.description]
+        #         )
+        #     if len(selected_activities) > 0:
+        #         self.config["activities"] = selected_activities
+        #     else:
+        #         self.config["activities"] = None
+        #
+        # for activity in activities:
+        #     cb = Checkbox(
+        #         value=False,
+        #         description=activity_description_dict[activity],
+        #         indent=False,
+        #     )
+        #     cb.observe(on_checkbox_clicked, "value")
+        #     checkboxes.append(cb)
+        #
+        # vbox_activities_cbs = VBox(
+        #     children=checkboxes,
+        #     layout=Layout(overflow="auto", max_height="400px"),
+        # )
+        #
+        # vbox_activities_selection = VBox(
+        #     children=[html_descr_activities, vbox_activities_cbs],
+        #     layout=Layout(height="235px", width="max-content", min_width="200"),
+        # )
 
-            :param b:
-            :return:
-            """
-            if b.new is False:
-                selected_activities.remove(
-                    activity_description_dict_reverse[b.owner.description]
-                )
-            else:
-                selected_activities.append(
-                    activity_description_dict_reverse[b.owner.description]
-                )
-            if len(selected_activities) > 0:
-                self.config["activities"] = selected_activities
-            else:
-                self.config["activities"] = None
+        def on_activity_clicked(b):
+            selected_activity = b.new
+            self.config["activity"] = activity_description_dict_reverse[
+                selected_activity
+            ]
 
-        for activity in activities:
-            cb = Checkbox(
-                value=False,
-                description=activity_description_dict[activity],
-                indent=False,
-            )
-            cb.observe(on_checkbox_clicked, "value")
-            checkboxes.append(cb)
-
-        vbox_activities_cbs = VBox(
-            children=checkboxes,
-            layout=Layout(overflow="auto", max_height="400px"),
+        # Source Activity
+        activity_selection = Select(
+            options=activity_description_dict_reverse.keys(),
+            value=None,
+            layout=Layout(overflow="auto", width="max-content", min_width="200"),
+            rows=10,
         )
-
+        activity_selection.observe(on_activity_clicked, "value")
         vbox_activities_selection = VBox(
-            children=[html_descr_activities, vbox_activities_cbs],
-            layout=Layout(height="235px", width="max-content", min_width="200"),
+            children=[html_descr_activities, activity_selection]
         )
 
         # Create Apply button
@@ -1404,7 +1419,7 @@ class ReworkActivitySelection(Configuration):
 
     @property
     def local_requirement_met(self) -> bool:
-        if self.config.get("activities") is not None:
+        if self.config.get("activity") is not None:
             return True
         else:
             return False
