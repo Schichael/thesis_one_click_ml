@@ -402,6 +402,40 @@ class ReworkOccurrenceAttribute(StaticAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+class DummyAttribute(StaticAttribute):
+    """A dummy attribute that can be used for whatever"""
+
+    display_name = "Dummy attribute"
+    description = "A dummy attribute"
+
+    def __init__(
+        self,
+        query: str,
+        attribute_name: str,
+        attribute_type: AttributeType,
+        process_config: ProcessConfig,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        **kwargs,
+    ):
+        self.query = query
+        self.attribute_name = attribute_name
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=attribute_type,
+            process_config=process_config,
+            attribute_name=attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            **kwargs,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        return pql.PQLColumn(query=self.query, name=self.attribute_name)
+
+
 class ReworkOccurrenceAttribute_old(StaticAttribute):
     """Whether any activity was done more than once"""
 
