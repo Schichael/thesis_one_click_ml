@@ -728,6 +728,11 @@ def filter_prev_activity(
     return filter_next_activity
 
 
+def filter_activity_occurrence(activity: str):
+    query_str = f"MATCH_ACTIVITIES(NODE['{activity}']) > 0"
+    return PQLFilter(query_str)
+
+
 class FeatureProcessor:
     """
     The FeatureProcessor fetches data from the Celonis database and generates the
