@@ -14,12 +14,19 @@ from one_click_analysis.feature_processing.attributes import static_attributes
 from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDescriptor,
 )
+from one_click_analysis.feature_processing.attributes.attribute import AttributeType
 from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     DecisionToActivityAttribute,
 )  # noqa
 from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     PreviousActivityOccurrenceAttribute,
 )  # noqa
+from one_click_analysis.feature_processing.attributes.static_attributes import (
+    ActivityOccurenceAttribute,
+)
+from one_click_analysis.feature_processing.attributes.static_attributes import (
+    DummyAttribute,
+)
 from one_click_analysis.feature_processing.post_processing import PostProcessor
 from one_click_analysis.feature_processing.statistics_computer import StatisticsComputer
 from one_click_analysis.process_config.process_config import ProcessConfig
@@ -1105,7 +1112,7 @@ class ReworkProcessor(UseCaseProcessor):
         considered_activity_table_cols: List[str],
         considered_case_level_table_cols: Dict[str, List[str]],
         is_closed_query: pql.PQLColumn,
-        rework_activities: List[str],
+        rework_activity: str,
         time_unit="DAYS",
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -1122,7 +1129,7 @@ class ReworkProcessor(UseCaseProcessor):
             **kwargs,
         )
         self.activity_table_str = activity_table_str
-        self.rework_activities = rework_activities
+        self.rework_activity = rework_activity
         self.time_unit = time_unit
         self.start_date = start_date
         self.end_date = end_date
@@ -1148,6 +1155,11 @@ class ReworkProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
+        filter_activity_occurrence = feature_processor_new.filter_activity_occurrence(
+            activity=self.rework_activity,
+        )
+        self.filters.append(filter_activity_occurrence)
+
         (
             min_attr_count,
             max_attr_count,
@@ -1166,13 +1178,11 @@ class ReworkProcessor(UseCaseProcessor):
 
         self.df_timestamp_column = "Start activity Time"
 
-        target_attributes = self._gen_target_attributes()
+        target_attribute = self._gen_target_attribute()
         # Define a default target variable
-        target_variable = target_attributes[0].pql_query
-        target_variable.name = "dummy"
-        used_static_attributes += target_attributes
+        target_variable = target_attribute.pql_query
         # Get DataFrames
-        df_x, df_target = feature_processor_new.extract_dfs(
+        self.df_x, self.df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
             static_attributes=used_static_attributes,
@@ -1182,15 +1192,11 @@ class ReworkProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        self.df_x, self.df_target = self._get_real_dfs(
-            df_x=df_x, target_attributes=target_attributes
-        )
-
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
             attributes=used_static_attributes,
-            target_attributes=target_attributes,
+            target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
             min_counts_perc=self.min_attr_count_perc,
@@ -1214,28 +1220,36 @@ class ReworkProcessor(UseCaseProcessor):
             th_remove_col=self.th_remove_col,
         )
 
-    def _get_real_dfs(self, df_x, target_attributes):
-        columns_target = [attr.attribute_name for attr in target_attributes]
-        columns_target_extended = columns_target.copy()
-        columns_target_extended.append("Start activity Time")
-        columns_target_extended.append("End activity Time")
-        df_target = df_x[columns_target].copy()
-        df_x.drop(columns=columns_target, axis=1, inplace=True)
-        return df_x, df_target
+    def _gen_target_attribute(self):
+        """Gen target attribute"""
+        attr = static_attributes.ReworkOccurrenceAttribute(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            activity=self.rework_activity,
+            is_feature=False,
+            is_class_feature=True,
+        )
+        return attr
 
-    def _gen_target_attributes(self):
-        """Gen target attributes"""
-        target_attributes = []
-        for act in self.rework_activities:
-            attr = static_attributes.ReworkOccurrenceAttribute(
-                process_config=self.process_config,
-                activity_table_str=self.activity_table_str,
-                activity=act,
-                is_feature=False,
-                is_class_feature=True,
-            )
-            target_attributes.append(attr)
-        return target_attributes
+    def _get_rework_activity_occurrence_queries(self) -> DummyAttribute:
+        """Get DummyAttributes for rework activities
+
+        :return: List with the PQLColumn objects
+        """
+        act_occ_attribute = ActivityOccurenceAttribute(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            activity=self.rework_activity,
+        )
+        query = act_occ_attribute.pql_query.query
+        name = "case has " + self.rework_activity
+        attr = DummyAttribute(
+            query=query,
+            attribute_name=name,
+            attribute_type=AttributeType.OTHER,
+            process_config=self.process_config,
+        )
+        return attr
 
     def _gen_static_attr_list(self, min_attr_count: int, max_attr_count: int):
         """Gen list of used static attributes."""
