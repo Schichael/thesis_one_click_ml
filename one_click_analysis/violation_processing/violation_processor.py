@@ -26,18 +26,22 @@ class ViolationProcessor:
         process_config: ProcessConfig,
         activity_table_str: str,
         filters: List[pql.PQLFilter],
+        is_closed_query_str: str,
     ):
         """
 
         :param conformance_query_str: The query that will return the violation
         :param process_config: ProcessConfig object
         :param activity_table_str: name of the used activity table
-        :param filters: The PQL queries that need to be applied.
+        :param filters: The PQL queries that need to be applied without is_closed
+        :param is_closed_query_str: is_closed query string
+        filter.
         """
         self.conformance_query_str = conformance_query_str
         self.process_config = process_config
         self.activity_table_str = activity_table_str
         self.filters = filters
+        self.is_closed_query_str = is_closed_query_str
         self.violations_df = self._get_violations_df()
         self.violations = self._create_violations()
 
@@ -65,6 +69,26 @@ class ViolationProcessor:
         :param violations_df: the DataFrame with the violations
         :return: Violation object if it is a supported violation. Else None
         """
+        # Check if violation is a violating Start activity
+        if violation_str.endswith(" executed as start activity"):
+            violation_type = ViolationType.START_ACTIVITY
+            specifics = violation_str[: -len(" executed as start activity")]
+        elif violation_str.endswith(" is an undesired activity"):
+            violation_type = ViolationType.ACTIVITY
+            specifics = violation_str[: -len(" is an undesired activity")]
+        elif " is followed by " in violation_str:
+            violation_type = ViolationType.TRANSITION
+            specifics = tuple(violation_str.split(" is followed by "))
+        elif violation_str == "Incomplete":
+            violation_type = ViolationType.INCOMPLETE
+            specifics = None
+        else:
+            return None
+
+        # If the violation is of type activity or transition, only use the closed cases
+        if violation_type in [ViolationType.ACTIVITY, ViolationType.TRANSITION]:
+            violations_df = violations_df[violations_df["IS_CLOSED"] == 1]
+
         # All cases that have this violation
         avg_case_durations_all = (
             violations_df.groupby("case").first()["case " "duration"].mean()
@@ -114,22 +138,6 @@ class ViolationProcessor:
         )
         effect_on_event_count = avg_num_events_with_violation - avg_events_all
 
-        # Check if violation is a violating Start activity
-        if violation_str.endswith(" executed as start activity"):
-            violation_type = ViolationType.START_ACTIVITY
-            specifics = violation_str[: -len(" executed as start activity")]
-        elif violation_str.endswith(" is an undesired activity"):
-            violation_type = ViolationType.ACTIVITY
-            specifics = violation_str[: -len(" is an undesired activity")]
-        elif " is followed by " in violation_str:
-            violation_type = ViolationType.TRANSITION
-            specifics = tuple(violation_str.split(" is followed by "))
-        elif violation_str == "Incomplete":
-            violation_type = ViolationType.INCOMPLETE
-            specifics = None
-        else:
-            return None
-
         metrics = {
             "effect_on_case_duration": effect_on_case_duration,
             "effect_on_event_count": effect_on_event_count,
@@ -158,6 +166,8 @@ class ViolationProcessor:
         ]
 
         pql_query = pql.PQL()
+        # is_closed
+        pql_query.add(pql.PQLColumn(query=self.is_closed_query_str, name="IS_CLOSED"))
         pql_cases_str = f'"{activitytable.table_str}"."{activitytable.caseid_col_str}"'
         pql_query.add(pql.PQLColumn(query=pql_cases_str, name="case"))
         pql_violations_str = "READABLE(" + self.conformance_query_str + ")"
