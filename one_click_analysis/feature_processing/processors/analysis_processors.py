@@ -1333,3 +1333,213 @@ class ReworkProcessor(UseCaseProcessor):
             static_attributes_list = static_attributes_list + case_table_col_attirbutes
 
         return static_attributes_list
+
+
+class StartActivityProcessor(UseCaseProcessor):
+    """Feature Processor for the case duration use case."""
+
+    # attributes that can be used for this use case
+    current_activity_col_attr_descriptor = AttributeDescriptor(
+        attribute_type=dynamic_attributes.CurrentActivityColumnAttribute,
+        display_name="Activity table column value during source activity",
+        description="The values of an activity table column at the time the source "
+        "activity occurs",
+    )
+
+    case_table_col_attr_descriptor = AttributeDescriptor(
+        attribute_type=static_attributes.CaseTableColumnAttribute,
+        display_name=static_attributes.CaseTableColumnAttribute.display_name,
+        description=static_attributes.CaseTableColumnAttribute.description,
+    )
+
+    potential_static_attributes_descriptors = [
+        case_table_col_attr_descriptor,
+    ]
+    potential_dynamic_attributes_descriptors = [current_activity_col_attr_descriptor]
+    # the target attribute that is used for this use case
+    target_attribute_descriptor = AttributeDescriptor(
+        attribute_type=static_attributes.SpecificStartActivityAttribute,
+        display_name=static_attributes.SpecificStartActivityAttribute.display_name,
+        description=static_attributes.SpecificStartActivityAttribute.description,
+    )
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        used_static_attribute_descriptors: List[AttributeDescriptor],
+        used_dynamic_attribute_descriptors: List[AttributeDescriptor],
+        considered_activity_table_cols: List[str],
+        considered_case_level_table_cols: Dict[str, List[str]],
+        is_closed_query: pql.PQLColumn,
+        start_activity: str,
+        time_unit="DAYS",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            process_config=process_config,
+            used_static_attribute_descriptors=used_static_attribute_descriptors,
+            used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
+            target_attribute_descriptor=self.target_attribute_descriptor,
+            considered_activity_table_cols=considered_activity_table_cols,
+            considered_case_level_table_cols=considered_case_level_table_cols,
+            is_closed_query=is_closed_query,
+            **kwargs,
+        )
+        self.activity_table_str = activity_table_str
+        self.start_activity = start_activity
+        self.time_unit = time_unit
+        self.start_date = start_date
+        self.end_date = end_date
+
+    def process(self):
+        date_filters = feature_processor_new.date_filter_PQL(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            start_date=self.start_date,
+            end_date=self.end_date,
+        )
+        self.filters = self.filters + date_filters
+
+        self.num_cases = feature_processor_new.get_number_cases(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            filters=self.filters,
+        )
+
+        (
+            min_attr_count,
+            max_attr_count,
+        ) = feature_processor_new.compute_min_max_attribute_counts_PQL(
+            self.min_attr_count_perc,
+            self.max_attr_count_perc,
+            process_config=self.process_config,
+            activity_table_name=self.activity_table_str,
+            chunksize=self.chunksize,
+            filters=self.filters,
+        )
+
+        used_static_attributes = self._gen_static_attr_list(
+            min_attr_count=min_attr_count, max_attr_count=max_attr_count
+        )
+
+        self.df_timestamp_column = "Start activity Time"
+
+        target_attribute = static_attributes.SpecificStartActivityAttribute(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            activity=self.start_activity,
+            is_feature=False,
+            is_class_feature=True,
+        )
+
+        # Define a default target variable
+        target_variable = target_attribute.pql_query
+        # first activity filter
+        activity_col_str = self.process_config.table_dict[
+            self.activity_table_str
+        ].activity_col_str
+        filter_first_activity = feature_processor_new.filter_first_activity(
+            activity_table_str=self.activity_table_str, activiy_col_str=activity_col_str
+        )
+        self.filters.append(filter_first_activity)
+        # Get DataFrames
+        self.df_x, self.df_target = feature_processor_new.extract_dfs(
+            process_config=self.process_config,
+            activity_table_str=self.activity_table_str,
+            static_attributes=used_static_attributes,
+            dynamic_attributes=[],
+            is_closed_indicator=self.is_closed_query,
+            target_variable=target_variable,
+            filters=self.filters,
+        )
+
+        pp = PostProcessor(
+            df_x=self.df_x,
+            df_target=self.df_target,
+            attributes=used_static_attributes,
+            target_attributes=target_attribute,
+            valid_target_values=None,
+            invalid_target_replacement=None,
+            min_counts_perc=self.min_attr_count_perc,
+            max_counts_perc=self.max_attr_count_perc,
+        )
+
+        self.df_x, self.df_target, self.target_features, self.features = pp.process()
+
+        statistics_computer = StatisticsComputer(
+            features=self.features,
+            target_features=self.target_features,
+            df_x=self.df_x,
+            df_target=self.df_target,
+        )
+        statistics_computer.compute_all_statistics()
+        self.df_x, self.df_target = post_processing.remove_nan(
+            df_x=self.df_x,
+            df_target=self.df_target,
+            features=self.features,
+            target_features=self.target_features,
+            th_remove_col=self.th_remove_col,
+        )
+
+    def _gen_static_attr_list(self, min_attr_count: int, max_attr_count: int):
+        """Gen list of used static attributes."""
+        static_attributes_list = []
+        # Add attributes that always need to be added for processing
+        static_attributes_list.append(
+            static_attributes.StartActivityTimeAttribute(
+                process_config=self.process_config,
+                activity_table_str=self.activity_table_str,
+            )
+        )
+        static_attributes_list.append(
+            static_attributes.EndActivityTimeAttribute(
+                process_config=self.process_config,
+                activity_table_str=self.activity_table_str,
+            )
+        )
+
+        # Add used attributes
+
+        if (
+            self.case_table_col_attr_descriptor
+            in self.used_static_attribute_descriptors
+        ):
+            case_table_col_attirbutes = (
+                feature_processor_new.gen_case_column_attributes_multi_table(
+                    process_config=self.process_config,
+                    table_column_dict=self.considered_case_level_table_cols,
+                    is_feature=True,
+                    is_class_feature=False,
+                )
+            )
+            static_attributes_list = static_attributes_list + case_table_col_attirbutes
+
+        return static_attributes_list
+
+    def _gen_dynamic_attr_list(self, min_attr_count: int, max_attr_count: int):
+        """Gen list of used static attributes."""
+        dynamic_attributes_list = []
+
+        # Add used attributes
+
+        if (
+            self.current_activity_col_attr_descriptor
+            in self.used_dynamic_attribute_descriptors
+        ):
+            current_activity_col_attributes = (
+                feature_processor_new.gen_current_activity_col_attributes(
+                    process_config=self.process_config,
+                    activity_table_str=self.activity_table_str,
+                    columns=self.considered_activity_table_cols,
+                    is_feature=True,
+                    is_class_feature=False,
+                )
+            )
+            dynamic_attributes_list = (
+                dynamic_attributes_list + current_activity_col_attributes
+            )
+
+        return dynamic_attributes_list
