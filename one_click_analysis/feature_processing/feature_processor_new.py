@@ -733,6 +733,18 @@ def filter_activity_occurrence(activity: str):
     return PQLFilter(query_str)
 
 
+def filter_start_activity(activity: str):
+    query_str = f"PROCESS EQUALS START '{activity}'"
+    return PQLFilter(query_str)
+
+
+def filter_first_activity(activity_table_str: str, activiy_col_str: str):
+    query_str = (
+        f'INDEX_ACTIVITY_ORDER ( "{activity_table_str}"."{activiy_col_str}" ) = 1'
+    )
+    return PQLFilter(query_str)
+
+
 class FeatureProcessor:
     """
     The FeatureProcessor fetches data from the Celonis database and generates the
