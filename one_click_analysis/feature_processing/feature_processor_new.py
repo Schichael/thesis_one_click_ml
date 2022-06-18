@@ -714,6 +714,12 @@ def get_number_cases(
     return num_cases
 
 
+def is_closed_all_cases():
+    """Create is-closed Query when all cases shall be seen as closed"""
+    pql_query = "MATCH_ACTIVITIES(EXCLUDING_ALL [])"
+    return PQLColumn(name="IS_CLOSED", query=pql_query)
+
+
 def filter_prev_activity(
     prev_activity: str, process_config: ProcessConfig, activity_table_str: str
 ):
