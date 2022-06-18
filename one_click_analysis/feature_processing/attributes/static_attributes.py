@@ -483,6 +483,51 @@ class ReworkOccurrenceAttribute_old(StaticAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+class SpecificStartActivityAttribute(StaticAttribute):
+    """Start activity"""
+
+    display_name = "Start activity"
+    description = "The first activity in a case"
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        activity: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        **kwargs,
+    ):
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
+        self.activity = activity
+        self.attribute_name = f"Start activity = {activity}"
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
+            process_config=self.process_config,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            **kwargs,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            "CASE WHEN "
+            'PU_FIRST("' + self.activity_table.case_table_str + '", '
+            '"'
+            + self.activity_table.table_str
+            + '"."'
+            + self.activity_table.activity_col_str
+            + f"\") = '{self.activity}' THEN 1 ELSE 0 END"
+        )
+        print(q)
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
 class StartActivityAttribute(StaticAttribute):
     """Start activity"""
 
