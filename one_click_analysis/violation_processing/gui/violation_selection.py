@@ -147,6 +147,15 @@ class ViolationField:
         self.button = self.create_button()
         self.violation_box = self.create_violation_box()
 
+    def _get_relevant_violation_df(
+        self, violation_df: pd.DataFrame, violation: Violation
+    ):
+        if violation.violation_type in [
+            ViolationType.ACTIVITY,
+            ViolationType.TRANSITION,
+        ]:
+            return violation_df[violation_df["IS_CLOSED"] == 1]
+
     def _get_divider_case_duration(self, time_aggregation):
         """Get divider for time aggregation
 
@@ -182,8 +191,8 @@ class ViolationField:
         else:
             violation_str = self.violation.violation_readable + " Case"
         html_feature = (
-            '<span style="font-weight:bold"> Violation: '
-            + f'<span style="color: Blue">{violation_str}</span></span>'
+            '<span style="font-weight:bold"> Violation: ' + f'<span style="color: '
+            f'Blue">{violation_str}</span></span>'
         )
         feature_label = HTML(html_feature, layout=Layout(padding="0px 0px 0px 0px"))
         return feature_label
@@ -206,8 +215,8 @@ class ViolationField:
         )
         sign_case_duration = "+" if effect_on_case_duration_raw > 0 else ""
         effect_on_case_duration_html = (
-            '<span style="font-weight:bold">Effect on '
-            + "case duration: </span>"
+            '<span style="font-weight:bold">Effect on ' + "case duration: "
+            "</span>"
             + sign_case_duration
             + str(round(effect_on_case_duration, 1))
             + "\xa0"
@@ -268,7 +277,8 @@ class ViolationField:
 
         title_layout = Layout(margin="15px 0px 0px 0px")
         title_html = (
-            '<span style="font-weight:bold;  font-size:16px"> Attribute details:</span>'
+            '<span style="font-weight:bold;  font-size:16px"> Attribute '
+            "details:</span>"
         )
         title_label = HTML(title_html, layout=title_layout)
 
@@ -342,7 +352,8 @@ class ViolationField:
             [
                 HTML(
                     '<center><span style="font-weight:bold"> Average '
-                    + "duration of cases with violation"
+                    + "duration of cases "
+                    "with violation"
                     + '</span><br><span style="color: Blue; font-size:16px; '
                     'text-align: center">'
                     + str(avg_case_duration_with_violation)
@@ -408,7 +419,8 @@ class ViolationField:
             [
                 HTML(
                     '<center><span style="font-weight:bold"> Average '
-                    + "Average event count of cases "
+                    + "Average event count "
+                    "of cases "
                     "without "
                     "violation"
                     + '</span><br><span style="color: Blue; font-size:16px; '

@@ -8,7 +8,7 @@ from one_click_analysis.configuration.configurations_new import AttributeSelecti
 from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.configuration.configurator_new import ConfiguratorView
 from one_click_analysis.feature_processing.processors.analysis_processors import (
-    StartActivityProcessor,
+    ActivityProcessor,
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.description_screen import DescriptionScreen
@@ -17,12 +17,12 @@ from one_click_analysis.gui.statistical_analysis_screen_new import (
 )
 
 
-class AnalysisStartActivityViolation:
+class AnalysisActivityViolation:
     """Analysis of potential effects on case duration."""
 
     def __init__(
         self,
-        start_activity: str,
+        activity: str,
         configurator: Configurator,
         time_unit: str = "DAYS",
         th: float = 0.3,
@@ -38,10 +38,10 @@ class AnalysisStartActivityViolation:
         self.time_unit = time_unit
         self.datamodel = None
         self.th = th
-        self.start_activity = start_activity
+        self.activity = activity
         self.dm = None
         self.process_config = None
-        self.start_activity_processor = None
+        self.activity_processor = None
         self.df_total_time = None
         self.description_view = None
         self.config_view = None
@@ -77,23 +77,17 @@ class AnalysisStartActivityViolation:
         return configurator_init
 
     def _create_description(self):
-        static_attributes = (
-            StartActivityProcessor.potential_static_attributes_descriptors
-        )
-        dynamic_attributes = (
-            StartActivityProcessor.potential_dynamic_attributes_descriptors
-        )
-        name_str = "Start activity violation Analysis"
+        static_attributes = ActivityProcessor.potential_static_attributes_descriptors
+        dynamic_attributes = ActivityProcessor.potential_dynamic_attributes_descriptors
+        name_str = "Activity violation Analysis"
         goal_str = (
-            "The goal of the start activity violation analysis is to get insights "
-            "into the possible root causes of start activities that are not defined "
-            "as start activities in the process model. For this analysis, closed and "
-            "open cases are used."
+            "The goal of the activity violation analysis is to get insights "
+            "into the possible root causes of activities that are not defined "
+            "in the process model. Only closed cases are used for this analysis."
         )
         definition_str = (
-            "A violation of a start activity occurs when a case's first activity that "
-            "is"
-            " not defined as the first activity in the process model."
+            "A violation of an activity occurs when a case has an activity that does "
+            "not exist in hte process model."
         )
 
         self.description_view = DescriptionScreen(
@@ -115,12 +109,8 @@ class AnalysisStartActivityViolation:
 
         :return:
         """
-        static_attributes = (
-            StartActivityProcessor.potential_static_attributes_descriptors
-        )
-        dynamic_attributes = (
-            StartActivityProcessor.potential_dynamic_attributes_descriptors
-        )
+        static_attributes = ActivityProcessor.potential_static_attributes_descriptors
+        dynamic_attributes = ActivityProcessor.potential_dynamic_attributes_descriptors
         config_attributeselector = AttributeSelectionConfig(
             configurator=self.configurator,
             static_attribute_descriptors=static_attributes,
@@ -180,6 +170,8 @@ class AnalysisStartActivityViolation:
         self.process_config = self.configurator.config_dict["datamodel"][
             "process_config"
         ]
+        is_closed_query = self.configurator.config_dict["is_closed"]["pql_query"]
+
         activity_table_str = self.configurator.config_dict["activity_table"][
             "activity_table_str"
         ]
@@ -197,19 +189,20 @@ class AnalysisStartActivityViolation:
         ]["case_level_table_cols"]
         time_unit = "DAYS"
 
-        self.start_activity_processor = StartActivityProcessor(
+        self.activity_processor = ActivityProcessor(
             process_config=self.process_config,
             activity_table_str=activity_table_str,
             used_static_attribute_descriptors=used_static_attribute_descriptors,
             used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
-            start_activity=self.start_activity,
+            activity=self.activity,
+            is_closed_query=is_closed_query,
             time_unit=time_unit,
             start_date=start_date,
             end_date=end_date,
         )
-        self.start_activity_processor.process()
+        self.activity_processor.process()
         out.append_stdout("\nDone")
 
         # 3. Create the GUI
@@ -217,25 +210,25 @@ class AnalysisStartActivityViolation:
 
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
-            self.start_activity_processor.df_x,
-            self.start_activity_processor.df_target,
-            self.start_activity_processor.features,
-            self.start_activity_processor.target_features,
-            self.start_activity_processor.df_timestamp_column,
+            self.activity_processor.df_x,
+            self.activity_processor.df_target,
+            self.activity_processor.features,
+            self.activity_processor.target_features,
+            self.activity_processor.df_timestamp_column,
             datapoint_str="Cases",
             th=self.th,
         )
         self.stat_analysis_screen.create_statistical_screen()
 
         # Create decision rule miner box
-        df_combined = self.start_activity_processor.df_x
+        df_combined = self.activity_processor.df_x
         df_combined[
-            self.start_activity_processor.df_target.columns.tolist()
-        ] = self.start_activity_processor.df_target
+            self.activity_processor.df_target.columns.tolist()
+        ] = self.activity_processor.df_target
         self.dec_rule_screen = DecisionRulesScreen(
             df_combined,
-            features=self.start_activity_processor.features,
-            target_features=self.start_activity_processor.target_features,
+            features=self.activity_processor.features,
+            target_features=self.activity_processor.target_features,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 
