@@ -92,6 +92,47 @@ class NextActivityAttribute(DynamicAttribute):
         return pql.PQLColumn(query=q, name=self.attribute_name)
 
 
+class SpecificNextActivityAttribute(DynamicAttribute):
+    """Directly-follows transition to a specific activity"""
+
+    display_name = "Transition to activity"
+    description = "The activity that directly follows the current activity"
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        next_activity: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        **kwargs,
+    ):
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
+        self.next_activity = next_activity
+        self.attribute_name = f"Transition to {next_activity}"
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
+            process_config=self.process_config,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            **kwargs,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            "CASE WHEN "
+            f'ACTIVITY_LEAD("{self.activity_table.table_str}".'
+            f"\"{self.activity_table.activity_col_str}\", 1) = '{self.next_activity}' "
+            f"THEN 1 ELSE 0 END"
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
 class PreviousActivityColumnAttribute(DynamicAttribute):
     """Previous value of column in the Activity table"""
 
@@ -107,6 +148,7 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
         activity_table_str: str,
         column_name: str,
         attribute_datatype: AttributeDataType,
+        suffix: Optional[str],
         is_feature: bool = False,
         is_class_feature: bool = False,
         **kwargs,
@@ -114,8 +156,10 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
         self.column_name = column_name
+        if suffix is None:
+            suffix = "(previous activity)"
         self.attribute_name = (
-            f"{self.activity_table.table_str}." f"{column_name} (" f"previous, dynamic)"
+            f"{self.activity_table.table_str}." f"{column_name} {suffix}"
         )
         pql_query = self._gen_query()
 
@@ -154,6 +198,7 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
         activity_table_str: str,
         column_name: str,
         attribute_datatype: AttributeDataType,
+        suffix: Optional[str],
         is_feature: bool = False,
         is_class_feature: bool = False,
         **kwargs,
@@ -161,8 +206,10 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
         self.process_config = process_config
         self.activity_table = self.process_config.table_dict[activity_table_str]
         self.column_name = column_name
+        if suffix is None:
+            suffix = "(previous activity)"
         self.attribute_name = (
-            f"{self.activity_table.table_str}." f"{column_name} (" f"current, dynamic)"
+            f"{self.activity_table.table_str}." f"{column_name} {suffix}"
         )
         pql_query = self._gen_query()
 
