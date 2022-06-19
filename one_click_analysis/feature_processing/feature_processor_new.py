@@ -34,6 +34,7 @@ from one_click_analysis.feature_processing.attributes.dynamic_attributes import 
 )
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     ActivityOccurenceAttribute,
+    StaticActivityCountAttribute,
 )
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     CaseDurationAttribute,
@@ -695,6 +696,42 @@ def gen_dynamic_activity_occurence_attributes(
         activity_occ_attributes.append(attr)
 
     return activity_occ_attributes
+
+
+def gen_static_activity_count_attributes(
+    process_config: ProcessConfig,
+    activity_table_str: str,
+    min_vals: int = 0,
+    max_vals: int = np.inf,
+    is_feature: bool = True,
+    is_class_feature: bool = False,
+    filters: Optional[List[PQLFilter]] = None,
+) -> List[PreviousActivityOccurrenceAttribute]:
+    """Generates the static StaticActivityCountAttribute. All activities are used and
+    it's checked for min and
+    max values."""
+    activity_table = process_config.table_dict[activity_table_str]
+    activities_dict = get_valid_vals(
+        table_name=activity_table.table_str,
+        column_names=[activity_table.activity_col_str],
+        process_config=process_config,
+        min_vals=min_vals,
+        max_vals=max_vals,
+        filters=filters,
+    )
+    activities = activities_dict[activity_table.activity_col_str]
+    activity_count_attributes = []
+    for activity in activities:
+        attr = StaticActivityCountAttribute(
+            process_config=process_config,
+            activity_table_str=activity_table_str,
+            activity=activity,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+        )
+        activity_count_attributes.append(attr)
+
+    return activity_count_attributes
 
 
 def default_target_query(
