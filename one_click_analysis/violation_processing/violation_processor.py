@@ -42,6 +42,7 @@ class ViolationProcessor:
         self.activity_table_str = activity_table_str
         self.filters = filters
         self.is_closed_query_str = is_closed_query_str
+        self.timestamp_column = "Start activity time"
         self.violations_df = self._get_violations_df()
         self.violations = self._create_violations()
 
@@ -187,7 +188,7 @@ class ViolationProcessor:
         )
         pql_start_activity_time_str = pql_start_activity_time_attr.pql_query.query
         pql_query.add(
-            pql.PQLColumn(query=pql_start_activity_time_str, name="Start activity time")
+            pql.PQLColumn(query=pql_start_activity_time_str, name=self.timestamp_column)
         )
         event_count_attr = EventCountAttribute(
             process_config=self.process_config,

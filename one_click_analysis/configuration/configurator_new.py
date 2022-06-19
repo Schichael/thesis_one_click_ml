@@ -19,7 +19,7 @@ class ConfiguratorView:
         self,
         configurations: List[Configuration],
         run_analysis: Callable,
-        **run_analysis_args
+        **run_analysis_args,
     ):
         """
 
@@ -54,6 +54,7 @@ class ConfiguratorView:
         """Define what happens when apply button is clicked"""
         # Reset applied configs
         for config in self.configurations:
+            print(f"requirements met: {config.configurator_requirement_met}")
             if not config.configurator_requirement_met:
                 # TODO Print the requirements that are not met.
                 return

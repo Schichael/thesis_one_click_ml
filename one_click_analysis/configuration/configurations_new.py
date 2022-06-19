@@ -1644,3 +1644,106 @@ class IsClosedConfig(Configuration):
             and activity_table_set
             and self._validate_additional_prerequisites()
         )
+
+
+class ConformanceQueryConfig(Configuration):
+    """Configuration for defining the conformance query. The name
+    of the query is stored in config['conformance_query'].
+    """
+
+    def __init__(
+        self,
+        configurator: Configurator,
+        config_identifier: str = "conformance_query",
+        additional_prerequsit_config_ids: Optional[List[str]] = None,
+        **kwargs,
+    ):
+
+        if "title" in kwargs:
+            title = kwargs["title"]
+            kwargs.pop("title")
+        else:
+            title = f"Specify Conformance Query"
+
+        super().__init__(
+            configurator=configurator,
+            config_identifier=config_identifier,
+            additional_prerequsit_config_ids=additional_prerequsit_config_ids,
+            title=title,
+            **kwargs,
+        )
+
+        # Initialize config box
+        self._create_config_box()
+
+    def _create_true_config_box(self):
+        html_descr = HTML(
+            '<div style="line-height:140%; margin-top: 0px; margin-bottom: 0px; '
+            'font-size: 14px;">The conformance query can be found in the '
+            "conformance checker in the Celonis studio. To get the conformance "
+            "query, open the conformance checker, activate Editing and then "
+            "press the wheel.... Some more eplanation or a link to a place that "
+            "explains this</div>"
+        )
+
+        pql_text_area = widgets.Textarea(
+            value="",
+            placeholder="Enter Conformance PQL query",
+            description="Enter Conformance PQL query",
+            layout=widgets.Layout(width="auto", margin="15px 0px 0px " "0px"),
+            rows=2,
+            style={"description_width": "initial"},
+        )
+
+        # Create Apply button
+        apply_button = widgets.Button(description="Apply")
+
+        def on_apply_clicked(b):
+            if pql_text_area.value != "":
+                self.config["conformance_query"] = pql_text_area.value
+                self.apply()
+            """
+            if (
+                self.config.get("source_activity") is not None
+                and self.config.get("target_activities") is not None
+            ):
+                self.apply()
+            """
+
+        apply_button.on_click(on_apply_clicked)
+
+        # html_caption_str = (f'<span style="font-weight:'
+        #                    f"{self.get_html_str_caption_bold()}; font-size"
+        #                    f':{self.caption_size}px">Pick transition activities for '
+        #                    f"analysis "
+        #                    f"({self.optional_or_required_str})</span>")
+        caption_HTML = HTML(self.html_caption_str)
+
+        box_config = VBox(
+            children=[
+                caption_HTML,
+                html_descr,
+                pql_text_area,
+                apply_button,
+            ]
+        )
+        self.config_box = box_config
+
+    @property
+    def local_requirement_met(self) -> bool:
+        if self.config.get("conformance_query") is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def configurator_requirement_met(self) -> bool:
+        if not self.required:
+            return True
+        if self.configurator.config_dict.get(self.config_identifier) is not None:
+            return True
+        else:
+            return False
+
+    def validate_prerequisites(self) -> bool:
+        return self._validate_additional_prerequisites()

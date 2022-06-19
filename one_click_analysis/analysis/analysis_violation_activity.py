@@ -152,7 +152,7 @@ class AnalysisActivityViolation:
                 widgets.VBox(),
             ]
         )
-        display(self.tabs)
+        # display(self.tabs)
 
     def run_analysis(self, out: widgets.Output):
         # Reset fp from a previous run

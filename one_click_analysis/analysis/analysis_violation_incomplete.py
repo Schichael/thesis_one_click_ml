@@ -22,7 +22,6 @@ class AnalysisIncompleteViolation:
 
     def __init__(
         self,
-        conformance_query: str,
         configurator: Configurator,
         time_unit: str = "DAYS",
         th: float = 0.3,
@@ -38,7 +37,6 @@ class AnalysisIncompleteViolation:
         self.time_unit = time_unit
         self.datamodel = None
         self.th = th
-        self.conformance_query = conformance_query
         self.dm = None
         self.process_config = None
         self.incomplete_processor = None
@@ -159,7 +157,7 @@ class AnalysisIncompleteViolation:
                 widgets.VBox(),
             ]
         )
-        display(self.tabs)
+        # display(self.tabs)
 
     def run_analysis(self, out: widgets.Output):
         # Reset fp from a previous run
@@ -194,6 +192,10 @@ class AnalysisIncompleteViolation:
         considered_case_level_table_cols = self.configurator.config_dict[
             "attribute_selection"
         ]["case_level_table_cols"]
+        conformance_query = self.configurator.config_dict["conformance_query"][
+            "conformance_query"
+        ]
+
         time_unit = "DAYS"
 
         self.incomplete_processor = IncompleteCaseProcessor(
@@ -203,7 +205,7 @@ class AnalysisIncompleteViolation:
             used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
-            conformance_query=self.conformance_query,
+            conformance_query=conformance_query.query,
             is_closed_query=is_closed_query,
             time_unit=time_unit,
             start_date=start_date,

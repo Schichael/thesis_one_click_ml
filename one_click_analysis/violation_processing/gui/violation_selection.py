@@ -1,4 +1,5 @@
 import functools
+from typing import Callable
 from typing import List
 from typing import Union
 
@@ -11,6 +12,19 @@ from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
 
+from one_click_analysis.analysis.analysis_violation_activity import (
+    AnalysisActivityViolation,
+)
+from one_click_analysis.analysis.analysis_violation_incomplete import (
+    AnalysisIncompleteViolation,
+)
+from one_click_analysis.analysis.analysis_violation_start_activity import (
+    AnalysisStartActivityViolation,
+)
+from one_click_analysis.analysis.analysis_violation_transition import (
+    AnalysisTransitionViolation,
+)
+from one_click_analysis.configuration.configurator_class import Configurator
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 from one_click_analysis.violation_processing.violation import Violation
 from one_click_analysis.violation_processing.violation import ViolationType
@@ -22,19 +36,25 @@ class ViolationSelectionScreen:
         violations: List[Violation],
         violation_df: pd.DataFrame,
         timestamp_column: str,
+        configurator: Configurator,
+        th: float,
         time_aggregation: str,
+        update_tab_function: Callable,
     ):
         """
 
         :param violations: List with violations
         :param violation_df: DataFrame with violations
         :param time_aggregation: One of [DAYS, HOURS, MINUTES, SECONDS]
+        :param update_tab_function: function to update the analysis tab.
         """
         self.violations = violations
         self.violation_df = violation_df
         self.time_aggregation = time_aggregation
         self.timestamp_column = timestamp_column
-        # self.fp = fp
+        self.update_tab_function = update_tab_function
+        self.configurator = configurator
+        self.th = th
         self.violations_box = None
         self.violations_box_contents = []
         self.violation_selection_box = VBox()
@@ -73,6 +93,9 @@ class ViolationSelectionScreen:
                 violation_screen_box=self.violation_selection_box,
                 time_aggregation=self.time_aggregation,
                 timestamp_column=self.timestamp_column,
+                update_tab_function=self.update_tab_function,
+                configurator=self.configurator,
+                th=self.th,
             )
             violation_boxes.append(violation_field.violation_box)
         violation_boxes_list.append(violation_boxes)
@@ -128,6 +151,9 @@ class ViolationField:
         timestamp_column: str,
         violation_screen_box: Box,
         time_aggregation: str,
+        configurator: Configurator,
+        th: float,
+        update_tab_function: Callable,
     ):
         """
 
@@ -135,6 +161,7 @@ class ViolationField:
         :param target_feature:
         :param violation_screen_box: the box that contains the violation screen
         :param time_aggregation: one of [DAYS, HOURS, MINUTES, SECONDS]
+        :param update_tab_function: function to update the analysis tab.
         """
 
         self.violation = violation
@@ -142,10 +169,34 @@ class ViolationField:
         self.timestamp_column = timestamp_column
         self.violation_screen_box = violation_screen_box
         self.time_aggregation = time_aggregation
+        self.th = th
+        self.configurator = configurator
+        self.update_tab_function = update_tab_function
+        self.analysis = None
+        self.specific_args = {}
+        self._set_analysis_specifics()
         self.violation_name_label = self.create_violation_label()
         self.metrics_label = self.create_metrics_label()
-        self.button = self.create_button()
+        self.details_button = self.create_details_button()
+        self.analysis_button = self.create_analysis_button()
         self.violation_box = self.create_violation_box()
+
+    def _set_analysis_specifics(self):
+        if self.violation.violation_type == ViolationType.ACTIVITY:
+            self.analysis = AnalysisActivityViolation
+            self.specific_args = {"activity": self.violation.specifics}
+        if self.violation.violation_type == ViolationType.START_ACTIVITY:
+            self.analysis = AnalysisStartActivityViolation
+            self.specific_args = {"start_activity": self.violation.specifics}
+        if self.violation.violation_type == ViolationType.TRANSITION:
+            self.analysis = AnalysisTransitionViolation
+            self.specific_args = {
+                "source_activity": self.violation.specifics[0],
+                "target_activity": self.violation.specifics[1],
+            }
+        if self.violation.violation_type == ViolationType.INCOMPLETE:
+            self.analysis = AnalysisIncompleteViolation
+            self.specific_args = {}
 
     def _get_relevant_violation_df(
         self, violation_df: pd.DataFrame, violation: Violation
@@ -175,8 +226,9 @@ class ViolationField:
             padding="0px 0px 0px 0px",
             margin="0px 3px 3px 3px",
         )
+        hbox_buttons = HBox(children=[self.details_button, self.analysis_button])
         violation_box = VBox(
-            children=[self.violation_name_label, self.metrics_label, self.button],
+            children=[self.violation_name_label, self.metrics_label, hbox_buttons],
             layout=layout_vbox,
         )
         return violation_box
@@ -246,25 +298,46 @@ class ViolationField:
 
         return metrics_box
 
-    def create_button(self) -> Button:
+    def create_details_button(self) -> Button:
         """Create button that when clicked lets the user view details of the attribute
 
         :return: button
         """
-        button_layout = Layout(min_height="30px")
+        button_layout = Layout(min_height="30px", margin="0px 30px 0px 0px")
         button = Button(description="Details", layout=button_layout)
 
         def on_button_clicked(b, violation_screen_box: Box):
             attribute_box = self.gen_violation_details_box()
-            violation_screen_box.children = violation_screen_box.children[:-1] + (
-                attribute_box,
-            )
+            violation_screen_box.children = violation_screen_box.children[:-1] + [
+                attribute_box
+            ]
 
         partial_button_clicked = functools.partial(
             on_button_clicked,
             violation_screen_box=self.violation_screen_box,
         )
         button.on_click(partial_button_clicked)
+        return button
+
+    def create_analysis_button(self) -> Button:
+        """Create button that when clicked lets the user view details of the attribute
+
+        :return: button
+        """
+        button_layout = Layout(min_height="30px")
+        button = Button(description="Analysis", layout=button_layout)
+
+        def on_button_clicked(b):
+            analysis = self.analysis(
+                configurator=self.configurator,
+                time_unit=self.time_aggregation,
+                th=self.th,
+                **self.specific_args,
+            )
+            analysis.run()
+            self.update_tab_function(analysis.tabs)
+
+        button.on_click(on_button_clicked)
         return button
 
     def gen_violation_details_box(self):
