@@ -486,6 +486,7 @@ def _gen_previous_numerical_activity_col_attributes(
     process_config: ProcessConfig,
     columns: List[str],
     activity_table_str: str,
+    suffix: Optional[str],
     is_feature: bool,
     is_class_feature: bool,
 ):
@@ -497,6 +498,7 @@ def _gen_previous_numerical_activity_col_attributes(
             activity_table_str=activity_table_str,
             column_name=col,
             attribute_datatype=AttributeDataType.NUMERICAL,
+            suffix=suffix,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -508,6 +510,7 @@ def _gen_previous_categorical_activity_col_attributes(
     process_config: ProcessConfig,
     columns: List[str],
     activity_table_str: str,
+    suffix: Optional[str],
     is_feature: bool,
     is_class_feature: bool,
 ):
@@ -519,6 +522,7 @@ def _gen_previous_categorical_activity_col_attributes(
             activity_table_str=activity_table_str,
             column_name=col,
             attribute_datatype=AttributeDataType.CATEGORICAL,
+            suffix=suffix,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -530,6 +534,7 @@ def gen_previous_activity_col_attributes(
     process_config: ProcessConfig,
     columns: List[str],
     activity_table_str: str,
+    suffix: Optional[str],
     is_feature: bool,
     is_class_feature: bool,
 ):
@@ -547,6 +552,7 @@ def gen_previous_activity_col_attributes(
         process_config=process_config,
         columns=num_cols,
         activity_table_str=activity_table_str,
+        suffix=suffix,
         is_feature=is_feature,
         is_class_feature=is_class_feature,
     )
@@ -554,6 +560,7 @@ def gen_previous_activity_col_attributes(
         process_config=process_config,
         columns=cat_cols,
         activity_table_str=activity_table_str,
+        suffix=suffix,
         is_feature=is_feature,
         is_class_feature=is_class_feature,
     )
@@ -567,6 +574,7 @@ def _gen_current_numerical_activity_col_attributes(
     process_config: ProcessConfig,
     columns: List[str],
     activity_table_str: str,
+    suffix: Optional[str],
     is_feature: bool,
     is_class_feature: bool,
 ):
@@ -578,6 +586,7 @@ def _gen_current_numerical_activity_col_attributes(
             activity_table_str=activity_table_str,
             column_name=col,
             attribute_datatype=AttributeDataType.NUMERICAL,
+            suffix=suffix,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -589,6 +598,7 @@ def _gen_current_categorical_activity_col_attributes(
     process_config: ProcessConfig,
     columns: List[str],
     activity_table_str: str,
+    suffix: Optional[str],
     is_feature: bool,
     is_class_feature: bool,
 ):
@@ -600,6 +610,7 @@ def _gen_current_categorical_activity_col_attributes(
             activity_table_str=activity_table_str,
             column_name=col,
             attribute_datatype=AttributeDataType.CATEGORICAL,
+            suffix=suffix,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
         )
@@ -611,6 +622,7 @@ def gen_current_activity_col_attributes(
     process_config: ProcessConfig,
     columns: List[str],
     activity_table_str: str,
+    suffix: Optional[str],
     is_feature: bool,
     is_class_feature: bool,
 ):
@@ -628,6 +640,7 @@ def gen_current_activity_col_attributes(
         process_config=process_config,
         columns=num_cols,
         activity_table_str=activity_table_str,
+        suffix=suffix,
         is_feature=is_feature,
         is_class_feature=is_class_feature,
     )
@@ -635,6 +648,7 @@ def gen_current_activity_col_attributes(
         process_config=process_config,
         columns=cat_cols,
         activity_table_str=activity_table_str,
+        suffix=suffix,
         is_feature=is_feature,
         is_class_feature=is_class_feature,
     )
