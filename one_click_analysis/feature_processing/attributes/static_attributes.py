@@ -876,3 +876,83 @@ class EndActivityTimeAttribute(StaticAttribute):
 
     def gen_query_with_value(self, value: Optional[str] = None):
         return self.pql_query
+
+
+class IncompleteCaseAttribute(StaticAttribute):
+    """Whether a case is incomplete or not"""
+
+    display_name = "Case duration"
+    description = "The time delta between the first and last event of a case"
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        conformance_query: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        **kwargs,
+    ):
+        self.process_config = process_config
+        self.conformance_query = conformance_query
+        self.attribute_name = "Incomplete case"
+        self.activity_table = self.process_config.table_dict[activity_table_str]
+        pql_query = self._gen_query()
+        super().__init__(
+            process_config=process_config,
+            attribute_name=self.attribute_name,
+            pql_query=pql_query,
+            data_type=AttributeDataType.CATEGORICAL,
+            attribute_type=AttributeType.OTHER,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            **kwargs,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = (
+            f'CASE WHEN PU_SUM("{self.activity_table.case_table_str}", CASE WHEN '
+            f"READABLE({self.conformance_query}) = 'Incomplete' THEN 1 ELSE 0 END) "
+            f"> 0 THEN 1 ELSE 0 END"
+        )
+        return pql.PQLColumn(query=q, name=self.attribute_name)
+
+
+class StaticActivityCountAttribute(StaticAttribute):
+    """Number of times activity occurred in a case"""
+
+    display_name = "Activity count"
+    description = "The number of times an activity has occured in the case"
+
+    def __init__(
+        self,
+        process_config: ProcessConfig,
+        activity_table_str: str,
+        activity: str,
+        is_feature: bool = False,
+        is_class_feature: bool = False,
+        **kwargs,
+    ):
+        self.process_config = process_config
+        self.activity_table = self.process_config.table_dict[activity_table_str]
+        self.activity = activity
+        # Use implementation from prediction_builder
+        self.attribute_name = f"Count of activity {activity}"
+        pql_query = self._gen_query()
+        super().__init__(
+            pql_query=pql_query,
+            data_type=AttributeDataType.NUMERICAL,
+            attribute_type=AttributeType.OTHER,
+            process_config=self.process_config,
+            attribute_name=self.attribute_name,
+            is_feature=is_feature,
+            is_class_feature=is_class_feature,
+            **kwargs,
+        )
+
+    def _gen_query(self) -> pql.PQLColumn:
+        q = f"""
+            COUNT("{self.activity_table.table_str}".
+            "{self.activity_table.activity_col_str}")
+        """
+        return pql.PQLColumn(query=q, name=self.attribute_name)
