@@ -2,7 +2,6 @@ import functools
 from typing import List
 from typing import Union
 
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from ipywidgets import Box
@@ -105,12 +104,13 @@ class StatisticalAnalysisScreen:
         for target_feature in self.target_features:
             target_name = target_feature.df_column_name
             feature_boxes = []
-
+            if len(self.df_target.index) < 3:
+                return
             # remove nans
             features_not_nan = [
                 i
                 for i in self.features
-                if not np.isnan(i.metrics["correlations"][target_name])
+                if not pd.isnull(i.metrics["correlations"][target_name])
             ]
 
             # sort features by correlation coefficient
