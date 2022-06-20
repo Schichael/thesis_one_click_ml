@@ -64,6 +64,8 @@ class UseCaseProcessor(abc.ABC):
         self.filters.append(self.is_closed_filter)
         self.df_timestamp_column = None
         self.num_cases = None
+        self.used_static_attributes = []
+        self.used_dynamic_attributes = []
 
     def _create_is_closed_filter(self, is_closed_query: pql.PQLColumn) -> pql.PQLFilter:
         """Create IS_CLOSED PQLFilter object"""
@@ -188,7 +190,7 @@ class CaseDurationProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -209,7 +211,7 @@ class CaseDurationProcessor(UseCaseProcessor):
         self.df_x, self.df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
-            static_attributes=used_static_attributes,
+            static_attributes=self.used_static_attributes,
             dynamic_attributes=[],
             is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
@@ -219,7 +221,7 @@ class CaseDurationProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes,
+            attributes=self.used_static_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -469,10 +471,10 @@ class TransitionTimeProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
-        used_dynamic_attributes = self._gen_dynamic_attr_list(
+        self.used_dynamic_attributes = self._gen_dynamic_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -503,8 +505,9 @@ class TransitionTimeProcessor(UseCaseProcessor):
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
             key_activities=key_activities,
-            static_attributes=used_static_attributes,
-            dynamic_attributes=used_dynamic_attributes + [target_attribute_for_dyn],
+            static_attributes=self.used_static_attributes,
+            dynamic_attributes=self.used_dynamic_attributes
+            + [target_attribute_for_dyn],
             is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
             filters=self.filters,
@@ -513,7 +516,7 @@ class TransitionTimeProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes,
+            attributes=self.used_static_attributes + self.used_dynamic_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -766,10 +769,10 @@ class RoutingDecisionProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
-        used_dynamic_attributes = self._gen_dynamic_attr_list(
+        self.used_dynamic_attributes = self._gen_dynamic_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -802,8 +805,9 @@ class RoutingDecisionProcessor(UseCaseProcessor):
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
             key_activities=key_activities,
-            static_attributes=used_static_attributes,
-            dynamic_attributes=used_dynamic_attributes + [target_attribute_for_dyn],
+            static_attributes=self.used_static_attributes,
+            dynamic_attributes=self.used_dynamic_attributes
+            + [target_attribute_for_dyn],
             is_closed_indicator=is_closed_indicator,
             target_variable=target_variable,
             filters=self.filters,
@@ -835,7 +839,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes + used_dynamic_attributes,
+            attributes=self.used_static_attributes + self.used_dynamic_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -1197,7 +1201,7 @@ class ReworkProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -1210,7 +1214,7 @@ class ReworkProcessor(UseCaseProcessor):
         self.df_x, self.df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
-            static_attributes=used_static_attributes,
+            static_attributes=self.used_static_attributes,
             dynamic_attributes=[],
             is_closed_indicator=is_closed_indicator,
             target_variable=target_variable,
@@ -1220,7 +1224,7 @@ class ReworkProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes,
+            attributes=self.used_static_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -1447,7 +1451,7 @@ class StartActivityProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -1475,7 +1479,7 @@ class StartActivityProcessor(UseCaseProcessor):
         self.df_x, self.df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
-            static_attributes=used_static_attributes,
+            static_attributes=self.used_static_attributes,
             dynamic_attributes=[],
             is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
@@ -1485,7 +1489,7 @@ class StartActivityProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes,
+            attributes=self.used_static_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -1658,7 +1662,7 @@ class ActivityProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -1680,7 +1684,7 @@ class ActivityProcessor(UseCaseProcessor):
         self.df_x, self.df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
-            static_attributes=used_static_attributes,
+            static_attributes=self.used_static_attributes,
             dynamic_attributes=[],
             is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
@@ -1690,7 +1694,7 @@ class ActivityProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes,
+            attributes=self.used_static_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -1876,10 +1880,10 @@ class TransitionProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
-        used_dynamic_attributes = self._gen_dynamic_attr_list(
+        self.used_dynamic_attributes = self._gen_dynamic_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -1910,8 +1914,9 @@ class TransitionProcessor(UseCaseProcessor):
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
             key_activities=key_activities,
-            static_attributes=used_static_attributes,
-            dynamic_attributes=used_dynamic_attributes + [target_attribute_for_dyn],
+            static_attributes=self.used_static_attributes,
+            dynamic_attributes=self.used_dynamic_attributes
+            + [target_attribute_for_dyn],
             is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
             filters=self.filters,
@@ -1920,7 +1925,7 @@ class TransitionProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes,
+            attributes=self.used_static_attributes + self.used_dynamic_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
@@ -2147,7 +2152,7 @@ class IncompleteCaseProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        used_static_attributes = self._gen_static_attr_list(
+        self.used_static_attributes = self._gen_static_attr_list(
             min_attr_count=min_attr_count, max_attr_count=max_attr_count
         )
 
@@ -2169,7 +2174,7 @@ class IncompleteCaseProcessor(UseCaseProcessor):
         self.df_x, self.df_target = feature_processor_new.extract_dfs(
             process_config=self.process_config,
             activity_table_str=self.activity_table_str,
-            static_attributes=used_static_attributes,
+            static_attributes=self.used_static_attributes,
             dynamic_attributes=[],
             is_closed_indicator=self.is_closed_query,
             target_variable=target_variable,
@@ -2179,7 +2184,7 @@ class IncompleteCaseProcessor(UseCaseProcessor):
         pp = PostProcessor(
             df_x=self.df_x,
             df_target=self.df_target,
-            attributes=used_static_attributes,
+            attributes=self.used_static_attributes,
             target_attributes=target_attribute,
             valid_target_values=None,
             invalid_target_replacement=None,
