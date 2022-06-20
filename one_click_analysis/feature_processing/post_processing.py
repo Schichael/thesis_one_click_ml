@@ -210,6 +210,8 @@ class PostProcessor:
         for col in df.columns:
             if prefix:
                 attribute_value = col[len(prefix) :]
+            elif attr.value is not None:
+                attribute_value = attr.value
             else:
                 attribute_value = None
             feature = Feature(
