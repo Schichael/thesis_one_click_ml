@@ -1,4 +1,3 @@
-import copy
 import functools
 from collections import OrderedDict
 from typing import Callable
@@ -23,7 +22,7 @@ class FeatureSelection:
     ):
         self.attributes = attributes
         self.features = features
-        self.selected_features = copy.deepcopy(features)
+        self.selected_features = features.copy()
         self.attribute_feature_dict = self._create_attribute_feature_dict()
         self.selection_box = self._create_selection()
 
@@ -53,7 +52,8 @@ class FeatureSelection:
         accordions = []
         for attribute_dname, features in self.attribute_feature_dict.items():
             # check if features' attribute is a activity or case level table attribute
-
+            if len(features) == 0:
+                continue
             if features[0].attribute.attribute_type in [
                 AttributeType.ACTIVITY_COL,
                 AttributeType.CASE_COL,
@@ -62,18 +62,19 @@ class FeatureSelection:
                 acc = self._create_selection_tables(
                     attr_display_name=attribute_dname, column_dict=column_dict
                 )
-                accordions.append(acc)
+                accordions = accordions + acc
             else:
-                self._create_selection_normal(
+                acc = self._create_selection_normal(
                     attr_display_name=attribute_dname, features=features
                 )
+                accordions.append(acc)
 
         title = (
             f'<div style="line-height:140%;font-weight:bold; font-size: '
             f'14px">Select features to use'
         )
         title_html = HTML(title)
-        acc = widgets.Accordion(children=[accordions], selected_index=None)
+        acc = widgets.Accordion(children=accordions, selected_index=None)
         acc.set_title(0, "Select features")
         selection_box = VBox(children=[title_html, acc])
         return selection_box
@@ -141,7 +142,7 @@ class FeatureSelection:
             # Observe the Select/Unselect all checkbox
             cb_select_all.observe(fct_select_all, "value")
 
-        selected_features = copy.deepcopy(features)
+        selected_features = features.copy()
 
         cbs = []
         cb_select_all_value = widgets.Checkbox(
@@ -167,7 +168,7 @@ class FeatureSelection:
             cb = widgets.Checkbox(value=True, description=val, indent=False)
             cb.observe(value_cb_changed, "value")
             cbs_vals.append(cb)
-        cbs.append(cbs_vals)
+        cbs = cbs + cbs_vals
         # Create VBoxes with the checkboxes
         layout_cb_box = widgets.Layout(max_height="300px")
         vbox_cbs_cat = widgets.VBox(children=cbs, layout=layout_cb_box)
@@ -235,7 +236,9 @@ class FeatureSelection:
 
         col_accordions = []
         cbs_all = []
-        for col, features in column_dict:
+        for col, features in column_dict.items():
+            if len(features) == 0:
+                continue
             if features[0].attribute_value is not None:
                 feature_value_dict = {
                     feature.attribute_value: feature for feature in features
@@ -245,7 +248,7 @@ class FeatureSelection:
                     feature.df_column_name: feature for feature in features
                 }
 
-            selected_features = copy.deepcopy(features)
+            selected_features = features.copy()
 
             cbs = []
             cb_select_all_value = widgets.Checkbox(
@@ -271,7 +274,7 @@ class FeatureSelection:
                 cb = widgets.Checkbox(value=True, description=val, indent=False)
                 cb.observe(value_cb_changed, "value")
                 cbs_vals.append(cb)
-            cbs.append(cbs_vals)
+            cbs = cbs + cbs_vals
             # Create VBoxes with the checkboxes
             layout_cb_box = widgets.Layout(max_height="300px")
             vbox_cbs_cat = widgets.VBox(children=cbs, layout=layout_cb_box)
@@ -279,7 +282,7 @@ class FeatureSelection:
             acc = widgets.Accordion(children=[vbox_cbs_cat], selected_index=None)
             acc.set_title(0, col)
             col_accordions.append(acc)
-            cbs_all.append(cbs_vals)
+            cbs_all = cbs_all + cbs_vals
 
         cb_select_all_columns = widgets.Checkbox(
             value=True, description="Select / Unselect all " "columns", indent=False
@@ -288,7 +291,7 @@ class FeatureSelection:
         cb_select_all_columns.observe(select_all_changed, "value")
 
         acc = widgets.Accordion(
-            children=[cb_select_all_columns, col_accordions], selected_index=None
+            children=[cb_select_all_columns] + col_accordions, selected_index=None
         )
         acc.set_title(0, title)
         col_accordions.append(acc)
