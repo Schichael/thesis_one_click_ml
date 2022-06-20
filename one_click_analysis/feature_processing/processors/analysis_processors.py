@@ -1856,13 +1856,13 @@ class TransitionProcessor(UseCaseProcessor):
             filters=self.filters,
         )
 
-        prev_activity_filter = feature_processor_new.filter_prev_activity(
-            prev_activity=self.source_activity,
-            process_config=self.process_config,
-            activity_table_str=self.activity_table_str,
-        )
-
-        self.filters = self.filters + [prev_activity_filter]
+        # prev_activity_filter = feature_processor_new.filter_prev_activity(
+        #     prev_activity=self.source_activity,
+        #     process_config=self.process_config,
+        #     activity_table_str=self.activity_table_str,
+        # )
+        #
+        # self.filters = self.filters + [prev_activity_filter]
 
         (
             min_attr_count,
