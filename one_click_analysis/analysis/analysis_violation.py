@@ -2,6 +2,7 @@ from typing import Any
 from typing import List
 
 from IPython.display import display
+from ipywidgets import HTML
 from ipywidgets import Tab
 from ipywidgets import VBox
 from ipywidgets import widgets
@@ -17,6 +18,8 @@ from one_click_analysis.gui.description_screen import DescriptionScreen
 from one_click_analysis.violation_processing.gui.violation_selection import (
     ViolationSelectionScreen,
 )
+from one_click_analysis.violation_processing.violation import Violation
+from one_click_analysis.violation_processing.violation import ViolationType
 from one_click_analysis.violation_processing.violation_processor import (
     ViolationProcessor,
 )
@@ -221,7 +224,7 @@ class AnalysisViolation:
             [
                 self.description_view.description_box,
                 self.config_view.configurator_box,
-                self.violation_selection_screen.violations_box,
+                self.violation_selection_screen.violation_selection_box,
                 VBox(),
             ]
         )
@@ -243,11 +246,23 @@ class AnalysisViolation:
     def update_tabs(self, tab_contents: List[widgets.widget.Widget]):
         self.tabs.children = tab_contents
 
-    def update_analysis_tab(self, content: Any):
+    def update_analysis_tab(self, content: Any, violation: Violation):
         """Update the analysis tab"""
+        if violation.violation_type == ViolationType.INCOMPLETE:
+            violation_str = "Incomplete case"
+        else:
+            violation_str = violation.violation_readable
+
+        headline_analysis_tab_str = (
+            f'<div style="line-height:140%;font-weight:bold; font-size: 16px'
+            f'">'
+            f"Violation: {violation_str}</div>"
+        )
+        html_headline = HTML(headline_analysis_tab_str)
+        analysis_tab = VBox(children=[html_headline, content])
         self.tabs.children = [
             self.description_view.description_box,
             self.config_view.configurator_box,
-            self.violation_selection_screen.violations_box,
-            content,
+            self.violation_selection_screen.violation_selection_box,
+            analysis_tab,
         ]
