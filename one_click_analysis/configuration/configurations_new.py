@@ -1,6 +1,5 @@
 import abc
 import functools
-from timeit import default_timer as timer
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -116,9 +115,10 @@ class Configuration(abc.ABC):
         self._create_config_box()
 
         for sub_config in self.subsequent_configurations:
-            sub_config.reset_local()
-            sub_config.reset()
-            sub_config._create_config_box()
+            sub_config.update()
+            # sub_config.reset_local()
+            # sub_config.reset()
+            # sub_config._create_config_box()
 
         # Create box
         self._create_config_box()
@@ -276,12 +276,10 @@ class DatePickerConfig(Configuration):
     def validate_prerequisites(self) -> bool:
 
         process_config_set = (
-            self.datamodel_identifier in self.configurator.config_dict
-            and self.configurator.config_dict[self.datamodel_identifier] is not None
+            self.configurator.config_dict.get(self.datamodel_identifier) is not None
         )
         activity_table_set = (
-            self.activity_table_identifier in self.configurator.config_dict
-            and self.configurator.config_dict[self.activity_table_identifier]
+            self.configurator.config_dict.get(self.activity_table_identifier)
             is not None
         )
 
@@ -1271,7 +1269,6 @@ class ReworkActivitySelection(Configuration):
         self._create_config_box()
 
     def _create_true_config_box(self):
-        print("creating true config box")
         process_config = self.configurator.config_dict[self.datamodel_identifier][
             "process_config"
         ]
@@ -1397,7 +1394,6 @@ class ReworkActivitySelection(Configuration):
     ) -> dict:
         """Get dictionary of activities and number of cases with rework on activity"""
 
-        start = timer()
         filters = self.configurator.get_all_filters()
         pql_query = pql.PQL()
         for act in activities:
@@ -1413,8 +1409,6 @@ class ReworkActivitySelection(Configuration):
         act_dict = {}
         for act in activities:
             act_dict[act] = df[act].values[0]
-        end = timer()
-        print(f"time spent on getting the rework thingies: {end-start}")
         return act_dict
 
     @property
