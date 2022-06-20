@@ -421,7 +421,7 @@ class DummyAttribute(StaticAttribute):
         attribute_name: str,
         attribute_type: AttributeType,
         process_config: ProcessConfig,
-        value: Optional[str, float] = None,
+        value: Optional[Union[str, float]] = None,
         is_feature: bool = False,
         is_class_feature: bool = False,
         **kwargs,
