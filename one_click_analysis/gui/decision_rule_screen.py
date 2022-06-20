@@ -20,16 +20,17 @@ from one_click_analysis.decision_rules.decision_rule_miner import DecisionRuleMi
 from one_click_analysis.errors import DecisionRuleNotValidLabelTypesError
 from one_click_analysis.errors import MaximumValueReachedError
 from one_click_analysis.errors import MinimumValueReachedError
-from one_click_analysis.feature_processing.attributes.attribute import (
-    AttributeDataType,
-)
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import AttributeDataType
 from one_click_analysis.feature_processing.attributes.feature import Feature
+from one_click_analysis.gui.feature_selection import FeatureSelection
 
 
 class DecisionRulesScreen:
     def __init__(
         self,
         df: pd.DataFrame,
+        attributes: List[Attribute],
         features: List[Feature],
         target_features: List[Feature],
     ):
@@ -38,6 +39,7 @@ class DecisionRulesScreen:
         :param fp: FeatureProcessor with processed features
         """
         self.df = df
+        self.attributes = attributes
         # Concatenate df_x and df_target
         self.df_concat = pd.concat
         self.features = features
@@ -56,8 +58,16 @@ class DecisionRulesScreen:
         # the currently selected threshold
         self.current_threshold_numerical = None
         self.is_numerical = self._set_numerical()
+        self.feature_selection_box = self._create_feature_selection_box()
         self.value_selection = self._create_ValueSelection()
         self.parent_rule_box = self._init_rules_parent_box()
+
+    def _create_feature_selection_box(self):
+        """Create feature selection box"""
+        feature_selection = FeatureSelection(
+            features=self.features, attributes=self.attributes
+        )
+        return feature_selection.selection_box
 
     def _create_feature_names(self):
         """Generate list of feature names"""
@@ -137,11 +147,13 @@ class DecisionRulesScreen:
         """
         if self.is_numerical:
             self.decision_rule_box.children = [
+                self.feature_selection_box,
                 self.value_selection.selection_box,
                 self.parent_rule_box,
             ]
         else:
             self.decision_rule_box.children = [
+                self.feature_selection_box,
                 self.parent_rule_box,
             ]
 
