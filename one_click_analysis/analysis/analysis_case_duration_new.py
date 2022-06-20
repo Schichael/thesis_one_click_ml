@@ -260,10 +260,17 @@ class AnalysisCaseDuration:
         df_combined[
             self.case_duration_processor.df_target.columns.tolist()
         ] = self.case_duration_processor.df_target
+
+        attributes = (
+            self.case_duration_processor.used_static_attributes
+            + self.case_duration_processor.used_dynamic_attributes
+        )
+
         self.dec_rule_screen = DecisionRulesScreen(
             df_combined,
             features=self.case_duration_processor.features,
             target_features=self.case_duration_processor.target_features,
+            attributes=attributes,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 
