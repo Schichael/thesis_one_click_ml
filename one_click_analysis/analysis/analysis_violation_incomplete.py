@@ -205,7 +205,7 @@ class AnalysisIncompleteViolation:
             used_dynamic_attribute_descriptors=used_dynamic_attribute_descriptors,
             considered_activity_table_cols=considered_activity_table_cols,
             considered_case_level_table_cols=considered_case_level_table_cols,
-            conformance_query=conformance_query.query,
+            conformance_query=conformance_query,
             is_closed_query=is_closed_query,
             time_unit=time_unit,
             start_date=start_date,
