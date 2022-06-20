@@ -1,5 +1,6 @@
 import abc
 from typing import Optional
+from typing import Union
 
 from pycelonis.celonis_api.pql import pql
 
@@ -24,7 +25,9 @@ class DynamicAttribute(Attribute, abc.ABC):
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
+        table_name: Optional[str] = None,
         column_name: Optional[str] = None,
+        value: Optional[Union[str, float]] = None,
         **kwargs,
     ):
         """
@@ -43,13 +46,15 @@ class DynamicAttribute(Attribute, abc.ABC):
         super().__init__(
             process_config=process_config,
             attribute_name=attribute_name,
-            pql_query=pql_query,
+            query=pql_query,
             data_type=data_type,
             attribute_type=attribute_type,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=unit,
+            table_name=table_name,
             column_name=column_name,
+            value=value,
             **kwargs,
         )
 
@@ -118,6 +123,7 @@ class SpecificNextActivityAttribute(DynamicAttribute):
             attribute_type=AttributeType.OTHER,
             process_config=self.process_config,
             attribute_name=self.attribute_name,
+            value=next_activity,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,
@@ -171,6 +177,7 @@ class PreviousActivityColumnAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            table_name=self.table_name,
             column_name=column_name,
             **kwargs,
         )
@@ -221,6 +228,7 @@ class CurrentActivityColumnAttribute(DynamicAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            table_name=self.activity_table.table_str,
             column_name=column_name,
             **kwargs,
         )

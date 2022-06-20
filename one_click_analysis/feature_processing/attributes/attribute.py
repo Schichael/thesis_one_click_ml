@@ -36,24 +36,31 @@ class Attribute(abc.ABC):
         self,
         process_config: ProcessConfig,
         attribute_name: str,
-        pql_query: pql.PQLColumn,
+        query: pql.PQLColumn,
         data_type: AttributeDataType,
         attribute_type: AttributeType,
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
+        table_name: Optional[str] = None,
         column_name: Optional[str] = None,
+        value: Optional[str] = None,
         display_name: Optional[str] = None,
         description: Optional[str] = None,
     ):
         self.process_config = process_config
         self.attribute_name = attribute_name
+        self.query = query
         self.data_type = data_type
         self.attribute_type = attribute_type
         self.is_feature = is_feature
         self.is_class_feature = is_class_feature
         self.unit = unit
+        self.table_name = table_name
         self.column_name = column_name
+        # The specific value of the attribute if that's clear yet (e.g. name of an
+        # activity)
+        self.value = value
         if display_name is not None:
             self.display_name = display_name
         if description is not None:

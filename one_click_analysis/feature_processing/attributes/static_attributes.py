@@ -1,5 +1,6 @@
 import abc
 from typing import Optional
+from typing import Union
 
 from pycelonis.celonis_api.pql import pql
 
@@ -25,19 +26,23 @@ class StaticAttribute(Attribute, abc.ABC):
         is_feature: bool = False,
         is_class_feature: bool = False,
         unit: str = "",
+        table_name: Optional[str] = None,
         column_name: Optional[str] = None,
+        value: Optional[Union[str, float]] = None,
         **kwargs,
     ):
         super().__init__(
             process_config=process_config,
             attribute_name=attribute_name,
-            pql_query=pql_query,
+            query=pql_query,
             data_type=data_type,
             attribute_type=attribute_type,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             unit=unit,
+            table_name=table_name,
             column_name=column_name,
+            value=value,
             **kwargs,
         )
 
@@ -288,6 +293,7 @@ class ActivityOccurenceAttribute(StaticAttribute):
             process_config=self.process_config,
             attribute_name=self.attribute_name,
             attribute_type=AttributeType.OTHER,
+            value=self.activity,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,
@@ -375,6 +381,7 @@ class ReworkOccurrenceAttribute(StaticAttribute):
             attribute_type=AttributeType.OTHER,
             process_config=self.process_config,
             attribute_name=self.attribute_name,
+            value=activity,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,
@@ -414,6 +421,7 @@ class DummyAttribute(StaticAttribute):
         attribute_name: str,
         attribute_type: AttributeType,
         process_config: ProcessConfig,
+        value: Optional[str, float] = None,
         is_feature: bool = False,
         is_class_feature: bool = False,
         **kwargs,
@@ -427,6 +435,7 @@ class DummyAttribute(StaticAttribute):
             attribute_type=attribute_type,
             process_config=process_config,
             attribute_name=attribute_name,
+            value=value,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,
@@ -509,6 +518,7 @@ class SpecificStartActivityAttribute(StaticAttribute):
             attribute_type=AttributeType.OTHER,
             process_config=self.process_config,
             attribute_name=self.attribute_name,
+            value=activity,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,
@@ -687,6 +697,7 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            table_name=self.activity_table.table_str,
             column_name=column_name,
             **kwargs,
         )
@@ -730,6 +741,7 @@ class CaseTableColumnAttribute(StaticAttribute):
             attribute_name=self.attribute_name,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
+            table_name=self.table_name,
             column_name=column_name,
             **kwargs,
         )
@@ -781,6 +793,7 @@ class TransitionOccurenceAttribute(StaticAttribute):
         self.attribute_name = (
             f"Transition occurence ({transition_start} -> {transition_end})"
         )
+        value = f"{transition_start} -> {transition_end}"
         pql_query = self._gen_query()
         super().__init__(
             pql_query=pql_query,
@@ -788,6 +801,7 @@ class TransitionOccurenceAttribute(StaticAttribute):
             attribute_type=AttributeType.OTHER,
             process_config=self.process_config,
             attribute_name=self.attribute_name,
+            value=value,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,
@@ -945,6 +959,7 @@ class StaticActivityCountAttribute(StaticAttribute):
             attribute_type=AttributeType.OTHER,
             process_config=self.process_config,
             attribute_name=self.attribute_name,
+            value=activity,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,
