@@ -308,7 +308,7 @@ class ViolationField:
 
         def on_button_clicked(b, violation_screen_box: Box):
             attribute_box = self.gen_violation_details_box()
-            violation_screen_box.children = violation_screen_box.children[:-1] + [
+            violation_screen_box.children = list(violation_screen_box.children[:-1]) + [
                 attribute_box
             ]
 
@@ -335,7 +335,7 @@ class ViolationField:
                 **self.specific_args,
             )
             analysis.run()
-            self.update_tab_function(analysis.tabs)
+            self.update_tab_function(analysis.tabs, self.violation)
 
         button.on_click(on_button_clicked)
         return button
@@ -376,6 +376,7 @@ class ViolationField:
             df_current_violation["case"].isin(cases_violation) == 1,
             f"Cases with violation",
         ] = 1
+        df_current_violation = df_current_violation.groupby("case").first()
         fig_attribute_development = AttributeDevelopmentFigure(
             df=df_current_violation,
             time_col=self.timestamp_column,
