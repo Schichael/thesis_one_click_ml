@@ -12,10 +12,10 @@ from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
 
-from one_click_analysis.feature_processing.attributes.attribute import (
-    AttributeDataType,
-)
+from one_click_analysis.feature_processing.attributes.attribute import Attribute
+from one_click_analysis.feature_processing.attributes.attribute import AttributeDataType
 from one_click_analysis.feature_processing.attributes.feature import Feature
+from one_click_analysis.gui.feature_selection import FeatureSelection
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 
 
@@ -24,6 +24,7 @@ class StatisticalAnalysisScreen:
         self,
         df_x: pd.DataFrame,
         df_target: pd.DataFrame,
+        attributes: List[Attribute],
         features: List[Feature],
         target_features: List[Feature],
         timestamp_column: str,
@@ -37,17 +38,40 @@ class StatisticalAnalysisScreen:
         """
         self.df_x = df_x
         self.df_target = df_target
-        self.features = features
+        self.attributes = attributes
+        self.features_initial = features
         self.target_features = target_features
         self.datapoint_str = datapoint_str
         self.timestamp_column = timestamp_column
         # self.fp = fp
         self.th = th
         self.attributes_box = None
+        self.feature_selection = self._create_feature_selection()
+        self.features = self.feature_selection.selected_features
+        self.feature_update_button = self._create_button_feature_changes()
         self.attributes_box_contents = []
         self.statistical_analysis_box = VBox()
 
-    def update_attr_selection(self, features: List[Feature]):
+    def _create_feature_selection(self):
+        """Create feature selection box"""
+        feature_selection = FeatureSelection(
+            features=self.features_initial, attributes=self.attributes
+        )
+        return feature_selection
+
+    def _create_button_feature_changes(self):
+        button = Button(
+            description="Apply feature selection",
+            layout=Layout(width="380px"),
+        )
+
+        def on_button_clicked(b):
+            self.update_features()
+
+        button.on_click(on_button_clicked)
+        return button
+
+    def update_features(self):
         """Define behaviour when the attribute selection is updated. Here, the screen is
         simply constructed again with the new attributes.
 
@@ -56,7 +80,6 @@ class StatisticalAnalysisScreen:
         :param selected_case_table_cols:
         :return:
         """
-        self.features = features
         self.create_statistical_screen()
 
     def create_title_attributes_box(self) -> VBox:
@@ -168,6 +191,8 @@ class StatisticalAnalysisScreen:
         self.create_features_box_contents()
         self.attributes_box = self.create_attributes_box(0)
         self.statistical_analysis_box.children = [
+            self.feature_selection.selection_box,
+            self.feature_update_button,
             title_attributes_box,
             self.attributes_box,
             VBox(),

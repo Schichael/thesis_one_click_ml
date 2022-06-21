@@ -24,7 +24,8 @@ class FeatureSelection:
         self.features = features
         self.selected_features = features.copy()
         self.attribute_feature_dict = self._create_attribute_feature_dict()
-        self.selection_box = self._create_selection()
+        self.button_checkboxes = None
+        self.selection_box, self.checkboxes = self._create_selection()
 
     def _create_attribute_feature_dict(self):
         """Create dictionary that maps attributes to features"""
@@ -48,8 +49,19 @@ class FeatureSelection:
             column_feature_dict[col] = features_col
         return column_feature_dict
 
+    def _create_button_checkboxes(self, checkboxes: List[widgets.Checkbox]):
+        button = widgets.Button(description="Select all features")
+
+        def on_button_clicked(b):
+            for cb in checkboxes:
+                cb.value = True
+
+        button.on_click(on_button_clicked)
+        return button
+
     def _create_selection(self):
         accordions = []
+        checkboxes = []
         for attribute_dname, features in self.attribute_feature_dict.items():
             # check if features' attribute is a activity or case level table attribute
             if len(features) == 0:
@@ -59,26 +71,30 @@ class FeatureSelection:
                 AttributeType.CASE_COL,
             ]:
                 column_dict = self._create_column_value_dict(features)
-                acc = self._create_selection_tables(
+                acc, new_checkboxes = self._create_selection_tables(
                     attr_display_name=attribute_dname, column_dict=column_dict
                 )
                 accordions.append(acc)
+                checkboxes = checkboxes + new_checkboxes
             else:
-                acc = self._create_selection_normal(
+                acc, new_checkboxes = self._create_selection_normal(
                     attr_display_name=attribute_dname, features=features
                 )
                 accordions.append(acc)
+                checkboxes = checkboxes + new_checkboxes
 
         title = (
             f'<div style="line-height:140%;font-weight:bold; font-size: '
             f'14px">Select features to use'
         )
         title_html = HTML(title)
-        accordions_vbox = VBox(children=accordions)
+        self.button_checkboxes = self._create_button_checkboxes(checkboxes=checkboxes)
+        accordions_vbox = VBox(children=[self.button_checkboxes] + accordions)
         acc = widgets.Accordion(children=[accordions_vbox], selected_index=None)
         acc.set_title(0, "Select features")
+
         selection_box = VBox(children=[title_html, acc])
-        return selection_box
+        return selection_box, checkboxes
 
     def _create_selection_normal(self, attr_display_name: str, features):
         """Create selections for normal attribute features"""
@@ -181,7 +197,7 @@ class FeatureSelection:
 
         acc = widgets.Accordion(children=[vbox_cbs_cat], selected_index=None)
         acc.set_title(0, title)
-        return acc
+        return acc, cbs
 
     def _create_selection_tables(self, attr_display_name: str, column_dict: dict):
         """Create selections for table column features"""
@@ -305,4 +321,4 @@ class FeatureSelection:
         acc.set_title(0, title)
         # col_accordions.append(acc)
 
-        return acc
+        return acc, cbs_all
