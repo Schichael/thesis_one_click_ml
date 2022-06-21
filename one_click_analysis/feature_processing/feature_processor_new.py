@@ -32,10 +32,7 @@ from one_click_analysis.feature_processing.attributes.dynamic_attributes import 
 from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     PreviousActivityOccurrenceAttribute,
 )
-from one_click_analysis.feature_processing.attributes.static_attributes import (
-    ActivityOccurenceAttribute,
-    StaticActivityCountAttribute,
-)
+from one_click_analysis.feature_processing.attributes.static_attributes import ActivityOccurenceAttribute
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     CaseDurationAttribute,
 )
@@ -57,6 +54,7 @@ from one_click_analysis.feature_processing.attributes.static_attributes import (
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     StartActivityTimeAttribute,
 )
+from one_click_analysis.feature_processing.attributes.static_attributes import StaticActivityCountAttribute
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     StaticAttribute,
 )
@@ -64,9 +62,9 @@ from one_click_analysis.feature_processing.attributes.static_attributes import (
     WorkInProgressAttribute,
 )
 from one_click_analysis.feature_processing.post_processing import PostProcessor
-from one_click_analysis.feature_processing.statistics_computer import StatisticsComputer
 from one_click_analysis.process_config.process_config import ActivityTable
 from one_click_analysis.process_config.process_config import ProcessConfig
+from one_click_analysis.statistics.statistics_computer import StatisticsComputer
 
 pd.options.mode.chained_assignment = None
 
