@@ -28,8 +28,8 @@ from one_click_analysis.feature_processing.attributes.static_attributes import (
     DummyAttribute,
 )
 from one_click_analysis.feature_processing.post_processing import PostProcessor
-from one_click_analysis.feature_processing.statistics_computer import StatisticsComputer
 from one_click_analysis.process_config.process_config import ProcessConfig
+from one_click_analysis.statistics.statistics_computer import StatisticsComputer
 
 
 class UseCaseProcessor(abc.ABC):

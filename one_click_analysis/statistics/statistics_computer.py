@@ -3,6 +3,7 @@ import numpy as np
 from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
+from one_click_analysis.statistics.outlier_removal import remove_outliers_IQR
 
 
 class StatisticsComputer:
@@ -23,15 +24,18 @@ class StatisticsComputer:
     def compute_correlations(self):
         """Compute correlations of the features with the target feature."""
         for target_feature in self.target_features:
-            label_series = self.df_target[target_feature.df_column_name]
-            corrs = self.df_x.corrwith(label_series)
+            y_values = self.df_target[target_feature.df_column_name].values
+
             for feature in self.features:
+                x_values = self.df_x[feature.df_column_name].values
+                x_values_cleaned, y_values_cleaned = remove_outliers_IQR(
+                    x_values, y_values, apply_on_binary=False
+                )
+
+                corr = np.corrcoef(x_values_cleaned, y_values_cleaned)[1, 0]
                 if "correlations" not in feature.metrics:
                     feature.metrics["correlations"] = {}
-                correlation = corrs[feature.df_column_name]
-                feature.metrics["correlations"][
-                    target_feature.df_column_name
-                ] = correlation
+                feature.metrics["correlations"][target_feature.df_column_name] = corr
 
     def case_count_with_feature(self):
         # Do this for both normal and target features

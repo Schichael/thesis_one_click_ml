@@ -721,7 +721,11 @@ class ValueSelection:
         """
         target_name = self.target_feature.df_column_name
         target_unit = self.target_feature.unit
-        label_title = Label("Define high " + target_name + ":")
+        label_html_str = (
+            f'<span style="font-weight:bold; font-size: '
+            f'14px">Define high {target_name}:</span>'
+        )
+        title_html = HTML(label_html_str)
 
         label_description = Label(target_name + " >=\xa0")
 
@@ -782,7 +786,7 @@ class ValueSelection:
 
         vbox_duration_selection_layout = Layout(min_width="350px")
         vbox_duration_selection = VBox(
-            children=[label_title, hbox_selection, vbox_run_button],
+            children=[title_html, hbox_selection, vbox_run_button],
             layout=vbox_duration_selection_layout,
         )
         prob_figure_widget = self.create_probability_figure_widget()
