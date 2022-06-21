@@ -53,21 +53,22 @@ class DecisionRulesScreen:
         self.decision_rules = {}
         self.decision_rule_box = VBox()
         self.run_buttons = {}
+        self.feature_update_button = self._create_button_feature_changes()
         self.buttons_elaborate_rules = {}
         self.buttons_simplify_rules = {}
         # the currently selected threshold
         self.current_threshold_numerical = None
         self.is_numerical = self._set_numerical()
-        self.feature_selection_box = self._create_feature_selection_box()
+        self.feature_selection = self._create_feature_selection()
         self.value_selection = self._create_ValueSelection()
         self.parent_rule_box = self._init_rules_parent_box()
 
-    def _create_feature_selection_box(self):
+    def _create_feature_selection(self):
         """Create feature selection box"""
         feature_selection = FeatureSelection(
             features=self.features, attributes=self.attributes
         )
-        return feature_selection.selection_box
+        return feature_selection
 
     def _create_feature_names(self):
         """Generate list of feature names"""
@@ -131,13 +132,26 @@ class DecisionRulesScreen:
         :param features: List with features
         :return:
         """
-        self.features = features
+        self.features = features.copy()
         self.feature_names = self._create_feature_names()
         self.parent_rule_box = self._init_rules_parent_box()
         self.dr_miners = {}
         self.current_threshold_numerical = None
 
         self.create_decision_rule_screen()
+
+    def _create_button_feature_changes(self):
+        button = Button(
+            description="Apply feature selection (Will reset the "
+            "decision rule analysis)",
+            layout=Layout(width="380px"),
+        )
+
+        def on_button_clicked(b):
+            self.update_features(features=self.feature_selection.selected_features)
+
+        button.on_click(on_button_clicked)
+        return button
 
     def create_decision_rule_screen(self):
         """Create and get the decision rule screen, i.e. the box that contains the
@@ -147,13 +161,15 @@ class DecisionRulesScreen:
         """
         if self.is_numerical:
             self.decision_rule_box.children = [
-                self.feature_selection_box,
+                self.feature_selection.selection_box,
+                self.feature_update_button,
                 self.value_selection.selection_box,
                 self.parent_rule_box,
             ]
         else:
             self.decision_rule_box.children = [
-                self.feature_selection_box,
+                self.feature_selection.selection_box,
+                self.feature_update_button,
                 self.parent_rule_box,
             ]
 
