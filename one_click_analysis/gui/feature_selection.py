@@ -44,8 +44,8 @@ class FeatureSelection:
         column_feature_dict = {}
         columns = {f.attribute.column_name for f in features}
         for col in columns:
-            features = [f for f in features if f.attribute.column_name == col]
-            column_feature_dict[col] = features
+            features_col = [f for f in features if f.attribute.column_name == col]
+            column_feature_dict[col] = features_col
         return column_feature_dict
 
     def _create_selection(self):
@@ -62,7 +62,7 @@ class FeatureSelection:
                 acc = self._create_selection_tables(
                     attr_display_name=attribute_dname, column_dict=column_dict
                 )
-                accordions = accordions + acc
+                accordions.append(acc)
             else:
                 acc = self._create_selection_normal(
                     attr_display_name=attribute_dname, features=features
@@ -74,7 +74,8 @@ class FeatureSelection:
             f'14px">Select features to use'
         )
         title_html = HTML(title)
-        acc = widgets.Accordion(children=accordions, selected_index=None)
+        accordions_vbox = VBox(children=accordions)
+        acc = widgets.Accordion(children=[accordions_vbox], selected_index=None)
         acc.set_title(0, "Select features")
         selection_box = VBox(children=[title_html, acc])
         return selection_box
@@ -109,6 +110,7 @@ class FeatureSelection:
             b,
             cb_select_all: widgets.Checkbox,
             fct_select_all: Callable,
+            local_selected_features: List[str],
             all_features: List[str],
         ):
             """Define behaviour that happens when a value checkbox is toggled.
@@ -125,6 +127,7 @@ class FeatureSelection:
             :param cb_select_all: the Select/Unselect all checkbox
             :param fct_select_all: function that is observed by the Select/Unselect
             all checkbox
+            :param local_selected_features: locally selected features
             :param all_features: list with all columns
             :return:
             """
@@ -134,44 +137,47 @@ class FeatureSelection:
             cb_select_all.unobserve(fct_select_all, "value")
             if b.new is False:
                 self.selected_features.remove(feature_value_dict[b.owner.description])
+                local_selected_features.remove(feature_value_dict[b.owner.description])
                 cb_select_all.value = False
             else:
                 self.selected_features.append(feature_value_dict[b.owner.description])
-                if len(self.selected_features) == len(all_features):
+                local_selected_features.append(feature_value_dict[b.owner.description])
+                if len(local_selected_features) == len(all_features):
                     cb_select_all.value = True
             # Observe the Select/Unselect all checkbox
             cb_select_all.observe(fct_select_all, "value")
 
-        selected_features = features.copy()
+        local_selected_features = features.copy()
 
         cbs = []
         cb_select_all_value = widgets.Checkbox(
             value=True, description="Select / Unselect all", indent=False
         )
+
         select_all_changed = functools.partial(select_all_changed, cbs=cbs)
         cb_select_all_value.observe(select_all_changed, "value")
-
-        cbs.append(cb_select_all_value)
+        # cbs.append(cb_select_all_value)
 
         value_cb_changed = functools.partial(
             value_cb_changed,
             cb_select_all=cb_select_all_value,
             fct_select_all=select_all_changed,
-            selected_features=selected_features,
+            local_selected_features=local_selected_features,
             all_features=features,
-            feature_value_dict=feature_value_dict,
+            # feature_value_dict=feature_value_dict,
         )
 
         sorted_values = sorted(feature_value_dict.keys())
-        cbs_vals = []
         for val in sorted_values:
             cb = widgets.Checkbox(value=True, description=val, indent=False)
             cb.observe(value_cb_changed, "value")
-            cbs_vals.append(cb)
-        cbs = cbs + cbs_vals
+            cbs.append(cb)
+
         # Create VBoxes with the checkboxes
         layout_cb_box = widgets.Layout(max_height="300px")
-        vbox_cbs_cat = widgets.VBox(children=cbs, layout=layout_cb_box)
+        vbox_cbs_cat = widgets.VBox(
+            children=[cb_select_all_value] + cbs, layout=layout_cb_box
+        )
 
         acc = widgets.Accordion(children=[vbox_cbs_cat], selected_index=None)
         acc.set_title(0, title)
@@ -180,7 +186,6 @@ class FeatureSelection:
     def _create_selection_tables(self, attr_display_name: str, column_dict: dict):
         """Create selections for table column features"""
         title = f"{attr_display_name}"
-
         # Checkboxes for columns
 
         def select_all_changed(b, cbs: List[widgets.Checkbox]):
@@ -201,6 +206,7 @@ class FeatureSelection:
             cb_select_all: widgets.Checkbox,
             fct_select_all: Callable,
             all_features: List[str],
+            local_selected_features: List[str],
             feature_value_dict: dict,
         ):
             """Define behaviour that happens when a value checkbox is toggled.
@@ -217,6 +223,7 @@ class FeatureSelection:
             :param cb_select_all: the Select/Unselect all checkbox
             :param fct_select_all: function that is observed by the Select/Unselect
             all checkbox
+            :param local_selected_features: locally selected features
             :param all_features: list with all columns
             :return:
             """
@@ -226,10 +233,12 @@ class FeatureSelection:
             cb_select_all.unobserve(fct_select_all, "value")
             if b.new is False:
                 self.selected_features.remove(feature_value_dict[b.owner.description])
+                local_selected_features.remove(feature_value_dict[b.owner.description])
                 cb_select_all.value = False
             else:
+                local_selected_features.append(feature_value_dict[b.owner.description])
                 self.selected_features.append(feature_value_dict[b.owner.description])
-                if len(self.selected_features) == len(all_features):
+                if len(local_selected_features) == len(all_features):
                     cb_select_all.value = True
             # Observe the Select/Unselect all checkbox
             cb_select_all.observe(fct_select_all, "value")
@@ -248,7 +257,7 @@ class FeatureSelection:
                     feature.df_column_name: feature for feature in features
                 }
 
-            selected_features = features.copy()
+            local_selected_features = features.copy()
 
             cbs = []
             cb_select_all_value = widgets.Checkbox(
@@ -257,42 +266,43 @@ class FeatureSelection:
             select_all_changed = functools.partial(select_all_changed, cbs=cbs)
             cb_select_all_value.observe(select_all_changed, "value")
 
-            cbs.append(cb_select_all_value)
+            # cbs.append(cb_select_all_value)
 
             value_cb_changed = functools.partial(
                 value_cb_changed,
                 cb_select_all=cb_select_all_value,
                 fct_select_all=select_all_changed,
-                selected_features=selected_features,
                 all_features=features,
+                local_selected_features=local_selected_features,
                 feature_value_dict=feature_value_dict,
             )
 
             sorted_values = sorted(feature_value_dict.keys())
-            cbs_vals = []
+
             for val in sorted_values:
                 cb = widgets.Checkbox(value=True, description=val, indent=False)
                 cb.observe(value_cb_changed, "value")
-                cbs_vals.append(cb)
-            cbs = cbs + cbs_vals
+                cbs.append(cb)
             # Create VBoxes with the checkboxes
             layout_cb_box = widgets.Layout(max_height="300px")
-            vbox_cbs_cat = widgets.VBox(children=cbs, layout=layout_cb_box)
+            vbox_cbs_cat = widgets.VBox(
+                children=[cb_select_all_value] + cbs, layout=layout_cb_box
+            )
 
             acc = widgets.Accordion(children=[vbox_cbs_cat], selected_index=None)
             acc.set_title(0, col)
             col_accordions.append(acc)
-            cbs_all = cbs_all + cbs_vals
+            cbs_all = cbs_all + [cb_select_all_value] + cbs
 
         cb_select_all_columns = widgets.Checkbox(
             value=True, description="Select / Unselect all " "columns", indent=False
         )
         select_all_changed = functools.partial(select_all_changed, cbs=cbs_all)
         cb_select_all_columns.observe(select_all_changed, "value")
+        vbox_accordions = VBox(children=[cb_select_all_columns] + col_accordions)
 
-        acc = widgets.Accordion(
-            children=[cb_select_all_columns] + col_accordions, selected_index=None
-        )
+        acc = widgets.Accordion(children=[vbox_accordions], selected_index=None)
         acc.set_title(0, title)
-        col_accordions.append(acc)
-        return col_accordions
+        # col_accordions.append(acc)
+
+        return acc
