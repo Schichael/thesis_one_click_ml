@@ -277,11 +277,16 @@ class AnalysisRoutingDecisions:
             case_duration_col_name=self.routing_decision_processor.case_duration_attribute.attribute_name,  # noqa
             num_cases=self.routing_decision_processor.num_cases,
         )
+        attributes = (
+            self.routing_decision_processor.used_static_attributes
+            + self.routing_decision_processor.used_dynamic_attributes
+        )
 
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
             self.routing_decision_processor.df_x,
             self.routing_decision_processor.df_target,
+            attributes,
             self.routing_decision_processor.features,
             self.routing_decision_processor.target_features,
             self.routing_decision_processor.df_timestamp_column,
@@ -299,6 +304,7 @@ class AnalysisRoutingDecisions:
             df_combined,
             features=self.routing_decision_processor.features,
             target_features=self.routing_decision_processor.target_features,
+            attributes=attributes,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 

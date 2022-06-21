@@ -221,10 +221,16 @@ class AnalysisTransitionViolation:
         # 3. Create the GUI
         out.append_stdout("\nCreatng GUI...")
 
+        attributes = (
+            self.transition_processor.used_static_attributes
+            + self.transition_processor.used_dynamic_attributes
+        )
+
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
             self.transition_processor.df_x,
             self.transition_processor.df_target,
+            attributes,
             self.transition_processor.features,
             self.transition_processor.target_features,
             self.transition_processor.df_timestamp_column,
@@ -242,6 +248,7 @@ class AnalysisTransitionViolation:
             df_combined,
             features=self.transition_processor.features,
             target_features=self.transition_processor.target_features,
+            attributes=attributes,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 

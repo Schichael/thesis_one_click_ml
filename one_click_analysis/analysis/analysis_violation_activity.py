@@ -208,10 +208,16 @@ class AnalysisActivityViolation:
         # 3. Create the GUI
         out.append_stdout("\nCreatng GUI...")
 
+        attributes = (
+            self.activity_processor.used_static_attributes
+            + self.activity_processor.used_dynamic_attributes
+        )
+
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
             self.activity_processor.df_x,
             self.activity_processor.df_target,
+            attributes,
             self.activity_processor.features,
             self.activity_processor.target_features,
             self.activity_processor.df_timestamp_column,
@@ -229,6 +235,7 @@ class AnalysisActivityViolation:
             df_combined,
             features=self.activity_processor.features,
             target_features=self.activity_processor.target_features,
+            attributes=attributes,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 

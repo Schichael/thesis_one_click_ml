@@ -217,10 +217,16 @@ class AnalysisIncompleteViolation:
         # 3. Create the GUI
         out.append_stdout("\nCreatng GUI...")
 
+        attributes = (
+            self.incomplete_processor.used_static_attributes
+            + self.incomplete_processor.used_dynamic_attributes
+        )
+
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
             self.incomplete_processor.df_x,
             self.incomplete_processor.df_target,
+            attributes,
             self.incomplete_processor.features,
             self.incomplete_processor.target_features,
             self.incomplete_processor.df_timestamp_column,
@@ -238,6 +244,7 @@ class AnalysisIncompleteViolation:
             df_combined,
             features=self.incomplete_processor.features,
             target_features=self.incomplete_processor.target_features,
+            attributes=attributes,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 

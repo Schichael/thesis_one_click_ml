@@ -242,11 +242,16 @@ class AnalysisCaseDuration:
             self.case_duration_processor.df_timestamp_column,
             self.case_duration_processor.num_cases,
         )
+        attributes = (
+            self.case_duration_processor.used_static_attributes
+            + self.case_duration_processor.used_dynamic_attributes
+        )
 
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
             self.case_duration_processor.df_x,
             self.case_duration_processor.df_target,
+            attributes,
             self.case_duration_processor.features,
             self.case_duration_processor.target_features,
             self.case_duration_processor.df_timestamp_column,
@@ -260,11 +265,6 @@ class AnalysisCaseDuration:
         df_combined[
             self.case_duration_processor.df_target.columns.tolist()
         ] = self.case_duration_processor.df_target
-
-        attributes = (
-            self.case_duration_processor.used_static_attributes
-            + self.case_duration_processor.used_dynamic_attributes
-        )
 
         self.dec_rule_screen = DecisionRulesScreen(
             df_combined,

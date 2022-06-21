@@ -266,10 +266,16 @@ class AnalysisTransitionTime:
             self.transition_time_processor.num_cases,
         )
 
+        attributes = (
+            self.transition_time_processor.used_static_attributes
+            + self.transition_time_processor.used_dynamic_attributes
+        )
+
         # Ceate statistical analysis tab
         self.stat_analysis_screen = StatisticalAnalysisScreen(
             self.transition_time_processor.df_x,
             self.transition_time_processor.df_target,
+            attributes,
             self.transition_time_processor.features,
             self.transition_time_processor.target_features,
             self.transition_time_processor.df_timestamp_column,
@@ -287,6 +293,7 @@ class AnalysisTransitionTime:
             df_combined,
             features=self.transition_time_processor.features,
             target_features=self.transition_time_processor.target_features,
+            attributes=attributes,
         )
         self.dec_rule_screen.create_decision_rule_screen()
 
