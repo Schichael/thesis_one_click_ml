@@ -790,7 +790,7 @@ class AttributeSelectionConfig(Configuration):
 
         # Add checkbox to Select/Unselect all columms as first checkbox
         cb_select_all = widgets.Checkbox(
-            value=True, description="Select / Unselect all", indent=False
+            value=False, description="Select / Unselect all", indent=False
         )
 
         cbs.append(cb_select_all)
