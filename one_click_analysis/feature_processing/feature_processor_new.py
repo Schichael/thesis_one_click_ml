@@ -32,7 +32,9 @@ from one_click_analysis.feature_processing.attributes.dynamic_attributes import 
 from one_click_analysis.feature_processing.attributes.dynamic_attributes import (
     PreviousActivityOccurrenceAttribute,
 )
-from one_click_analysis.feature_processing.attributes.static_attributes import ActivityOccurenceAttribute
+from one_click_analysis.feature_processing.attributes.static_attributes import (
+    ActivityOccurenceAttribute,
+)
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     CaseDurationAttribute,
 )
@@ -54,7 +56,9 @@ from one_click_analysis.feature_processing.attributes.static_attributes import (
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     StartActivityTimeAttribute,
 )
-from one_click_analysis.feature_processing.attributes.static_attributes import StaticActivityCountAttribute
+from one_click_analysis.feature_processing.attributes.static_attributes import (
+    StaticActivityCountAttribute,
+)
 from one_click_analysis.feature_processing.attributes.static_attributes import (
     StaticAttribute,
 )
