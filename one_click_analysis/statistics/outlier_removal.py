@@ -12,11 +12,13 @@ def remove_outliers_IQR(
     :param y_values: y-values
     :param apply_on_binary: If True, also apply on binary values.
     """
+    x_values = x_values.copy()
+    y_values = y_values.copy()
 
     # check if binary
     x_binary = False
     y_binary = False
-    if apply_on_binary:
+    if not apply_on_binary:
         unique_x = np.unique(x_values)
         unique_y = np.unique(y_values)
         num_els_x = len(unique_x)
@@ -31,10 +33,19 @@ def remove_outliers_IQR(
         if num_els_y < 3:
             y_binary = True
 
+    bool_non_nans = np.full(len(x_values), True, dtype=bool)
+
+    nans_x = np.where(np.isnan(x_values))[0]
+    bool_non_nans[nans_x] = False
+    nans_y = np.where(np.isnan(y_values))[0]
+    bool_non_nans[nans_y] = False
+
+    x_values = x_values[bool_non_nans]
+    y_values = y_values[bool_non_nans]
+
     if x_binary and y_binary:
         return x_values, y_values
 
-    # If there are only two values
     bool_inliers_x = bool_inliers_y = np.full(len(x_values), True, dtype=bool)
 
     if not x_binary:
@@ -42,7 +53,7 @@ def remove_outliers_IQR(
         q3_x = np.quantile(x_values, 0.75)
         iqr_x = q3_x - q1_x
         outlier_idxs_x = np.where(
-            (x_values < (q1_x - 1.5 * iqr_x)) & (x_values < (q3_x + 1.5 * iqr_x))
+            (x_values < (q1_x - 1.5 * iqr_x)) | (x_values > (q3_x + 1.5 * iqr_x))
         )[0]
         bool_inliers_x[outlier_idxs_x] = False
 
@@ -51,7 +62,7 @@ def remove_outliers_IQR(
         q3_y = np.quantile(y_values, 0.75)
         iqr_y = q3_y - q1_y
         outlier_idxs_y = np.where(
-            (y_values < (q1_y - 1.5 * iqr_y)) & (y_values > (q3_y + 1.5 * iqr_y))
+            (y_values < (q1_y - 1.5 * iqr_y)) | (y_values > (q3_y + 1.5 * iqr_y))
         )[0]
         bool_inliers_y[outlier_idxs_y] = False
 
