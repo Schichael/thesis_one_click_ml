@@ -145,6 +145,9 @@ class StatisticalAnalysisScreen:
 
             for feature in features_sorted:
                 corr = feature.metrics["correlations"][target_name]
+                p_value = feature.metrics["p_values"][target_name]
+                if p_value >= 0.05:
+                    continue
                 if (corr >= self.th) or (
                     feature.datatype == AttributeDataType.NUMERICAL
                     and abs(corr) >= self.th
@@ -268,7 +271,6 @@ class FeatureField:
         """
         target_name = self.target_feature.df_column_name
         corr = self.feature.metrics["correlations"][target_name]
-
         layout_padding = Layout(padding="0px 0px 0px 12px")
         correlation_html = '<span style="font-weight:bold"> Correlation: </span>' + str(
             round(corr, 2)
