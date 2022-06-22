@@ -4,6 +4,7 @@ from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDataType,
 )
 from one_click_analysis.statistics.outlier_removal import remove_outliers_IQR
+from one_click_analysis.statistics.significanvce_tests import compute_p_value
 
 
 class StatisticsComputer:
@@ -33,9 +34,21 @@ class StatisticsComputer:
                 )
 
                 corr = np.corrcoef(x_values_cleaned, y_values_cleaned)[1, 0]
+
                 if "correlations" not in feature.metrics:
                     feature.metrics["correlations"] = {}
                 feature.metrics["correlations"][target_feature.df_column_name] = corr
+
+                # Test for significance
+                p_value = compute_p_value(
+                    x_values_cleaned,
+                    y_values_cleaned,
+                    feature.attribute.data_type,
+                    target_feature.attribute.data_type,
+                )
+                if "p_values" not in feature.metrics:
+                    feature.metrics["p_values"] = {}
+                feature.metrics["p_values"][target_feature.df_column_name] = p_value
 
     def case_count_with_feature(self):
         # Do this for both normal and target features
