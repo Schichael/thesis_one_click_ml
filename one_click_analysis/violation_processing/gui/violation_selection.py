@@ -37,7 +37,6 @@ class ViolationSelectionScreen:
         violation_df: pd.DataFrame,
         timestamp_column: str,
         configurator: Configurator,
-        th: float,
         time_aggregation: str,
         update_tab_function: Callable,
     ):
@@ -54,7 +53,6 @@ class ViolationSelectionScreen:
         self.timestamp_column = timestamp_column
         self.update_tab_function = update_tab_function
         self.configurator = configurator
-        self.th = th
         self.violations_box = None
         self.violations_box_contents = []
         self.violation_selection_box = VBox()
@@ -95,7 +93,6 @@ class ViolationSelectionScreen:
                 timestamp_column=self.timestamp_column,
                 update_tab_function=self.update_tab_function,
                 configurator=self.configurator,
-                th=self.th,
             )
             violation_boxes.append(violation_field.violation_box)
         violation_boxes_list.append(violation_boxes)
@@ -152,7 +149,6 @@ class ViolationField:
         violation_screen_box: Box,
         time_aggregation: str,
         configurator: Configurator,
-        th: float,
         update_tab_function: Callable,
     ):
         """
@@ -169,7 +165,6 @@ class ViolationField:
         self.timestamp_column = timestamp_column
         self.violation_screen_box = violation_screen_box
         self.time_aggregation = time_aggregation
-        self.th = th
         self.configurator = configurator
         self.update_tab_function = update_tab_function
         self.analysis = None
@@ -331,7 +326,6 @@ class ViolationField:
             analysis = self.analysis(
                 configurator=self.configurator,
                 time_unit=self.time_aggregation,
-                th=self.th,
                 **self.specific_args,
             )
             analysis.run()
