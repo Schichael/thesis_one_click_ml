@@ -110,8 +110,9 @@ class WorkInProgressAttribute(StaticAttribute):
     # TODO Change the definition and implementation such that it is not aggregated
     #  over events but over time.
     description = (
-        "The mean number of different cases per event that happen within "
-        "the duration of a case."
+        "The mean work in progress during a case. For each event in the case, "
+        "the number of parallel running cases is computed. Then the mean value over "
+        "all events in the case is taken."
     )
 
     def __init__(
@@ -127,7 +128,9 @@ class WorkInProgressAttribute(StaticAttribute):
         self.activity_table = self.process_config.table_dict[activity_table_str]
         self.aggregation = aggregation
         aggregation_df_name = utils.get_aggregation_df_name(aggregation)
-        self.attribute_name = "Case Work in progress" + " (" + aggregation_df_name + ")"
+        self.attribute_name = (
+            "Case Work in progress during case" + " (" + aggregation_df_name + ")"
+        )
         pql_query = self._gen_query()
         super().__init__(
             process_config=self.process_config,
@@ -172,9 +175,7 @@ class WorkInProgressCaseStartAttribute(StaticAttribute):
     """Work in Progress at case start"""
 
     display_name = "Work in Progress at case start"
-    # TODO Change the definition and implementation such that it is not aggregated
-    #  over events but over time.
-    description = "The number of parallelly running cases at the start of a case."
+    description = "The number of parallel running cases at the start of a case."
 
     def __init__(
         self,
@@ -267,11 +268,8 @@ class EventCountAttribute(StaticAttribute):
 class ActivityOccurenceAttribute(StaticAttribute):
     """Rework occurence for a whole case"""
 
-    display_name = "Activity occurence in case"
-    description = (
-        "Whether or not a specific activity happened in a case (evaluates to 1 if "
-        "yes and to 0 if no)"
-    )
+    display_name = "Activity occurrence in case"
+    description = "Whether or not a specific activity happened in a case"
 
     def __init__(
         self,
@@ -936,7 +934,7 @@ class StaticActivityCountAttribute(StaticAttribute):
     """Number of times activity occurred in a case"""
 
     display_name = "Activity count"
-    description = "The number of times an activity has occured in the case"
+    description = "The number of times an activity occurred in the case"
 
     def __init__(
         self,
@@ -967,7 +965,10 @@ class StaticActivityCountAttribute(StaticAttribute):
 
     def _gen_query(self) -> pql.PQLColumn:
         q = f"""
-            COUNT("{self.activity_table.table_str}".
-            "{self.activity_table.activity_col_str}")
+            PU_SUM("{self.activity_table.case_table_str}",
+            CASE WHEN
+            "{self.activity_table.table_str}".
+            "{self.activity_table.activity_col_str}" = '{self.activity}'
+            THEN 1 ELSE 0 END)
         """
         return pql.PQLColumn(query=q, name=self.attribute_name)
