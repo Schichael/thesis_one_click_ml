@@ -84,8 +84,14 @@ class CaseDurationProcessor(UseCaseProcessor):
     # attributes that can be used for this use case
     work_in_progress_attr_descriptor = AttributeDescriptor(
         attribute_type=static_attributes.WorkInProgressAttribute,
-        display_name=static_attributes.WorkInProgressAttribute.display_name,
+        display_name="Work in progress during case (mean)",
         description=static_attributes.WorkInProgressAttribute.description,
+    )
+
+    work_in_progress_case_start_attr_descriptor = AttributeDescriptor(
+        attribute_type=static_attributes.WorkInProgressCaseStartAttribute,
+        display_name=static_attributes.WorkInProgressCaseStartAttribute.display_name,
+        description=static_attributes.WorkInProgressCaseStartAttribute.description,
     )
 
     start_activity_attr_descriptor = AttributeDescriptor(
@@ -106,10 +112,16 @@ class CaseDurationProcessor(UseCaseProcessor):
         description=static_attributes.ActivityOccurenceAttribute.description,
     )
 
+    activity_count_attr_descriptor = AttributeDescriptor(
+        attribute_type=static_attributes.StaticActivityCountAttribute,
+        display_name=static_attributes.StaticActivityCountAttribute.display_name,
+        description=static_attributes.StaticActivityCountAttribute.description,
+    )
+
     numeric_activity_table_col_attr_descriptor = AttributeDescriptor(
         attribute_type=static_attributes.NumericActivityTableColumnAttribute,
         display_name=static_attributes.NumericActivityTableColumnAttribute.display_name,
-        description=static_attributes.NumericActivityTableColumnAttribute.description,
+        description="Mean of the values of a numeric activity table column",
     )
 
     case_table_col_attr_descriptor = AttributeDescriptor(
@@ -122,7 +134,9 @@ class CaseDurationProcessor(UseCaseProcessor):
         start_activity_attr_descriptor,
         end_activity_attr_descriptor,
         activity_occurrence_attr_descriptor,
+        activity_count_attr_descriptor,
         work_in_progress_attr_descriptor,
+        work_in_progress_case_start_attr_descriptor,
         numeric_activity_table_col_attr_descriptor,
         case_table_col_attr_descriptor,
     ]
@@ -279,6 +293,19 @@ class CaseDurationProcessor(UseCaseProcessor):
             )
 
         if (
+            self.work_in_progress_case_start_attr_descriptor
+            in self.used_static_attribute_descriptors
+        ):
+            static_attributes_list.append(
+                static_attributes.WorkInProgressCaseStartAttribute(
+                    process_config=self.process_config,
+                    activity_table_str=self.activity_table_str,
+                    is_feature=True,
+                    is_class_feature=False,
+                )
+            )
+
+        if (
             self.start_activity_attr_descriptor
             in self.used_static_attribute_descriptors
         ):
@@ -312,9 +339,26 @@ class CaseDurationProcessor(UseCaseProcessor):
                     is_feature=True,
                     min_vals=min_attr_count,
                     max_vals=max_attr_count,
+                    filters=self.filters,
                 )
             )
             static_attributes_list = static_attributes_list + activity_occ_attributes
+
+        if (
+            self.activity_count_attr_descriptor
+            in self.used_static_attribute_descriptors
+        ):
+            activity_count_attributes = (
+                feature_processor_new.gen_static_activity_count_attributes(
+                    process_config=self.process_config,
+                    activity_table_str=self.activity_table_str,
+                    is_feature=True,
+                    min_vals=min_attr_count,
+                    max_vals=max_attr_count,
+                    filters=self.filters,
+                )
+            )
+            static_attributes_list = static_attributes_list + activity_count_attributes
 
         if (
             self.numeric_activity_table_col_attr_descriptor
