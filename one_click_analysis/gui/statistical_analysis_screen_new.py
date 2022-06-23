@@ -83,7 +83,7 @@ class StatisticalAnalysisScreen:
         """
         self.create_statistical_screen()
 
-    def create_title_attributes_box(self) -> VBox:
+    def create_title_attributes_box(self) -> HBox:
         """Create the title of the attributes box.
 
         :return: HTML widget with the title
@@ -321,7 +321,7 @@ class FeatureField:
                 + sign
                 + str(round(target_influence, 2))
                 + "\xa0"
-                + self.feature.unit
+                + self.target_feature.unit
             )
 
             case_duration_effect_label = HTML(effect_on_label_html)
@@ -404,6 +404,8 @@ class FeatureField:
                 case_level=True,
                 case_level_aggregation="max",
                 fill=True,
+                xaxis_title="Date",
+                yaxis_title="Number of Cases",
             )
 
             fig_widget = go.FigureWidget(fig_attribute_development.figure)
@@ -442,10 +444,15 @@ class FeatureField:
                     fill="tonexty",
                 )
             )
+            unit_str = (
+                f" ({self.target_feature.unit})"
+                if self.target_feature.unit is not None
+                else ""
+            )
             fig_effect.update_layout(
                 title=self.target_feature.df_column_name + " over attribute value",
-                xaxis_title=None,
-                yaxis_title=None,
+                xaxis_title="Attribute value",
+                yaxis_title=self.target_feature.df_column_name + unit_str,
                 height=250,
                 margin={"l": 5, "r": 10, "t": 40, "b": 10},
             )
@@ -462,6 +469,8 @@ class FeatureField:
                 case_level=False,
                 fill=True,
                 title="Attribute value development",
+                xaxis_title="Date",
+                yaxis_title="Average attribute value",
             )
 
             vbox_details = VBox(
