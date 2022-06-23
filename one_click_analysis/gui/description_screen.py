@@ -126,14 +126,19 @@ class DescriptionScreen:
             f"Descriptions</div>"
         )
         html_caption = HTML(html_caption_str)
-        static_description = self._create_atrributes_description_static_dynamic(
-            "static"
-        )
-        dynamic_description = self._create_atrributes_description_static_dynamic(
-            "dynamic"
-        )
+        children_vbox = [html_caption]
+        if len(self.static_attribute_descriptors) > 0:
+            static_description = self._create_atrributes_description_static_dynamic(
+                "static"
+            )
+            children_vbox.append(static_description)
+        if len(self.dynamic_attribute_descriptors) > 0:
+            dynamic_description = self._create_atrributes_description_static_dynamic(
+                "dynamic"
+            )
+            children_vbox.append(dynamic_description)
 
-        return VBox(children=[html_caption, static_description, dynamic_description])
+        return VBox(children=children_vbox)
 
     def _create_atrributes_description_static_dynamic(self, attr_type: str) -> VBox:
         """Create an HTML object with the descriptions of the static attributes.
