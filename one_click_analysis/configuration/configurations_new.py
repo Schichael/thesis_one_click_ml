@@ -114,9 +114,7 @@ class Configuration(abc.ABC):
         self._create_config_box()
 
         for sub_config in self.subsequent_configurations:
-            sub_config.update()
-            # sub_config.reset_local()
-            # sub_config.reset()
+            sub_config.update()  # sub_config.reset_local()  # sub_config.reset()  #
             # sub_config._create_config_box()
 
         # Create box
@@ -592,7 +590,7 @@ class AttributeSelectionConfig(Configuration):
             title = kwargs["title"]
             kwargs.pop("title")
         else:
-            title = f"Select attributes."
+            title = f"Select attributes"
 
         super().__init__(
             configurator=configurator,
@@ -985,7 +983,7 @@ class TransitionConfig(Configuration):
             options=activities,
             value=None,
             layout=Layout(overflow="auto", width="max-content", min_width="200"),
-            rows=10,
+            rows=7,
         )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(
@@ -1001,7 +999,7 @@ class TransitionConfig(Configuration):
             options=activities,
             value=None,
             layout=Layout(overflow="auto", width="max-content"),
-            rows=10,
+            rows=7,
         )
         target_activity_selection.observe(on_target_activity_clicked, "value")
         vbox_target_activity_selection = VBox(
@@ -1134,7 +1132,7 @@ class DecisionConfig(Configuration):
             options=activities,
             value=None,
             layout=Layout(overflow="auto", width="max-content", min_width="200"),
-            rows=10,
+            rows=7,
         )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(
@@ -1356,7 +1354,7 @@ class ReworkActivitySelection(Configuration):
             options=activity_description_dict_reverse.keys(),
             value=None,
             layout=Layout(overflow="auto", width="max-content", min_width="200"),
-            rows=10,
+            rows=7,
         )
         activity_selection.observe(on_activity_clicked, "value")
         vbox_activities_selection = VBox(
@@ -1504,7 +1502,8 @@ class IsClosedConfig(Configuration):
 
         html_activity_picking = HTML(
             '<div style="line-height:140%; margin-top: 5px; '
-            'margin-bottom: 0px; font-size: 14px;"> Pick '
+            "margin-bottom: 0px; font-size: 14px; "
+            '"> Pick '
             "activities:</div>"
         )
 
@@ -1543,13 +1542,20 @@ class IsClosedConfig(Configuration):
             layout=Layout(height="235px", width="max-content", min_width="200"),
         )
 
+        pick_query_str = (
+            '<div style="line-height:140%; margin-top: 5px; '
+            'margin-bottom: 0px; font-size: 14px;"> '
+            "Enter "
+            "PQL query:</div>"
+        )
+        html_pick_query = HTML(
+            pick_query_str, layout=Layout(margin="15px 0px 0px " "0px")
+        )
         pql_text_area = widgets.Textarea(
             value="",
             placeholder="Enter PQL query",
-            description="Enter PQL query",
-            layout=widgets.Layout(width="auto", margin="15px 0px 0px " "0px"),
-            rows=5,
-            style={"description_width": "initial"},
+            layout=widgets.Layout(width="auto"),
+            rows=2,
         )
 
         # Create Apply button
@@ -1584,6 +1590,7 @@ class IsClosedConfig(Configuration):
                 html_descr_picking_choice,
                 html_activity_picking,
                 vbox_activities_selection,
+                html_pick_query,
                 pql_text_area,
                 apply_button,
             ]
