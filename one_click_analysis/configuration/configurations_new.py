@@ -73,8 +73,7 @@ class Configuration(abc.ABC):
         html_caption_str = (
             f'<span style="font-weight:'
             f"{self.get_html_str_caption_bold()}; font-size"
-            f':{self.caption_size}px">{title} ('
-            f"{self.optional_or_required_str})</span>"
+            f':{self.caption_size}px">{title} </span>'
         )
         return html_caption_str
 
@@ -735,10 +734,12 @@ class AttributeSelectionConfig(Configuration):
 
         vbox_cbs_static = widgets.VBox(children=[static_header] + cbs_static)
         vbox_cbs_dynamic = widgets.VBox(children=[dynamic_header] + cbs_dynamic)
-
-        vbox_cbs = widgets.VBox(
-            children=[vbox_cbs_static, vbox_cbs_dynamic] + cbs_activity_case_table
-        )
+        children_vbox_cbs = []
+        if len(cbs_static) > 0:
+            children_vbox_cbs.append(vbox_cbs_static)
+        if len(cbs_dynamic) > 0:
+            children_vbox_cbs.append(vbox_cbs_dynamic)
+        vbox_cbs = widgets.VBox(children=children_vbox_cbs + cbs_activity_case_table)
 
         html_title = widgets.HTML(self.html_caption_str)
         vbox_all_attributes = widgets.VBox(children=[html_title, vbox_cbs])
