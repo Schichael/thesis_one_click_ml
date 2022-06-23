@@ -4,6 +4,7 @@ from typing import Union
 
 import pandas as pd
 import plotly.graph_objects as go
+from ipywidgets import BoundedFloatText
 from ipywidgets import Box
 from ipywidgets import Button
 from ipywidgets import Dropdown
@@ -29,7 +30,7 @@ class StatisticalAnalysisScreen:
         target_features: List[Feature],
         timestamp_column: str,
         datapoint_str: str,
-        th: float,
+        th: float = 0.3,
     ):
         """
         :param datapoint_str: string of the name of a datapoint. E.g. 'Cases' or
@@ -92,12 +93,15 @@ class StatisticalAnalysisScreen:
             label_str = self.target_features[0].df_column_name
             title_attributes_html_str = (
                 '<span style="font-weight:bold;  font-size:16px"> '
-                "Attributes with potential effect on " + label_str + ":</span>"
+                "Attributes with a significant correlation with "
+                + label_str
+                + ":</span>"
             )
         else:
             title_attributes_html_str = (
                 '<span style="font-weight:bold;  font-size:16px"> '
-                "Attributes with potential effect on </span>"
+                "Attributes with a significant correlation with "
+                "</span>"
             )
 
         title_attributes_html = HTML(title_attributes_html_str)
@@ -105,6 +109,31 @@ class StatisticalAnalysisScreen:
         def drop_down_on_change(change):
             if change.new != change.old:
                 self.attributes_box.children = self.attributes_box_contents[change.new]
+
+        threshold_selection_layout = Layout(max_width="200px")
+
+        threshold_selection = BoundedFloatText(
+            value=self.th,
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            description="Correlation threshold: ",
+            layout=threshold_selection_layout,
+            style={"description_width": "initial"},
+        )
+
+        apply_button = Button(
+            description="Apply threshold",
+            layout=Layout(width="130px"),
+        )
+
+        def on_button_clicked(b):
+            self.th = threshold_selection.value
+            self.create_statistical_screen()
+
+        apply_button.on_click(on_button_clicked)
+
+        vbox_th_selection = VBox(children=[threshold_selection, apply_button])
 
         if len(self.target_features) == 1:
             title_box = VBox(children=[title_attributes_html])
@@ -118,9 +147,13 @@ class StatisticalAnalysisScreen:
             dropdown.observe(drop_down_on_change, "value")
             title_box = VBox(children=[title_attributes_html, dropdown])
 
+        hbox_title = HBox(children=[title_box, vbox_th_selection])
+        hbox_title.layout = Layout(
+            margin="5px 0px 0px 0px", justify_content="space-between"
+        )
         title_box.layout = title_attributes_box_layout
 
-        return title_box
+        return hbox_title
 
     def create_features_box_contents(self):
         feature_boxes_list = []
