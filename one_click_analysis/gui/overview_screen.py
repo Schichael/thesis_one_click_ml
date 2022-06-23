@@ -102,6 +102,10 @@ class OverviewScreenCaseDuration(OverviewScreen):
         df_target_with_case_time[self.timestamp_column] = self.df_x[
             self.timestamp_column
         ]
+        fig_case_duration_development_args = {
+            "xaxis_title": "Date",
+            "yaxis_title": "Average case duration (Days)",
+        }
 
         fig_case_duration_development = AttributeDevelopmentFigure(
             df=df_target_with_case_time,
@@ -110,14 +114,20 @@ class OverviewScreenCaseDuration(OverviewScreen):
             fill=True,
             case_level=False,
             title="Case duration development",
+            **fig_case_duration_development_args,
         )
 
+        fig_distribution_args = {
+            "xaxis_title": "Case duration (Days)",
+            "yaxis_title": "Number of cases",
+        }
         # case duration distribution
         fig_distribution = DistributionFigure(
             df=self.df_target,
             attribute_col=self.target_features[0].df_column_name,
             attribute_name="Case duration",
             num_bins=10,
+            **fig_distribution_args,
         )
 
         return self.create_box(
