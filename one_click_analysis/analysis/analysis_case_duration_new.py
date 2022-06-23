@@ -25,7 +25,7 @@ from one_click_analysis.gui.statistical_analysis_screen_new import (
 class AnalysisCaseDuration:
     """Analysis of potential effects on case duration."""
 
-    def __init__(self, th: float = 0.3, login=None):
+    def __init__(self, login=None):
         """
 
         :param datamodel: datamodel name or id
@@ -34,7 +34,6 @@ class AnalysisCaseDuration:
 
         self.activity_table_str = None
         self.datamodel = None
-        self.th = th
         self.login = login
         self.dm = None
         self.process_config = None
@@ -88,7 +87,7 @@ class AnalysisCaseDuration:
         )
         self.description_view.create_description_screen()
 
-    def _create_config(self, out):
+    def _create_config(self):
         """Create config view.
         The analysis needs the following configs:
         DatamodelConfig
@@ -156,16 +155,12 @@ class AnalysisCaseDuration:
                 config_attributeselector,
             ],
             run_analysis=self.run_analysis,
-            out=out,
         )
 
     def run(self):
-        out = widgets.Output(layout={"border": "1px solid black"})
-        display(out)
-        out.append_stdout("\nConfiguration...")
         # 1. Connect to Celonis and get dm
         self._create_description()
-        self._create_config(out=out)
+        self._create_config()
 
         # 2. Create FeatureProcessor and Configurator
         # self.process_config =
@@ -181,10 +176,8 @@ class AnalysisCaseDuration:
         )
         display(self.tabs)
 
-    def run_analysis(self, out: widgets.Output):
+    def run_analysis(self):
         # Reset fp from a previous run
-        out.append_stdout("\nFetching data and preprocessing...")
-
         # Get configurations
         datepicker_configs = self.configurator.config_dict.get("datepicker")
         if datepicker_configs is not None:
@@ -228,10 +221,8 @@ class AnalysisCaseDuration:
             end_date=end_date,
         )
         self.case_duration_processor.process()
-        out.append_stdout("\nDone")
 
         # 3. Create the GUI
-        out.append_stdout("\nCreatng GUI...")
 
         # Create overview box
         self.overview_screen = OverviewScreenCaseDuration(
@@ -256,7 +247,6 @@ class AnalysisCaseDuration:
             self.case_duration_processor.target_features,
             self.case_duration_processor.df_timestamp_column,
             datapoint_str="Cases",
-            th=self.th,
         )
         self.stat_analysis_screen.create_statistical_screen()
 

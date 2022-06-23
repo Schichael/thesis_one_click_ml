@@ -26,7 +26,6 @@ class AnalysisTransitionViolation:
         target_activity: str,
         configurator: Configurator,
         time_unit: str = "DAYS",
-        th: float = 0.3,
     ):
         """
 
@@ -38,7 +37,6 @@ class AnalysisTransitionViolation:
         self.configurator = self._create_initial_configurator(configurator)
         self.time_unit = time_unit
         self.datamodel = None
-        self.th = th
         self.source_activity = source_activity
         self.target_activity = target_activity
         self.dm = None
@@ -109,7 +107,7 @@ class AnalysisTransitionViolation:
         )
         self.description_view.create_description_screen()
 
-    def _create_config(self, out):
+    def _create_config(self):
         """Create config view.
         The analysis needs the following configs:
         DatamodelConfig
@@ -141,16 +139,12 @@ class AnalysisTransitionViolation:
                 config_attributeselector,
             ],
             run_analysis=self.run_analysis,
-            out=out,
         )
 
     def run(self):
-        out = widgets.Output(layout={"border": "1px solid black"})
-        display(out)
-        out.append_stdout("\nConfiguration...")
         # 1. Connect to Celonis and get dm
         self._create_description()
-        self._create_config(out=out)
+        self._create_config()
 
         # 2. Create FeatureProcessor and Configurator
         # self.process_config =
@@ -166,9 +160,8 @@ class AnalysisTransitionViolation:
         )
         display(self.tabs)
 
-    def run_analysis(self, out: widgets.Output):
+    def run_analysis(self):
         # Reset fp from a previous run
-        out.append_stdout("\nFetching data and preprocessing...")
 
         # Get configurations
         datepicker_configs = self.configurator.config_dict.get("datepicker")
@@ -216,10 +209,6 @@ class AnalysisTransitionViolation:
             end_date=end_date,
         )
         self.transition_processor.process()
-        out.append_stdout("\nDone")
-
-        # 3. Create the GUI
-        out.append_stdout("\nCreatng GUI...")
 
         attributes = (
             self.transition_processor.used_static_attributes
@@ -235,7 +224,6 @@ class AnalysisTransitionViolation:
             self.transition_processor.target_features,
             self.transition_processor.df_timestamp_column,
             datapoint_str="Cases",
-            th=self.th,
         )
         self.stat_analysis_screen.create_statistical_screen()
 

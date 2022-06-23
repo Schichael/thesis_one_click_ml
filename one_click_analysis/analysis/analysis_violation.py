@@ -28,7 +28,7 @@ from one_click_analysis.violation_processing.violation_processor import (
 class AnalysisViolation:
     """Analysis of potential effects on case duration."""
 
-    def __init__(self, th: float = 0.3, login=None):
+    def __init__(self, login=None):
         """
 
         :param datamodel: datamodel name or id
@@ -37,7 +37,6 @@ class AnalysisViolation:
 
         self.activity_table_str = None
         self.datamodel = None
-        self.th = th
         self.login = login
         self.dm = None
         self.process_config = None
@@ -79,7 +78,7 @@ class AnalysisViolation:
         )
         self.description_view.create_description_screen()
 
-    def _create_config(self, out):
+    def _create_config(self):
         """Create config view.
         The analysis needs the following configs:
         DatamodelConfig
@@ -138,16 +137,12 @@ class AnalysisViolation:
                 config_conformance_query,
             ],
             run_analysis=self.run_analysis,
-            out=out,
         )
 
     def run(self):
-        out = widgets.Output(layout={"border": "1px solid black"})
-        display(out)
-        out.append_stdout("\nConfiguration...")
         # 1. Connect to Celonis and get dm
         self._create_description()
-        self._create_config(out=out)
+        self._create_config()
 
         # 2. Create FeatureProcessor and Configurator
         # self.process_config =
@@ -162,9 +157,8 @@ class AnalysisViolation:
         )
         display(self.tabs)
 
-    def run_analysis(self, out: widgets.Output):
+    def run_analysis(self):
         # Reset fp from a previous run
-        out.append_stdout("\nFetching data and preprocessing...")
 
         # Get configurations
         # datepicker_configs = self.configurator.config_dict.get("datepicker")
@@ -197,7 +191,6 @@ class AnalysisViolation:
             time_aggregation=self.time_unit,
             configurator=self.configurator,
             update_tab_function=self.update_analysis_tab,
-            th=self.th,
         )
 
         self.violation_selection_screen.create_violation_selection_screen()

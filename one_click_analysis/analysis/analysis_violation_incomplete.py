@@ -1,6 +1,5 @@
 from typing import List
 
-from IPython.display import display
 from ipywidgets import Tab
 from ipywidgets import widgets
 
@@ -24,7 +23,6 @@ class AnalysisIncompleteViolation:
         self,
         configurator: Configurator,
         time_unit: str = "DAYS",
-        th: float = 0.3,
     ):
         """
 
@@ -36,7 +34,6 @@ class AnalysisIncompleteViolation:
         self.configurator = self._create_initial_configurator(configurator)
         self.time_unit = time_unit
         self.datamodel = None
-        self.th = th
         self.dm = None
         self.process_config = None
         self.incomplete_processor = None
@@ -100,7 +97,7 @@ class AnalysisIncompleteViolation:
         )
         self.description_view.create_description_screen()
 
-    def _create_config(self, out):
+    def _create_config(self):
         """Create config view.
         The analysis needs the following configs:
         DatamodelConfig
@@ -134,16 +131,13 @@ class AnalysisIncompleteViolation:
                 config_attributeselector,
             ],
             run_analysis=self.run_analysis,
-            out=out,
         )
 
     def run(self):
-        out = widgets.Output(layout={"border": "1px solid black"})
-        display(out)
-        out.append_stdout("\nConfiguration...")
+
         # 1. Connect to Celonis and get dm
         self._create_description()
-        self._create_config(out=out)
+        self._create_config()
 
         # 2. Create FeatureProcessor and Configurator
         # self.process_config =
@@ -159,9 +153,8 @@ class AnalysisIncompleteViolation:
         )
         # display(self.tabs)
 
-    def run_analysis(self, out: widgets.Output):
+    def run_analysis(self):
         # Reset fp from a previous run
-        out.append_stdout("\nFetching data and preprocessing...")
 
         # Get configurations
         datepicker_configs = self.configurator.config_dict.get("datepicker")
@@ -212,10 +205,8 @@ class AnalysisIncompleteViolation:
             end_date=end_date,
         )
         self.incomplete_processor.process()
-        out.append_stdout("\nDone")
 
         # 3. Create the GUI
-        out.append_stdout("\nCreatng GUI...")
 
         attributes = (
             self.incomplete_processor.used_static_attributes
@@ -231,7 +222,6 @@ class AnalysisIncompleteViolation:
             self.incomplete_processor.target_features,
             self.incomplete_processor.df_timestamp_column,
             datapoint_str="Cases",
-            th=self.th,
         )
         self.stat_analysis_screen.create_statistical_screen()
 

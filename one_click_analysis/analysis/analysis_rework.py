@@ -27,7 +27,7 @@ from one_click_analysis.gui.statistical_analysis_screen_new import (
 class AnalysisRework:
     """Analysis of potential effects on case duration."""
 
-    def __init__(self, th: float = 0.3, login: Optional[dict] = None):
+    def __init__(self, login: Optional[dict] = None):
         """
 
         :param datamodel: datamodel name or id
@@ -36,7 +36,6 @@ class AnalysisRework:
 
         self.activity_table_str = None
         self.datamodel = None
-        self.th = th
         self.login = login
         self.dm = None
         self.process_config = None
@@ -89,7 +88,7 @@ class AnalysisRework:
         )
         self.description_view.create_description_screen()
 
-    def _create_config(self, out):
+    def _create_config(self):
         """Create config view.
         The analysis needs the following configs:
         DatamodelConfig
@@ -168,16 +167,12 @@ class AnalysisRework:
                 config_attributeselector,
             ],
             run_analysis=self.run_analysis,
-            out=out,
         )
 
     def run(self):
-        out = widgets.Output(layout={"border": "1px solid black"})
-        display(out)
         self._create_description()
-        out.append_stdout("\nConfiguration...")
         # 1. Connect to Celonis and get dm
-        self._create_config(out=out)
+        self._create_config()
 
         # 2. Create FeatureProcessor and Configurator
         # self.process_config =
@@ -274,7 +269,6 @@ class AnalysisRework:
             self.rework_processor.target_features,
             self.rework_processor.df_timestamp_column,
             datapoint_str="Cases",
-            th=self.th,
         )
         self.stat_analysis_screen.create_statistical_screen()
 
