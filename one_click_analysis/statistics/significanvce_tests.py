@@ -42,12 +42,16 @@ def chisquare_test(x: np.ndarray, y: np.ndarray):
     indices_x_0 = np.where(x == 0)[0]
     indices_x_1 = np.where(x == 1)[0]
 
-    num_0_0 = np.unique(y[indices_x_0], return_counts=True)[1][0]
-    num_0_1 = np.unique(y[indices_x_0], return_counts=True)[1][1]
-    num_1_0 = np.unique(y[indices_x_1], return_counts=True)[1][0]
-    num_1_1 = np.unique(y[indices_x_1], return_counts=True)[1][1]
+    try:
+        num_0_0 = np.unique(y[indices_x_0], return_counts=True)[1][0]
+        num_0_1 = np.unique(y[indices_x_0], return_counts=True)[1][1]
+        num_1_0 = np.unique(y[indices_x_1], return_counts=True)[1][0]
+        num_1_1 = np.unique(y[indices_x_1], return_counts=True)[1][1]
 
-    p_val = chi2_contingency([[num_0_0, num_0_1], [num_1_0, num_1_1]])[1]
+        p_val = chi2_contingency([[num_0_0, num_0_1], [num_1_0, num_1_1]])[1]
+    except IndexError:
+        return 0
+
     return p_val
 
 
@@ -64,6 +68,9 @@ def ttest(x_binary: np.array, y_cont: np.array):
     """
     indices_x_0 = np.where(x_binary == 0)[0]
     indices_x_1 = np.where(x_binary == 1)[0]
+
+    if len(indices_x_0) < 1 or len(indices_x_1) < 1:
+        return 1
 
     y_vals_x0 = y_cont[indices_x_0]
     y_vals_x1 = y_cont[indices_x_1]

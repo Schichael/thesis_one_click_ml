@@ -711,7 +711,7 @@ class NumericActivityTableColumnAttribute(StaticAttribute):
 class CaseTableColumnAttribute(StaticAttribute):
     """Any case table column."""
 
-    display_name = "Case table column"
+    display_name = "Case-level table column"
     description = "the value of a colum in a case-level table"
 
     def __init__(

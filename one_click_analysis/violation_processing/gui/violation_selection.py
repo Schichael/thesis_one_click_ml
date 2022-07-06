@@ -24,7 +24,7 @@ from one_click_analysis.analysis.analysis_violation_start_activity import (
 from one_click_analysis.analysis.analysis_violation_transition import (
     AnalysisTransitionViolation,
 )
-from one_click_analysis.configuration.configurator_class import Configurator
+from one_click_analysis.configuration.configurator import Configurator
 from one_click_analysis.gui.figures import AttributeDevelopmentFigure
 from one_click_analysis.violation_processing.violation import Violation
 from one_click_analysis.violation_processing.violation import ViolationType

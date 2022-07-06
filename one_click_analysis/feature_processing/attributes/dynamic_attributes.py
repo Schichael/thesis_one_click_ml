@@ -244,7 +244,7 @@ class PreviousActivityOccurrenceAttribute(DynamicAttribute):
     display_name = "Previous occurrence of activity"
     description = (
         "Checks whether or not an activity has occured before the current "
-        "event (evaluates to 1 if yes and to 0 if no)"
+        "event"
     )
 
     def __init__(
@@ -268,6 +268,7 @@ class PreviousActivityOccurrenceAttribute(DynamicAttribute):
             attribute_type=AttributeType.OTHER,
             process_config=self.process_config,
             attribute_name=self.attribute_name,
+            value=activity,
             is_feature=is_feature,
             is_class_feature=is_class_feature,
             **kwargs,

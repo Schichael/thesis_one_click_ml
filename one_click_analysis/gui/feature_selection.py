@@ -4,7 +4,7 @@ from typing import Callable
 from typing import List
 
 import ipywidgets as widgets
-from ipywidgets import HTML
+from ipywidgets import HTML, Layout
 from ipywidgets import VBox
 
 from one_click_analysis.feature_processing.attributes.attribute import Attribute
@@ -50,7 +50,7 @@ class FeatureSelection:
         return column_feature_dict
 
     def _create_button_checkboxes(self, checkboxes: List[widgets.Checkbox]):
-        button = widgets.Button(description="Select all features")
+        button = widgets.Button(description="Select all attributes")
 
         def on_button_clicked(b):
             for cb in checkboxes:
@@ -85,13 +85,13 @@ class FeatureSelection:
 
         title = (
             f'<div style="line-height:140%;font-weight:bold; font-size: '
-            f'14px">Select features to use'
+            f'14px">Select attributes to use'
         )
         title_html = HTML(title)
         self.button_checkboxes = self._create_button_checkboxes(checkboxes=checkboxes)
         accordions_vbox = VBox(children=[self.button_checkboxes] + accordions)
         acc = widgets.Accordion(children=[accordions_vbox], selected_index=None)
-        acc.set_title(0, "Select features")
+        acc.set_title(0, "Select attributes")
 
         selection_box = VBox(children=[title_html, acc])
         return selection_box, checkboxes
@@ -167,7 +167,8 @@ class FeatureSelection:
 
         cbs = []
         cb_select_all_value = widgets.Checkbox(
-            value=True, description="Select / Unselect all", indent=False
+            value=True, description="Select / Unselect all", indent=False,
+            style={'description_width': 'initial'}
         )
 
         select_all_changed = functools.partial(select_all_changed, cbs=cbs)
@@ -185,7 +186,8 @@ class FeatureSelection:
 
         sorted_values = sorted(feature_value_dict.keys())
         for val in sorted_values:
-            cb = widgets.Checkbox(value=True, description=val, indent=False)
+            cb = widgets.Checkbox(value=True, description=val, indent=False,
+            style={'description_width': 'initial'})
             cb.observe(value_cb_changed, "value")
             cbs.append(cb)
 
@@ -277,7 +279,8 @@ class FeatureSelection:
 
             cbs = []
             cb_select_all_value = widgets.Checkbox(
-                value=True, description="Select / Unselect all", indent=False
+                value=True, description="Select / Unselect all", indent=False,
+            style={'description_width': 'initial'}
             )
             select_all_changed = functools.partial(select_all_changed, cbs=cbs)
             cb_select_all_value.observe(select_all_changed, "value")
@@ -296,7 +299,8 @@ class FeatureSelection:
             sorted_values = sorted(feature_value_dict.keys())
 
             for val in sorted_values:
-                cb = widgets.Checkbox(value=True, description=val, indent=False)
+                cb = widgets.Checkbox(value=True, description=val, indent=False,
+            style={'description_width': 'initial'})
                 cb.observe(value_cb_changed, "value")
                 cbs.append(cb)
             # Create VBoxes with the checkboxes
@@ -311,7 +315,8 @@ class FeatureSelection:
             cbs_all = cbs_all + [cb_select_all_value] + cbs
 
         cb_select_all_columns = widgets.Checkbox(
-            value=True, description="Select / Unselect all " "columns", indent=False
+            value=True, description="Select / Unselect all " "columns", indent=False,
+            style={'description_width': 'initial'}
         )
         select_all_changed = functools.partial(select_all_changed, cbs=cbs_all)
         cb_select_all_columns.observe(select_all_changed, "value")

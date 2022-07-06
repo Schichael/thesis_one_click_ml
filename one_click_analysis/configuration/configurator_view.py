@@ -6,7 +6,7 @@ from ipywidgets import HTML
 from ipywidgets import Layout
 from ipywidgets import VBox
 
-from one_click_analysis.configuration.configurations_new import Configuration
+from one_click_analysis.configuration.configurations import Configuration
 
 
 class ConfiguratorView:

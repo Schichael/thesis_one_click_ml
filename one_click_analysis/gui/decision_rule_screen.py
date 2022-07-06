@@ -142,7 +142,7 @@ class DecisionRulesScreen:
 
     def _create_button_feature_changes(self):
         button = Button(
-            description="Apply feature selection (Will reset the "
+            description="Apply attribute selection (Will reset the "
             "decision rule analysis)",
             layout=Layout(width="380px"),
         )

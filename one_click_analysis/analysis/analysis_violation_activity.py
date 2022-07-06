@@ -3,15 +3,15 @@ from typing import List
 from ipywidgets import Tab
 from ipywidgets import widgets
 
-from one_click_analysis.configuration.configurations_new import AttributeSelectionConfig
-from one_click_analysis.configuration.configurator_class import Configurator
-from one_click_analysis.configuration.configurator_new import ConfiguratorView
+from one_click_analysis.configuration.configurations import AttributeSelectionConfig
+from one_click_analysis.configuration.configurator import Configurator
+from one_click_analysis.configuration.configurator_view import ConfiguratorView
 from one_click_analysis.feature_processing.processors.analysis_processors import (
     ActivityProcessor,
 )
 from one_click_analysis.gui.decision_rule_screen import DecisionRulesScreen
 from one_click_analysis.gui.description_screen import DescriptionScreen
-from one_click_analysis.gui.statistical_analysis_screen_new import (
+from one_click_analysis.gui.statistical_analysis_screen import (
     StatisticalAnalysisScreen,
 )
 

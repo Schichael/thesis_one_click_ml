@@ -62,7 +62,7 @@ class StatisticalAnalysisScreen:
 
     def _create_button_feature_changes(self):
         button = Button(
-            description="Apply feature selection",
+            description="Apply attribute selection",
             layout=Layout(width="380px"),
         )
 

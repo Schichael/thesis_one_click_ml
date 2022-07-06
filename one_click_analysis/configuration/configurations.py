@@ -23,7 +23,7 @@ from pycelonis.celonis_api.pql.pql import PQLColumn
 from pycelonis.celonis_api.pql.pql import PQLFilter
 
 from one_click_analysis import utils
-from one_click_analysis.configuration.configurator_class import Configurator
+from one_click_analysis.configuration.configurator import Configurator
 from one_click_analysis.feature_processing.attributes.attribute import (
     AttributeDescriptor,
 )
@@ -983,7 +983,7 @@ class TransitionConfig(Configuration):
             options=activities,
             value=None,
             layout=Layout(overflow="auto", width="max-content", min_width="200"),
-            rows=7,
+            rows=10,
         )
         source_activity_selection.observe(on_source_activity_clicked, "value")
         vbox_source_activity_selection = VBox(

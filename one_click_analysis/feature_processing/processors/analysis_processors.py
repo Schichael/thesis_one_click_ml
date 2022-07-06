@@ -725,7 +725,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
         attribute_type=PreviousActivityOccurrenceAttribute,
         display_name=PreviousActivityOccurrenceAttribute.display_name,
         description="Checks whether or not an activity has occured before the source "
-        "activity (evaluates to 1 if yes and to 0 if no)",
+        "activity",
     )
     # PreviousActivityOccurrenceAttribute
     potential_static_attributes_descriptors = [
@@ -1105,6 +1105,7 @@ class RoutingDecisionProcessor(UseCaseProcessor):
                     columns=self.considered_activity_table_cols,
                     is_feature=True,
                     is_class_feature=False,
+                    suffix="",
                 )
             )
             dynamic_attributes_list = (
@@ -1610,6 +1611,7 @@ class StartActivityProcessor(UseCaseProcessor):
                     columns=self.considered_activity_table_cols,
                     is_feature=True,
                     is_class_feature=False,
+                    suffix=""
                 )
             )
             dynamic_attributes_list = (

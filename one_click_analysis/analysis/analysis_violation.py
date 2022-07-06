@@ -7,13 +7,13 @@ from ipywidgets import Tab
 from ipywidgets import VBox
 from ipywidgets import widgets
 
-from one_click_analysis.configuration.configurations_new import ActivityTableConfig
-from one_click_analysis.configuration.configurations_new import ConformanceQueryConfig
-from one_click_analysis.configuration.configurations_new import DatamodelConfig
-from one_click_analysis.configuration.configurations_new import DatePickerConfig
-from one_click_analysis.configuration.configurations_new import IsClosedConfig
-from one_click_analysis.configuration.configurator_class import Configurator
-from one_click_analysis.configuration.configurator_new import ConfiguratorView
+from one_click_analysis.configuration.configurations import ActivityTableConfig
+from one_click_analysis.configuration.configurations import ConformanceQueryConfig
+from one_click_analysis.configuration.configurations import DatamodelConfig
+from one_click_analysis.configuration.configurations import DatePickerConfig
+from one_click_analysis.configuration.configurations import IsClosedConfig
+from one_click_analysis.configuration.configurator import Configurator
+from one_click_analysis.configuration.configurator_view import ConfiguratorView
 from one_click_analysis.gui.description_screen import DescriptionScreen
 from one_click_analysis.violation_processing.gui.violation_selection import (
     ViolationSelectionScreen,
